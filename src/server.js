@@ -83,12 +83,17 @@ app.get('/api/fda/detail', async (req, res, next) => {
 });
 
 /**
- * Where the record's own page is served from. Locally that is this same
- * process; on a deployment the static files sit on the CDN, so it is whatever
- * host the request arrived on.
+ * Where the record's own page is served from, for the PDF to be rendered
+ * against. Normally that is this very process, and it has to be: Chromium
+ * runs beside it, so a container's public address — a port mapped from
+ * outside — is not reachable from within. Only a serverless deployment,
+ * which has no local server at all, asks the request where it came from and
+ * fetches the page from the CDN.
  */
 function origin(req) {
-  return `${req.protocol}://${req.get('host')}`;
+  return config.serverless
+    ? `${req.protocol}://${req.get('host')}`
+    : `http://127.0.0.1:${config.port}`;
 }
 
 /**

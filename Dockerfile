@@ -1,6 +1,6 @@
 # The web UI is built here and only its output is carried over, so web/'s
 # node_modules never reaches the running image.
-FROM node:20-slim AS web
+FROM node:22-slim AS web
 WORKDIR /app
 COPY web/package.json web/package-lock.json ./web/
 RUN npm --prefix web ci
@@ -9,7 +9,7 @@ COPY web ./web
 RUN npm --prefix web run build
 
 
-FROM node:20-slim
+FROM node:22-slim
 
 # Chromium comes from Debian rather than puppeteer's own download: it is
 # patched by the distribution, and it is the only copy in the image. Bookworm
