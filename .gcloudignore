@@ -1,0 +1,22 @@
+# gcloud reads this instead of .gitignore when it uploads the build context.
+# Keep it in step with .dockerignore.
+.git
+node_modules
+web/node_modules
+.env
+.env.local
+*.log
+
+# Built inside the image.
+/public/
+
+# The Word template carries the officers' names; it reaches the service
+# through FORM_TEMPLATE_URL, never through the upload.
+templates/
+scripts/logo-source.jpg
+
+smoke.js
+smoke-form.js
+web/reference/
+vercel.json
+api/

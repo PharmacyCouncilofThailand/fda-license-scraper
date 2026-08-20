@@ -97,6 +97,44 @@ FORM_TEMPLATE=/srv/secrets/inspection-form.docx npm start
 To rebuild it from a revised Word file, see `scripts/build-docx-template.js`
 under "Inspection form" below.
 
+### Google Cloud Run
+
+The same image, on a host that scales to zero between inspections. Cloud Run
+allows a 60-minute request and several gigabytes of memory, which is what this
+app needs and what the serverless platforms do not give: the measured worst
+case is 745 MB and 223 seconds.
+
+```bash
+gcloud run deploy fda-license-scraper --source . --region asia-southeast1 --memory 2Gi --cpu 2 --timeout 900 --concurrency 4 --execution-environment gen2 --allow-unauthenticated
+```
+
+Why those numbers:
+
+| Flag | Why |
+| --- | --- |
+| `--memory 2Gi` | a scrape holds 745 MB; 1 Gi leaves no headroom for a second request |
+| `--cpu 2` | Chromium parses 51 pages of Telerik markup — one vCPU roughly doubles the wall clock |
+| `--timeout 900` | the broadest keyword takes 223 s, and the default 300 s leaves nothing spare |
+| `--concurrency 4` | scrapes are serialised behind one browser anyway, so a high number only piles requests onto the same instance |
+| `--execution-environment gen2` | gen1's sandbox is missing syscalls Chromium expects |
+| `--allow-unauthenticated` | drop this to put the service behind IAM, which is worth considering — see below |
+
+`asia-southeast1` is Singapore, the nearest region to the FDA's own servers.
+
+Set the template URL after the first deploy:
+
+```bash
+gcloud run services update fda-license-scraper --region asia-southeast1 --set-env-vars FORM_TEMPLATE_URL=https://...
+```
+
+**Two things to decide before this is really live.** The service is public as
+written, and it drives the FDA portal on behalf of whoever calls it — put it
+behind IAM, or at least behind the council's own network, before the URL is
+shared. And with `min-instances` at zero the first search of the morning pays
+a cold start: the image is 1.69 GB, so expect ten to twenty seconds before the
+scrape even begins. `--min-instances 1` removes that at the cost of an
+always-billed instance.
+
 ### Railway, or any container host
 
 `Dockerfile` is the one to reach for. Measured on a real search, a scrape
