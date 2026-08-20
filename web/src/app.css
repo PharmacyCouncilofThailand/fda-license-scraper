@@ -261,11 +261,6 @@ a.detail:hover { text-decoration: underline; }
   letter-spacing: .04em;
   color: var(--muted-foreground);
 }
-.preloader-screen .preloader-track {
-  position: static;
-  width: 180px;
-  border-radius: 999px;
-}
 
 /* search */
 .preloader-inline {
@@ -287,30 +282,14 @@ a.detail:hover { text-decoration: underline; }
   white-space: nowrap;
 }
 
-/* three dots, one behind the other — the pages being walked */
-.preloader-pulse { display: flex; gap: 5px; flex: none; }
-.preloader-pulse span {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--primary);
-  animation: preloader-dot 1.2s ease-in-out infinite;
-}
-.preloader-pulse span:nth-child(2) { animation-delay: .15s; }
-.preloader-pulse span:nth-child(3) { animation-delay: .3s; }
-@keyframes preloader-dot {
-  0%, 100% { opacity: .25; transform: translateY(0); }
-  40%      { opacity: 1;   transform: translateY(-4px); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .preloader-sweep,
   .preloader-seal,
-  .preloader-pulse span {
+  /* the indicators animate from their own injected stylesheet */
+  .preloader [class$='rli-bounding-box'] * {
     animation: none;
   }
   .preloader-sweep { width: 100%; opacity: .5; }
-  .preloader-pulse span { opacity: .7; }
 }
 
 /* ---------------- loading skeletons ---------------- */

@@ -1,4 +1,14 @@
 import { useEffect, useState } from 'react';
+import { Atom, ThreeDot } from 'react-loading-indicators';
+
+/*
+ * The indicators parse their colour with tinycolor, so a CSS variable cannot
+ * be handed straight to them. Read it once instead of writing #737300 twice —
+ * theme.css stays the only place the org colour is set.
+ */
+const brand =
+  getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() ||
+  '#737300';
 
 /**
  * The loading screen. Two variants, because this app has two waits and they
@@ -28,21 +38,15 @@ export default function Preloader({ variant = 'inline', label, hint }) {
     return (
       <div className="preloader preloader-screen" role="status" aria-live="polite">
         <img className="preloader-seal" src="/logo.png" alt="" />
+        <Atom color={brand} size="medium" text="" textColor="" />
         <span className="preloader-label">{label || 'กำลังเตรียมระบบ'}</span>
-        <span className="preloader-track">
-          <span className="preloader-sweep" />
-        </span>
       </div>
     );
   }
 
   return (
     <div className="preloader preloader-inline glass-panel" role="status" aria-live="polite">
-      <span className="preloader-pulse" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </span>
+      <ThreeDot variant="bounce" color={brand} size="medium" text="" textColor="" />
       <div className="preloader-text">
         <b>{label || 'กำลังค้นหาจากเว็บ อย.'}</b>
         <small>
