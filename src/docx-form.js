@@ -24,9 +24,46 @@ const path = require('path');
 const zip = require('./zip');
 const config = require('./config');
 
+/**
+ * Where the template comes from. A deployment has no writable disk and the
+ * file is too big for an environment variable (70 KB base64, over Vercel's
+ * limit), so `FORM_TEMPLATE_URL` points at a private copy and the bytes are
+ * fetched once per instance and kept in memory.
+ */
 const TEMPLATE =
   config.formTemplate ||
   path.join(__dirname, '..', 'templates', 'inspection-form.docx');
+
+let downloaded = null;
+
+async function loadTemplate() {
+  if (config.formTemplateUrl) {
+    if (!downloaded) {
+      downloaded = fetch(config.formTemplateUrl)
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return Buffer.from(await res.arrayBuffer());
+        })
+        .catch((err) => {
+          // A failed download must not poison every later request.
+          downloaded = null;
+          throw new Error(
+            `ดาวน์โหลดเทมเพลตฟอร์ม Word จาก FORM_TEMPLATE_URL ไม่สำเร็จ: ${err.message}`
+          );
+        });
+    }
+    return downloaded;
+  }
+
+  if (!fs.existsSync(TEMPLATE)) {
+    throw new Error(
+      `ไม่พบเทมเพลตฟอร์ม Word ที่ ${TEMPLATE} — ` +
+        'วางไฟล์ไว้ที่ templates/inspection-form.docx, ชี้ FORM_TEMPLATE ไปที่ไฟล์นั้น ' +
+        'หรือตั้ง FORM_TEMPLATE_URL สำหรับการ deploy'
+    );
+  }
+  return fs.readFileSync(TEMPLATE);
+}
 
 /** Values land inside XML text nodes, so they have to be escaped. */
 function escapeXml(value) {
@@ -38,18 +75,11 @@ function escapeXml(value) {
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
 }
 
-function renderFormDocx(data) {
+async function renderFormDocx(data) {
   const values = (data && data.values) || {};
   const checks = (data && data.checks) || {};
 
-  if (!fs.existsSync(TEMPLATE)) {
-    throw new Error(
-      `ไม่พบเทมเพลตฟอร์ม Word ที่ ${TEMPLATE} — ` +
-        'วางไฟล์ไว้ที่ templates/inspection-form.docx หรือชี้ FORM_TEMPLATE ไปที่ไฟล์นั้น'
-    );
-  }
-
-  const entries = zip.read(fs.readFileSync(TEMPLATE));
+  const entries = zip.read(await loadTemplate());
   const document = entries.find((e) => e.name === 'word/document.xml');
   if (!document) throw new Error('template is missing word/document.xml');
 

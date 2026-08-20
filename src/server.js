@@ -18,6 +18,9 @@ const path = require('path');
 const { renderFormDocx } = require('./docx-form');
 
 const app = express();
+// Vercel terminates TLS in front of the function; without this req.protocol
+// would read http and the form would be fetched over a redirect.
+app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -80,6 +83,15 @@ app.get('/api/fda/detail', async (req, res, next) => {
 });
 
 /**
+ * Where the record's own page is served from. Locally that is this same
+ * process; on a deployment the static files sit on the CDN, so it is whatever
+ * host the request arrived on.
+ */
+function origin(req) {
+  return `${req.protocol}://${req.get('host')}`;
+}
+
+/**
  * The shop name makes the download easy to find in a folder of them. The plain
  * `filename` is the ASCII fallback for clients that cannot read RFC 5987.
  */
@@ -99,10 +111,7 @@ function disposition(req, extension) {
  */
 app.post('/api/form/pdf', async (req, res, next) => {
   try {
-    const pdf = await renderFormPdf(
-      req.body || {},
-      `http://127.0.0.1:${config.port}`
-    );
+    const pdf = await renderFormPdf(req.body || {}, origin(req));
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': disposition(req, 'pdf'),
@@ -119,14 +128,15 @@ app.post('/api/form/pdf', async (req, res, next) => {
  * The same record as the PDF, but as the office's own Word file so it can
  * still be edited after the search data is in it.
  */
-app.post('/api/form/docx', (req, res, next) => {
+app.post('/api/form/docx', async (req, res, next) => {
   try {
+    const docx = await renderFormDocx(req.body || {});
     res.set({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'Content-Disposition': disposition(req, 'docx'),
     });
-    res.send(renderFormDocx(req.body || {}));
+    res.send(docx);
   } catch (err) {
     next(err);
   }
@@ -200,17 +210,23 @@ process.on('unhandledRejection', (err) => {
   console.error('[unhandledRejection]', err && err.message ? err.message : err);
 });
 
-const server = app.listen(config.port, () => {
-  console.log(`FDA scraper API listening on http://localhost:${config.port}`);
-});
+/*
+ * Only when run directly. A serverless deployment imports the app and
+ * calls it per request — there is no port to bind and no signal to catch.
+ */
+if (require.main === module) {
+  const server = app.listen(config.port, () => {
+    console.log(`FDA scraper API listening on http://localhost:${config.port}`);
+  });
 
-async function shutdown(signal) {
-  console.log(`\n${signal} received, shutting down...`);
-  server.close();
-  await closeBrowser();
-  process.exit(0);
+  const shutdown = async (signal) => {
+    console.log(`\n${signal} received, shutting down...`);
+    server.close();
+    await closeBrowser();
+    process.exit(0);
+  };
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
-process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 module.exports = app;

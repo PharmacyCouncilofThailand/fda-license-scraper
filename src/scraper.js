@@ -1,34 +1,61 @@
 'use strict';
 
-const puppeteer = require('puppeteer');
 const { selectors, detailSelectors, ...config } = require('./config');
+
+/*
+ * Locally, puppeteer brings its own Chromium. On Vercel there is no browser
+ * and no writable disk to download one into, so puppeteer-core drives the
+ * @sparticuz/chromium build instead — a Chromium packed small enough to fit
+ * inside a function bundle.
+ */
+const puppeteer = config.serverless
+  ? require('puppeteer-core')
+  : require('puppeteer');
 
 let browserPromise = null;
 
 /** Launch (once) and reuse a single Chromium instance for all requests. */
 async function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch({
-      headless: config.headless,
-      ...(config.executablePath
-        ? { executablePath: config.executablePath }
-        : {}),
-      args: [
-        // Applies to every tab, including the detail pop-up. The GDCC WAF in
-        // front of the FDA sites rejects the default HeadlessChrome UA.
-        `--user-agent=${config.userAgent}`,
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--lang=th-TH,th',
-      ],
-    });
+    browserPromise = launchBrowser();
     const browser = await browserPromise;
     browser.on('disconnected', () => {
       browserPromise = null;
     });
   }
   return browserPromise;
+}
+
+function launchBrowser() {
+  if (config.serverless) {
+    // Required here, not at the top, so a local run never loads it.
+    const chromium = require('@sparticuz/chromium');
+    return chromium.executablePath().then((executablePath) =>
+      puppeteer.launch({
+        headless: true,
+        executablePath,
+        args: [
+          ...chromium.args,
+          `--user-agent=${config.userAgent}`,
+          '--lang=th-TH,th',
+        ],
+        defaultViewport: chromium.defaultViewport,
+      })
+    );
+  }
+  return puppeteer.launch({
+    headless: config.headless,
+    ...(config.executablePath ? { executablePath: config.executablePath } : {}),
+    args: [
+      // Applies to every tab, including the detail pop-up. The GDCC WAF in
+      // front of the FDA sites rejects the default HeadlessChrome UA.
+      `--user-agent=${config.userAgent}`,
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--lang=th-TH,th',
+    ],
+  });
 }
 
 async function closeBrowser() {

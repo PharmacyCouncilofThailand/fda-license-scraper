@@ -1,0 +1,14 @@
+# Anchored, like .gitignore: this is the build output, while web/public/ is
+# source. The deployment builds it itself, so uploading a local copy would
+# only risk shipping a stale one.
+/public/
+
+# The Word template carries the officers' names — it reaches the deployment
+# through FORM_TEMPLATE_URL, never through the upload.
+templates/
+scripts/logo-source.jpg
+
+smoke.js
+smoke-form.js
+web/reference/
+.env

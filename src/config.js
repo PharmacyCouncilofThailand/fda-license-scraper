@@ -42,7 +42,15 @@ function findChrome() {
   });
 }
 
+/*
+ * Vercel gives a read-only filesystem and no browser, so Chromium comes from
+ * @sparticuz/chromium — a build small enough for a function bundle — and
+ * puppeteer-core drives it. Everything else is identical.
+ */
+const serverless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
 module.exports = {
+  serverless,
   executablePath: findChrome(),
   port: Number(process.env.PORT || 3000),
   headless: process.env.HEADLESS !== 'false',
@@ -54,6 +62,9 @@ module.exports = {
 
   // Where the tokenised Word template sits — kept out of the repository.
   formTemplate: process.env.FORM_TEMPLATE || null,
+
+  // A deployment has no repository copy of it, so it is fetched from here.
+  formTemplateUrl: process.env.FORM_TEMPLATE_URL || null,
 
   // Safety caps so a very broad keyword cannot run forever.
   maxPages: Number(process.env.MAX_PAGES || 60),

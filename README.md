@@ -97,6 +97,50 @@ FORM_TEMPLATE=/srv/secrets/inspection-form.docx npm start
 To rebuild it from a revised Word file, see `scripts/build-docx-template.js`
 under "Inspection form" below.
 
+### Vercel
+
+`vercel.json` is set up for it: the build runs the Vite build into `public/`,
+which is served from the CDN, and everything under `/api` goes to one
+function — `api/index.js`, which is the same Express app.
+
+```bash
+vercel link
+vercel --prod
+```
+
+Set these in the project's environment variables:
+
+| Variable | Value | Why |
+| --- | --- | --- |
+| `PUPPETEER_SKIP_DOWNLOAD` | `1` | the deployment drives `@sparticuz/chromium`, so the 170 MB download at install time is wasted |
+| `FORM_TEMPLATE_URL` | a private URL for the .docx | the template is not in the repository and, at 70 KB base64, does not fit in an environment variable |
+| `MAX_PAGES` | `25` on Hobby | see the ceiling below |
+
+`VERCEL` is set by the platform, and it is what switches the scraper from
+puppeteer's bundled Chromium to `@sparticuz/chromium`. Nothing else changes:
+the same code runs locally against a real Chrome.
+
+**The ceiling worth knowing before you deploy.** A function has a wall-clock
+limit — 60 s on Hobby, 300 s on Pro — and a scrape is as long as the keyword
+is broad. Measured: 7 s for a rare name, **223 s for "บ้านยา"** (2,536 rows
+over 51 pages). So:
+
+- On **Hobby**, any keyword needing more than about 20 pages times out. Lower
+  `MAX_PAGES` to ~25 so it returns a partial answer with the "ผลลัพธ์ไม่ครบ"
+  banner instead of failing.
+- On **Pro**, `maxDuration: 300` covers everything measured so far, with
+  little margin on the broadest keywords.
+- The keyword cache lives in the instance's memory, so it survives only as
+  long as that instance does — a second officer usually pays the full scrape
+  again. The single-scrape queue is likewise per-instance and no longer
+  protects the FDA site from parallel scrapes.
+
+None of that is a bug to fix in the code; it is what serverless costs here.
+If the searches get heavier, this app wants a container that stays warm —
+Render, Railway, Fly — where one browser, one queue and one cache serve
+everyone, and a 4-minute scrape is just a slow request. The same
+`npm start` runs there unchanged.
+
 ## Web UI
 
 The search page is a React app (Vite, no router — it is one screen). Its state

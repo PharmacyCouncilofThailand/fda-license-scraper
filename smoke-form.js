@@ -17,9 +17,10 @@ const { parseAddress, renderFormPdf, closeBrowser } = require('./src/scraper');
 const { renderFormDocx } = require('./src/docx-form');
 const zip = require('./src/zip');
 
-// Requiring the server starts it listening — renderFormPdf loads form.html
-// from it, exactly as the real endpoint does.
-require('./src/server');
+// renderFormPdf loads form.html over HTTP, exactly as the real endpoint
+// does, so the app has to be listening. It does not listen on its own any
+// more — a serverless deployment imports it instead.
+const server = require('./src/server').listen(config.port);
 
 const area = parseAddress(
   'บ้านเลขที่ 269/5 หมู่ที่ - ตรอก/ซอย - ถนน เชียงใหม่-ลำพูน ตำบล วัดเกต ' +
@@ -78,7 +79,7 @@ const payload = {
 
 
     // The Word copy carries the same values and no leftover placeholders.
-    const docx = renderFormDocx(payload);
+    const docx = await renderFormDocx(payload);
     const parts = zip.read(docx);
     const document = parts.find((e) => e.name === 'word/document.xml');
     assert.ok(document, 'docx has no word/document.xml');
@@ -94,5 +95,6 @@ const payload = {
     process.exit(1);
   } finally {
     await closeBrowser();
+    server.close();
   }
 })();
