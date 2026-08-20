@@ -95,6 +95,9 @@ li.selected {
 .name { font-weight: 500; font-size: 16px; }
 
 /* The chosen shop, kept in view while the officer scrolls the results. */
+/* The bar rides over the results it is anchored above, so unlike every
+   other panel it is opaque — a translucent one let the card behind it show
+   through and the officer lost track of which shop was chosen. */
 .pickbar {
   position: sticky;
   bottom: 16px;
@@ -104,12 +107,28 @@ li.selected {
   align-items: center;
   gap: 12px;
   margin-top: 16px;
-  padding: 13px 16px;
+  padding: 15px 18px;
   border-radius: 1rem;
   font-size: 14px;
+  background: var(--card);
+  border: 1.5px solid var(--primary);
+  box-shadow:
+    0 0 0 4px rgba(115, 115, 0, .10),
+    0 18px 44px -12px rgba(15, 23, 42, .30);
+}
+/* a spine in the org colour, so the bar reads as one object at a glance */
+.pickbar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--primary);
 }
 .pickbar .who { min-width: 0; }
-.pickbar .who b { font-weight: 500; display: block; }
+.pickbar .who b { font-weight: 600; display: block; font-size: 15px; }
 .pickbar .who small { color: var(--muted-foreground); }
 .pickbar .primary { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
 .addr { color: var(--muted-foreground); font-size: 14px; margin: 6px 0 12px; }
