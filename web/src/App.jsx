@@ -6,6 +6,7 @@ import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
 import PickBar from './components/PickBar.jsx';
 import Preloader from './components/Preloader.jsx';
+import { SkeletonList } from './components/Skeleton.jsx';
 
 const EMPTY_QUERY = { keyword: '', province: '', district: '', subdistrict: '' };
 
@@ -137,7 +138,10 @@ export default function App() {
           {error && <div className="error">{error}</div>}
 
           {busy ? (
-            <Preloader variant="inline" />
+            <>
+              <Preloader variant="inline" />
+              <SkeletonList />
+            </>
           ) : (
             <Toolbar data={data} onRefresh={() => runSearch({ refresh: true })} />
           )}

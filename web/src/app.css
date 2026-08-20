@@ -320,3 +320,76 @@ a.detail:hover { text-decoration: underline; }
   .preloader-sweep { width: 100%; opacity: .5; }
   .preloader-pulse span { opacity: .7; }
 }
+
+/* ---------------- loading skeletons ---------------- */
+
+/*
+ * A search has no progress to report — the API answers once, after walking
+ * however many pager pages the keyword needs — so the loading state shows the
+ * shape of what is coming rather than a fake percentage.
+ */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: .5rem;
+  background: color-mix(in srgb, var(--muted-foreground) 14%, transparent);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--card) 70%, transparent),
+    transparent
+  );
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.skeleton-card {
+  border-radius: min(1.5rem, 24px);
+  padding: 16px 18px;
+  display: grid;
+  gap: 10px;
+}
+.skeleton-card .skeleton.title { height: 17px; width: 46%; }
+.skeleton-card .skeleton.line  { height: 13px; width: 82%; }
+.skeleton-card .skeleton.line.short { width: 34%; }
+.skeleton-row { display: flex; gap: 8px; }
+.skeleton-row .skeleton { height: 22px; width: 74px; border-radius: 999px; }
+
+/* the cards the search is going to produce */
+.skeleton-list { display: grid; gap: 12px; margin-top: 12px; }
+.skeleton-list > li:nth-child(2) { opacity: .75; }
+.skeleton-list > li:nth-child(3) { opacity: .5; }
+
+/* detail preview */
+.preview .skeleton.line { height: 13px; margin-bottom: 8px; }
+.preview .skeleton.block { height: 120px; border-radius: .75rem; }
+
+/* results arriving */
+@keyframes result-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+#root ul li {
+  animation: result-in .32s ease both;
+}
+/* Stagger only the first handful — a 2,536-row answer must not queue up
+   two thousand delayed animations. */
+#root ul li:nth-child(1) { animation-delay: 0ms; }
+#root ul li:nth-child(2) { animation-delay: 40ms; }
+#root ul li:nth-child(3) { animation-delay: 80ms; }
+#root ul li:nth-child(4) { animation-delay: 120ms; }
+#root ul li:nth-child(5) { animation-delay: 160ms; }
+#root ul li:nth-child(6) { animation-delay: 200ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+  #root ul li { animation: none; }
+}

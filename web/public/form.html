@@ -66,6 +66,17 @@
       }
       .toolbar button.primary:hover { color: var(--primary-foreground); }
       .toolbar button:disabled { opacity: .55; cursor: progress; }
+
+      /* Making the PDF costs about a second — the button says so itself. */
+      .spinning {
+        animation: toolbar-spin 1s linear infinite;
+      }
+      @keyframes toolbar-spin {
+        to { transform: rotate(360deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spinning { animation: none; }
+      }
       .toolbar .note { color: var(--muted-foreground); }
       .toolbar .err { color: var(--destructive); }
 
@@ -661,6 +672,10 @@
        * file, still editable.
        */
       async function download(button, format, label) {
+        const icon = button.querySelector('.material-symbols-outlined');
+        const iconWas = icon.textContent;
+        icon.textContent = 'progress_activity';
+        icon.classList.add('spinning');
         button.disabled = true;
         statusEl.className = 'note';
         statusEl.textContent = `กำลังสร้าง ${label}...`;
@@ -689,6 +704,8 @@
           statusEl.className = 'err';
           statusEl.textContent = `${err.message} — ใช้ปุ่ม “พิมพ์ / บันทึกเอง” แทนได้`;
         } finally {
+          icon.classList.remove('spinning');
+          icon.textContent = iconWas;
           button.disabled = false;
         }
       }

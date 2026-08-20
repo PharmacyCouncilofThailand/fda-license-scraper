@@ -1,4 +1,5 @@
 import CopyButton from './CopyButton.jsx';
+import { SkeletonPreview } from './Skeleton.jsx';
 import { rowAsText } from '../lib/format.js';
 
 function ExternalLink({ href, children }) {
@@ -79,9 +80,7 @@ function MapPanel({ row, detail }) {
 }
 
 export default function Preview({ row, state }) {
-  if (state.status === 'loading') {
-    return <div className="preview">กำลังโหลดรายละเอียด...</div>;
-  }
+  if (state.status === 'loading') return <SkeletonPreview />;
   if (state.status === 'error') {
     return <div className="preview">{state.message}</div>;
   }
