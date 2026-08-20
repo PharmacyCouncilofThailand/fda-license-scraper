@@ -120,14 +120,6 @@ li.selected {
   align-items: center;
   font-size: 13px;
 }
-.tag {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 3px 11px;
-  color: var(--muted-foreground);
-}
-.tag.on { background: var(--success-bg); color: var(--success-fg); border-color: transparent; }
-.tag.off { background: var(--danger-bg); color: var(--danger-fg); border-color: transparent; }
 .actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 
 /* .ghost is what the result cards already ask for — the design

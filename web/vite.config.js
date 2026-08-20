@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import path from 'node:path';
 
 /**
  * The search page is the React app. Everything else the browser asks for —
@@ -11,7 +13,11 @@ import react from '@vitejs/plugin-react';
  * directory is build output now: edit files here, not there.
  */
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  // shadcn generates components that import from '@/…'.
+  resolve: {
+    alias: { '@': path.resolve(process.cwd(), 'src') },
+  },
   build: {
     outDir: '../public',
     emptyOutDir: true,

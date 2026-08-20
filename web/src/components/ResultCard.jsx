@@ -1,9 +1,30 @@
 import CopyButton from './CopyButton.jsx';
 import Preview from './Preview.jsx';
 import { rowAsText } from '../lib/format.js';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
-function Tag({ text, extra }) {
-  return <span className={`tag ${extra || ''}`.trim()}>{text || '-'}</span>;
+/*
+ * Licence number and type are plain labels; the status is the one thing that
+ * has to read as right or wrong across a list of hundreds, so it keeps the
+ * semantic green/red rather than taking the brand colour a Badge variant
+ * would give it.
+ */
+function StatusBadge({ status }) {
+  const active = status === 'คงอยู่';
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        'border-transparent',
+        active
+          ? 'bg-[var(--success-bg)] text-[var(--success-fg)]'
+          : 'bg-[var(--danger-bg)] text-[var(--danger-fg)]'
+      )}
+    >
+      {status || '-'}
+    </Badge>
+  );
 }
 
 export default function ResultCard({
@@ -39,9 +60,9 @@ export default function ResultCard({
       <div className="addr">{row.address || '-'}</div>
 
       <div className="meta">
-        <Tag text={row.licenseNo} />
-        <Tag text={row.licenseType} />
-        <Tag text={row.status} extra={row.status === 'คงอยู่' ? 'on' : 'off'} />
+        <Badge variant="outline">{row.licenseNo || '-'}</Badge>
+        <Badge variant="outline">{row.licenseType || '-'}</Badge>
+        <StatusBadge status={row.status} />
 
         <div className="actions">
           <button type="button" className="ghost" onClick={onTogglePreview}>

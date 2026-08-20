@@ -22,9 +22,10 @@
 const fs = require('fs');
 const path = require('path');
 const zip = require('./zip');
+const config = require('./config');
 
 const TEMPLATE =
-  process.env.FORM_TEMPLATE ||
+  config.formTemplate ||
   path.join(__dirname, '..', 'templates', 'inspection-form.docx');
 
 /** Values land inside XML text nodes, so they have to be escaped. */

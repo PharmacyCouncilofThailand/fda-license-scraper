@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { fetchDetail } from '../api.js';
+import { Button } from '@/components/ui/button';
 
 const HANDOFF_KEY = 'fda:form:pending';
 
@@ -42,9 +43,9 @@ export default function PickBar({ row, detail }) {
         <b>{row.placeName || '(ไม่ระบุชื่อสถานที่)'}</b>
         <small>{where}</small>
       </div>
-      <button type="button" className="primary" disabled={busy} onClick={openForm}>
+      <Button size="lg" className="ml-auto" disabled={busy} onClick={openForm}>
         {busy ? 'กำลังดึงรายละเอียด...' : 'กรอกฟอร์มการตรวจ'}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -25,7 +25,22 @@ npm start
 npm run dev:web
 ```
 
-Optional environment variables (see `.env.example`):
+Settings come from the environment, and `.env` fills them in for a local run.
+Copy the sample and edit:
+
+```bash
+cp .env.example .env
+```
+
+`src/config.js` loads it with Node's own `process.loadEnvFile` — no dotenv
+dependency — and a real environment variable always wins, which is how a
+deployment overrides one. `.env` is not committed.
+
+There are no secrets in here: the FDA portal is public and needs no key. What
+`.env` holds is the things that change per machine or per deployment — the two
+upstream URLs, the browser settings, the safety caps, and where the Word
+template lives.
+
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -36,6 +51,9 @@ Optional environment variables (see `.env.example`):
 | `MAX_DETAILS` | `25` | max pop-up detail pages opened per search |
 | `CACHE_TTL_MS` | `1800000` | how long a scrape stays cached (30 min) |
 | `CACHE_MAX` | `50` | max cached keywords (least recently used is evicted) |
+| `FDA_SEARCH_URL` | the live portal | the search page the scraper drives |
+| `FDA_DETAIL_URL` | the live portal | the detail pop-up, built from a row's Newcode |
+| `FORM_TEMPLATE` | `templates/inspection-form.docx` | the tokenised Word file — see "Deploying" |
 | `CHROME_PATH` | auto | Chrome/Edge binary, when Puppeteer's own download is unavailable |
 | `USER_AGENT` | desktop Chrome | see "WAF" below |
 
@@ -94,6 +112,18 @@ web/
   src/app.css           search-page styles
   public/               copied out verbatim: form.html, theme.css, logo.png
 ```
+
+Tailwind v4 and shadcn/ui are wired in (`@tailwindcss/vite`, `components.json`
+with `style: radix-rhea`, `baseColor: neutral`). The palette is **not**
+duplicated into Tailwind: `src/index.css` only maps the variables that
+`public/theme.css` already defines, through `@theme inline`, so `bg-primary`
+and `--primary` are the same value and form.html keeps the same colours.
+Changing the org colour is still the four lines at the top of `theme.css`.
+
+Generated components land in `src/components/ui/`; the pick bar's action is a
+shadcn `Button` and the result tags are `Badge`s. The status badge overrides
+the variant colour on purpose — across a list of hundreds it has to read as
+right or wrong, not as brand.
 
 The preloader has two variants because the app has two waits: a sub-second
 cover while the area tree loads, and the search itself, which measured between
