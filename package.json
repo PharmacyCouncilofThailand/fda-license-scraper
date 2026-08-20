@@ -13,9 +13,9 @@
     "smoke": "node smoke-form.js"
   },
   "dependencies": {
-    "@sparticuz/chromium": "^131.0.1",
+    "@sparticuz/chromium": "^149.0.0",
     "express": "^4.19.2",
-    "puppeteer": "^23.6.0",
-    "puppeteer-core": "^23.11.1"
+    "puppeteer": "^25.8.0",
+    "puppeteer-core": "^25.8.0"
   }
 }

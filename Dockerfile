@@ -12,7 +12,9 @@ RUN npm --prefix web run build
 FROM node:20-slim
 
 # Chromium comes from Debian rather than puppeteer's own download: it is
-# patched by the distribution, and it is the only copy in the image.
+# patched by the distribution, and it is the only copy in the image. Bookworm
+# carries 151 and puppeteer 25.8 targets 152 — one version apart, which is why
+# the dependency was moved off the 23.x line.
 # fonts-thai-tlwg is what makes the PDF legible at all — without a Thai font
 # Chromium draws the whole record as boxes.
 RUN apt-get update && apt-get install -y --no-install-recommends \
