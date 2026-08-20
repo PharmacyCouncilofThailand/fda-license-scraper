@@ -17,7 +17,9 @@ npm-debug.log*
 templates/
 scripts/logo-source.jpg
 
-# Licensed office fonts, if they are used for the PDF — see "Deploying".
-fonts/
+# Licensed office fonts for the PDF, if they are used — see "Deploying".
+# Anchored: assets/fonts/ holds Sarabun, which is Open Font Licensed and has
+# to ship, and an unanchored rule quietly swallowed it.
+/fonts/
 
 .vercel
