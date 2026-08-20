@@ -371,11 +371,11 @@ async function clickAndSettle(page, selector, readySelector) {
    * served to a desktop and does not in a Lambda, where the search box is
    * simply already there — and waiting the full navigation timeout for a
    * postback that will never start cost 45 seconds of a 60-second budget.
-   * Ten is longer than any partial postback measured; what the click was
-   * meant to achieve is checked after this, by the caller and by
+   * Five seconds is longer than any partial postback measured here; what the
+   * click was meant to achieve is checked after this, by the caller and by
    * readySelector, so giving up early costs nothing.
    */
-  const settleMs = Math.min(config.navTimeoutMs, 10000);
+  const settleMs = Math.min(config.navTimeoutMs, 5000);
   const navigation = page
     .waitForNavigation({ waitUntil: 'domcontentloaded', timeout: settleMs })
     .catch(() => null);
@@ -469,6 +469,54 @@ async function tryEnlargePageSize(page) {
  * that cap is what ended the walk, `capped` says the result set is incomplete.
  */
 /**
+ * How many rows a full page holds, according to the grid's own page-size box.
+ * Counting the rows on screen is not the same question: the grid renders them
+ * a few at a time, so an early look says nine.
+ */
+async function readPageSize(page) {
+  try {
+    const value = await page.$eval(selectors.pageSizeInput, (el) => el.value);
+    const size = Number(String(value).replace(/\D/g, ''));
+    return size > 0 ? size : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Wait until the grid has finished drawing.
+ *
+ * A page number changes the moment the postback lands, and the rows arrive
+ * after it. Reading in that gap is what returned short pages. When the page
+ * size is known, a full page is the signal; otherwise settle for the row
+ * count holding still between two polls, which is what the last page needs
+ * since it is legitimately short.
+ */
+async function waitForGridSettled(page, expected) {
+  await page.evaluate(() => {
+    window.__gridRows = -1;
+  });
+  await page
+    .waitForFunction(
+      (gridSelector, want) => {
+        const grid = document.querySelector(gridSelector);
+        if (!grid) return false;
+        const rows = grid.querySelectorAll('tr.rgRow, tr.rgAltRow').length;
+        if (want && rows >= want) return true;
+        const settled = rows > 0 && rows === window.__gridRows;
+        window.__gridRows = rows;
+        return settled;
+      },
+      { timeout: 15000, polling: 300 },
+      selectors.resultGrid,
+      expected || 0
+    )
+    .catch(() => {
+      // Read whatever is there rather than abandon the search.
+    });
+}
+
+/**
  * How many pages the grid says it has.
  *
  * The pager prints "2536 items in 51 pages", and knowing the number matters:
@@ -494,13 +542,19 @@ async function readAllPages(page) {
   const all = [];
   let visited = 0;
   const totalPages = await readTotalPages(page);
-  let pageSize = null;
+  const pageSize = await readPageSize(page);
 
   for (;;) {
-    const batch = await readGridRows(page);
-    if (pageSize === null) pageSize = batch.length;
-    all.push(...batch);
+    // Including the first page: the grid is still filling when the search
+    // postback returns.
+    const lastPage = Boolean(totalPages) && visited + 1 >= totalPages;
+    await waitForGridSettled(page, lastPage ? null : pageSize);
+
+    all.push(...(await readGridRows(page)));
     visited += 1;
+    if (process.env.DEBUG_STEPS && visited % 5 === 0) {
+      console.log('[step] read page', visited, 'rows so far', all.length);
+    }
 
     if (totalPages && visited >= totalPages) {
       return { rows: all, capped: false, pagesRead: visited };
@@ -550,34 +604,6 @@ async function readAllPages(page) {
     await page.waitForSelector(selectors.resultGrid, {
       timeout: config.navTimeoutMs,
     });
-
-    /*
-     * The page number changes before the rows do. Reading straight after it
-     * caught the grid mid-render and returned short pages — 15 rows where
-     * there should have been 50 — which is how a complete-looking walk of all
-     * 51 pages still came back forty rows light, and a different forty each
-     * time. Wait for the grid to be full again. The last page is genuinely
-     * short, so it is the one page not to wait for.
-     */
-    const lastPage = Boolean(totalPages) && visited + 1 >= totalPages;
-    if (pageSize && !lastPage) {
-      await page
-        .waitForFunction(
-          (gridSelector, expected) => {
-            const grid = document.querySelector(gridSelector);
-            return (
-              grid &&
-              grid.querySelectorAll('tr.rgRow, tr.rgAltRow').length >= expected
-            );
-          },
-          { timeout: 15000 },
-          selectors.resultGrid,
-          pageSize
-        )
-        .catch(() => {
-          // Fall through and read whatever is there rather than give up.
-        });
-    }
   }
 
   return { rows: all, capped: false, pagesRead: visited };
@@ -715,7 +741,78 @@ async function getDetailByNewCode(newCode) {
  * Steps 1–6: drive the search form and read every grid page for one keyword.
  * Returns the raw rows; the caller owns closing `context`.
  */
+/**
+ * Make sure the search really is in "สืบค้นสถานที่ยา" mode.
+ *
+ * The click leaves the radio checked on a desktop browser. Inside a
+ * serverless function it did not, and waiting for a checked state that never
+ * arrived spent the whole request budget. So: give it a few seconds, and if
+ * it is still unset, tick it directly and fire the handler the page has bound
+ * to it. Searching in the wrong mode would return the wrong records, so this
+ * asks rather than assumes, and says so plainly when it cannot.
+ */
+async function selectDrugLocationMode(page) {
+  const isChecked = () =>
+    page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      return Boolean(el && el.checked);
+    }, selectors.radioDrugLocation);
+
+  const waitChecked = (ms) =>
+    page
+      .waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel);
+          return Boolean(el && el.checked);
+        },
+        { timeout: ms },
+        selectors.radioDrugLocation
+      )
+      .then(() => true)
+      .catch(() => false);
+
+  /*
+   * Two seconds, not the eight this started with. Where the click works the
+   * radio is checked almost at once, and where it does not — inside a
+   * function — no amount of waiting helps, so the wait is pure cost: it was
+   * eighteen seconds of a sixty-second budget.
+   */
+  if (await waitChecked(2000)) return;
+
+  await page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.checked = true;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.click();
+  }, selectors.radioDrugLocation);
+
+  await waitChecked(8000);
+  if (!(await isChecked())) {
+    throw new ScrapeError(
+      'เลือกโหมด "สืบค้นสถานที่ยา" บนเว็บ อย. ไม่สำเร็จ',
+      502,
+      'SCRAPE_FAILED'
+    );
+  }
+}
+
+/**
+ * Step timings, for when the scraper is somewhere you cannot attach to it.
+ * Silent unless DEBUG_STEPS is set; the portal behaves differently inside a
+ * serverless function than it does on a desk, and this is how that gets seen.
+ */
+function steps() {
+  if (!process.env.DEBUG_STEPS) return () => {};
+  let last = Date.now();
+  return (what) => {
+    console.log('[step]', what, ((Date.now() - last) / 1000).toFixed(1) + 's');
+    last = Date.now();
+  };
+}
+
 async function scrapeKeyword(keyword, context) {
+  const step = steps();
   const page = await context.newPage();
   await page.setUserAgent(config.userAgent);
   await page.setExtraHTTPHeaders({ 'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8' });
@@ -727,19 +824,15 @@ async function scrapeKeyword(keyword, context) {
     waitUntil: 'domcontentloaded',
     timeout: config.navTimeoutMs,
   });
+  step('goto portal');
   await dismissModals(page);
 
   // 2. เลือก radio "สืบค้นสถานที่ยา" (ทำให้เกิด ASP.NET postback)
   await clickAndSettle(page, selectors.radioDrugLocation, selectors.searchInput);
-  await page.waitForFunction(
-    (sel) => {
-      const el = document.querySelector(sel);
-      return Boolean(el && el.checked);
-    },
-    { timeout: config.navTimeoutMs },
-    selectors.radioDrugLocation
-  );
+  await selectDrugLocationMode(page);
 
+
+  step('radio checked');
 
   // 3. กรอก keyword ในช่องสืบค้น
   await page.waitForSelector(selectors.searchInput);
@@ -754,14 +847,18 @@ async function scrapeKeyword(keyword, context) {
   await clickAndSettle(page, selectors.searchButton, selectors.resultGrid);
 
 
+  step('grid after search');
+
   if (await hasNoRecords(page)) {
     return { rows: [], capped: false, pagesRead: 0 };
   }
 
   await tryEnlargePageSize(page);
+  step('page size');
 
   // 6. กวาดข้อมูลทุกแถว ทุกหน้า
   const walked = await readAllPages(page);
+  step('paging');
   // Parse each address once here: the result is cached with the rows, so the
   // filters and facets below never re-parse.
   for (const row of walked.rows) row.area = parseAddress(row.address);
