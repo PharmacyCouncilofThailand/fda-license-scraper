@@ -5,6 +5,7 @@ import SearchForm from './components/SearchForm.jsx';
 import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
 import PickBar from './components/PickBar.jsx';
+import Preloader from './components/Preloader.jsx';
 
 const EMPTY_QUERY = { keyword: '', province: '', district: '', subdistrict: '' };
 
@@ -24,10 +25,13 @@ export default function App() {
   const queryRef = useRef(query);
   queryRef.current = query;
 
+  const [booting, setBooting] = useState(true);
+
   useEffect(() => {
     fetchAreas()
       .then(setAreas)
-      .catch(() => setError('โหลดรายชื่อจังหวัดไม่สำเร็จ'));
+      .catch(() => setError('โหลดรายชื่อจังหวัดไม่สำเร็จ'))
+      .finally(() => setBooting(false));
   }, []);
 
   const runSearch = useCallback(async ({ refresh = false } = {}) => {
@@ -102,6 +106,8 @@ export default function App() {
   const selectedDetail =
     previews[selectedCode]?.status === 'ready' ? previews[selectedCode].detail : null;
 
+  if (booting) return <Preloader variant="screen" />;
+
   return (
     <>
       <Sidebar />
@@ -130,7 +136,11 @@ export default function App() {
 
           {error && <div className="error">{error}</div>}
 
-          <Toolbar data={data} busy={busy} onRefresh={() => runSearch({ refresh: true })} />
+          {busy ? (
+            <Preloader variant="inline" />
+          ) : (
+            <Toolbar data={data} onRefresh={() => runSearch({ refresh: true })} />
+          )}
 
           <ul>
             {results.map((row) => (

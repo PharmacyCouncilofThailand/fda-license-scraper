@@ -1,12 +1,8 @@
 import CopyButton from './CopyButton.jsx';
 import { formatAge, resultsAsTable } from '../lib/format.js';
 
-export default function Toolbar({ data, busy, onRefresh }) {
-  if (busy) {
-    return (
-      <div className="toolbar">กำลังค้นหาจากเว็บ อย. อาจใช้เวลา 30–60 วินาที...</div>
-    );
-  }
+export default function Toolbar({ data, onRefresh }) {
+  // While a search runs the Preloader stands in for this whole bar.
   if (!data) return null;
 
   const area = [data.subdistrict, data.district, data.province]

@@ -214,3 +214,109 @@ a.detail:hover { text-decoration: underline; }
   .preview dl { grid-template-columns: 1fr; gap: 2px; }
   .preview dt { margin-top: 6px; }
 }
+
+/* ---------------- preloader ---------------- */
+
+.preloader {
+  position: relative;
+  overflow: hidden;
+}
+
+/* the sweep every variant shares */
+.preloader-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  overflow: hidden;
+}
+.preloader-sweep {
+  display: block;
+  width: 35%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+  animation: preloader-sweep 1.4s cubic-bezier(.5, 0, .5, 1) infinite;
+}
+@keyframes preloader-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(386%); }
+}
+
+/* boot */
+.preloader-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+.preloader-seal {
+  width: 76px;
+  animation: preloader-breathe 2.2s ease-in-out infinite;
+}
+@keyframes preloader-breathe {
+  0%, 100% { opacity: .55; transform: scale(.97); }
+  50%      { opacity: 1;   transform: scale(1); }
+}
+.preloader-label {
+  font-size: 14px;
+  letter-spacing: .04em;
+  color: var(--muted-foreground);
+}
+.preloader-screen .preloader-track {
+  position: static;
+  width: 180px;
+  border-radius: 999px;
+}
+
+/* search */
+.preloader-inline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 10px;
+  padding: 16px 18px 18px;
+  border-radius: min(1.5rem, 24px);
+}
+.preloader-text { min-width: 0; }
+.preloader-text b { display: block; font-weight: 500; font-size: 15px; }
+.preloader-text small { color: var(--muted-foreground); font-size: 13px; }
+.preloader-clock {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* three dots, one behind the other — the pages being walked */
+.preloader-pulse { display: flex; gap: 5px; flex: none; }
+.preloader-pulse span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  animation: preloader-dot 1.2s ease-in-out infinite;
+}
+.preloader-pulse span:nth-child(2) { animation-delay: .15s; }
+.preloader-pulse span:nth-child(3) { animation-delay: .3s; }
+@keyframes preloader-dot {
+  0%, 100% { opacity: .25; transform: translateY(0); }
+  40%      { opacity: 1;   transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader-sweep,
+  .preloader-seal,
+  .preloader-pulse span {
+    animation: none;
+  }
+  .preloader-sweep { width: 100%; opacity: .5; }
+  .preloader-pulse span { opacity: .7; }
+}

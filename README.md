@@ -90,10 +90,15 @@ web/
   index.html            the page shell — fonts, theme.css, #root
   src/App.jsx           search state, and the one fetch that drives it
   src/api.js            every call to the Express API
-  src/components/       Sidebar · SearchForm · Toolbar · ResultCard · Preview · PickBar
+  src/components/       Sidebar · SearchForm · Toolbar · ResultCard · Preview · PickBar · Preloader
   src/app.css           search-page styles
   public/               copied out verbatim: form.html, theme.css, logo.png
 ```
+
+The preloader has two variants because the app has two waits: a sub-second
+cover while the area tree loads, and the search itself, which measured between
+7 and 223 seconds depending on how common the name is. The second one counts
+the seconds, since a bare spinner says nothing across that spread.
 
 The inspection form stays a plain static page. It is a print document, it has
 to render identically in the officer's browser and in the headless Chromium
