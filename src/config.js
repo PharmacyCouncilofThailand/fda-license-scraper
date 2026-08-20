@@ -71,9 +71,10 @@ module.exports = {
   // hard ceiling: Vercel's free plan kills the request at 60 seconds, of
   // which about 15 go on reaching the results at all, and its Chromium turns
   // each pager page over in 2.7 s rather than the 0.7 s a real machine
-  // manages. Fifteen pages is what is left. The UI already says when a
-  // result set was cut short.
-  maxPages: Number(process.env.MAX_PAGES || (serverless ? 15 : 60)),
+  // manages. Fifteen pages measured 38 s warm and 54 s cold — six seconds of
+  // margin, which one slow page would eat — so twelve. The UI already says
+  // when a result set was cut short.
+  maxPages: Number(process.env.MAX_PAGES || (serverless ? 12 : 60)),
   maxDetails: Number(process.env.MAX_DETAILS || 25),
 
   // The site sits behind a GDCC WAF that returns HTTP 500 for the default

@@ -199,12 +199,14 @@ is broad. Measured: 7 s for a rare name, **92 s for "บ้านยา"** (2,53
 51 pages). Almost all of that is paging — setup is 3 s and each pager click
 costs between 0.9 s and 1.7 s, depending on the portal's mood. So:
 
-- On **Hobby**, 60 s is the ceiling, and at the portal's slow pace that is
-  about 27 pages. `MAX_PAGES=25` is the setting that fits: measured at 24 s
-  for "บ้านยา", returning its first 1,250 rows with the "ผลลัพธ์ไม่ครบ" banner
-  already in the UI. Officers searching a shop name never reach it —
-  "ฟาสซิโน" is five pages — so the cap only bites on terms broad enough that
-  the honest answer is "type more of the name".
+- On **Hobby**, 60 s is the ceiling and the function is slower than a
+  laptop at every step: about 15 s to reach the results at all, then 2.7 s a
+  pager page against 0.7 s here. Twelve pages is what fits — fifteen measured
+  38 s warm but 54 s cold, and six seconds is not margin. "บ้านยา" comes back
+  as its first 600 rows with the "ผลลัพธ์ไม่ครบ" banner. Officers searching a
+  shop name never reach the cap — "ฟาสซิโน" is five pages and returns all 232
+  rows in 35 s, the same 232 this machine gets — so it only bites on terms
+  broad enough that the honest answer is "type more of the name".
 - On **Pro**, 300 s covers every keyword measured, including the full 51-page
   "บ้านยา" at 92 s.
 - The keyword cache lives in the instance's memory, so it survives only as
