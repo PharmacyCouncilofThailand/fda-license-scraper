@@ -1,0 +1,18 @@
+node_modules/
+
+# Build output. The sources live in web/ — run `npm run build` to recreate this.
+# Anchored: web/public/ is source, and holds form.html, theme.css and the logo.
+/public/
+
+# Local overrides
+.env
+.env.local
+
+*.log
+npm-debug.log*
+
+# Official documents stay out of the repo: the Word template carries the
+# inspecting officers' real names, and the deploy pulls it in separately.
+# See "Deploying" in the README.
+templates/
+scripts/logo-source.jpg

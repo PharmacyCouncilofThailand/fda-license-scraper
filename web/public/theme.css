@@ -1,0 +1,319 @@
+/* ============================================================
+   Design System — สภาเภสัชกรรม (Pharmacy Council)
+   ------------------------------------------------------------
+   The token set, glass surfaces and control styles from the
+   e-Meeting design system, as plain CSS.
+
+   This app has no build step and two static pages, so the
+   Tailwind v4 / shadcn layer is not reproduced — the tokens are
+   the design system; `@theme inline` only renames them for
+   Tailwind. Everything visual (colours, Kanit, glass panels,
+   the gradient ground, the floating sidebar, rounded controls,
+   Material Symbols) is here and is shared by index.html and
+   form.html.
+
+   Changing the org colour = the four --primary / --ring /
+   --sidebar* / --chart-1 lines below, exactly as the guide says.
+
+   Light only, on purpose: the app's real output is a printed
+   inspection record on white paper, so the screen matches it.
+   The design system's dark palette is not wired up — add a
+   .dark block here if that ever changes.
+   ============================================================ */
+
+:root {
+  --background: #f5f5f5;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #737300;           /* ← สีองค์กร เปลี่ยนตรงนี้ */
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #1f2937;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent-bg: #f3f4f6;
+  --accent-foreground: #111827;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #737300;
+  --chart-1: #737300;
+  --chart-2: #84cc16;
+  --chart-3: #10b981;
+  --chart-4: #0ea5e9;
+  --chart-5: #6366f1;
+  --radius: 0.5rem;
+
+  --sidebar: #737300;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #737300;
+  --sidebar-accent: #8a8a00;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #8a8a00;
+  --sidebar-ring: #737300;
+
+  /* Status colours. Kept separate from --primary: a licence that
+     lapsed has to read as wrong at a glance, not as branding. */
+  --success-bg: #ecfdf5;
+  --success-fg: #047857;
+  --danger-bg: #fef2f2;
+  --danger-fg: #b91c1c;
+  --warning-bg: #fffbeb;
+  --warning-fg: #92400e;
+  --warning-line: #fcd34d;
+
+  --glass: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-shadow: 0 8px 32px 0 rgba(115, 115, 0, 0.05);
+
+  /* Names the existing markup already uses, pointed at the tokens
+     above so one palette drives both pages. */
+  --bg: var(--background);
+  --line: var(--border);
+  --text: var(--foreground);
+  --accent: var(--primary);
+  --panel: var(--secondary);
+  --ok-bg: var(--success-bg);
+  --ok-fg: var(--success-fg);
+  --off-bg: var(--danger-bg);
+  --off-fg: var(--danger-fg);
+  --warn-bg: var(--warning-bg);
+  --warn-fg: var(--warning-fg);
+  --warn-line: var(--warning-line);
+}
+
+/* ---------------- ground ---------------- */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Kanit", "Geist", "Segoe UI", system-ui, sans-serif;
+  font-weight: 300;
+  color: var(--foreground);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- glass surfaces ---------------- */
+
+.glass-panel {
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-panel-primary {
+  background: color-mix(in srgb, var(--sidebar) 85%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+}
+
+.card-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.radial-bg {
+  background: radial-gradient(circle at center, #ffffff 0%, #f5f5f5 100%);
+}
+
+/* ---------------- controls ---------------- */
+
+button, input, select, textarea { font: inherit; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 1rem;
+  border: 1px solid transparent;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .05s;
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .55; cursor: progress; }
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--foreground);
+}
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+.btn-secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  border-color: transparent;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--foreground);
+}
+.btn-ghost:hover { background: var(--accent-bg); }
+
+/* Destructive is a wash, not a solid red — the guide's rule. */
+.btn-destructive {
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+  border-color: transparent;
+}
+
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.btn-icon { padding: 8px; width: 38px; height: 38px; }
+
+input[type="text"], input[type="search"], select, textarea {
+  padding: 11px 14px;
+  border: 1px solid var(--input);
+  border-radius: .75rem;
+  background: var(--card);
+  color: var(--foreground);
+}
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* ---------------- floating sidebar ---------------- */
+
+.app-sidebar {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  bottom: 16px;
+  z-index: 40;
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 14px;
+  overflow: hidden;
+  border-radius: 1rem;
+  color: var(--sidebar-foreground);
+}
+.app-sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* The council seal is a tall oval, so the chip is too — a square one would
+   shrink it to nothing. */
+.app-sidebar .brand .mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 46px;
+  padding: 3px;
+  border-radius: .6rem;
+  background: var(--sidebar-primary);
+  color: var(--sidebar-primary-foreground);
+  flex: none;
+}
+.app-sidebar .brand .mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.app-sidebar .brand b { display: block; font-weight: 500; font-size: 15px; line-height: 1.25; }
+.app-sidebar .brand small { display: block; font-size: 12px; opacity: .75; }
+.app-sidebar hr {
+  border: 0;
+  border-top: 1px solid var(--sidebar-border);
+  margin: 0;
+  width: 100%;
+}
+.app-sidebar .group-label {
+  font-size: 10.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  opacity: .7;
+  padding: 0 8px;
+}
+.app-sidebar nav { display: grid; gap: 4px; }
+.app-sidebar nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: .75rem;
+  color: inherit;
+  text-decoration: none;
+  font-size: 14px;
+}
+.app-sidebar nav a:hover { background: var(--sidebar-accent); }
+.app-sidebar nav a[aria-current="page"] {
+  background: color-mix(in srgb, var(--sidebar-primary) 12%, transparent);
+  color: var(--sidebar-primary);
+  font-weight: 500;
+}
+.app-sidebar nav a .dot {
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--sidebar-primary);
+  opacity: 0;
+}
+.app-sidebar nav a[aria-current="page"] .dot { opacity: 1; }
+.app-sidebar .foot { margin-top: auto; font-size: 12px; opacity: .8; line-height: 1.6; }
+
+.app-main { padding: 24px 20px 72px; }
+@media (min-width: 900px) {
+  .app-main { margin-left: 272px; }
+}
+@media (max-width: 899px) {
+  .app-sidebar {
+    position: static;
+    width: auto;
+    margin: 12px 12px 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+  .app-sidebar hr, .app-sidebar .group-label, .app-sidebar .foot { display: none; }
+  .app-sidebar nav { grid-auto-flow: column; margin-left: auto; }
+  .app-sidebar nav a .dot { display: none; }
+}
+
+/* ---------------- icons ---------------- */
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+.material-symbols-outlined.fill { font-variation-settings: "FILL" 1; }
+.material-symbols-outlined.sm { font-size: 18px; }
+
+/* ---------------- scrollbar ---------------- */
+
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }

@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>บันทึกการตรวจสถานที่ — แบบขอซื้อยา</title>
+    <link rel="icon" href="./logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+    />
+    <link rel="stylesheet" href="./theme.css" />
+    <style>
+      /*
+       * The toolbar is app chrome and follows the council design system.
+       * The sheet below it is the official record: always black on white,
+       * always the government TH Sarabun stack, never glass, never themed —
+       * what is on screen has to be what comes out of the printer.
+       */
+      :root { --fill: color-mix(in srgb, var(--primary) 9%, transparent); }
+
+      /* ---------- toolbar (screen only) ---------- */
+      .toolbar {
+        position: sticky;
+        top: 12px;
+        z-index: 10;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin: 12px 16px 0;
+        padding: 10px 14px;
+        border-radius: 1rem;
+        font-size: 14px;
+      }
+      .toolbar .grow { flex: 1 1 auto; }
+      .toolbar button, .toolbar a.btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 9px 16px;
+        border-radius: 1rem;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--foreground);
+        cursor: pointer;
+        text-decoration: none;
+        transition: border-color .15s, color .15s, transform .05s;
+      }
+      .toolbar button:hover, .toolbar a.btn:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      .toolbar button:active, .toolbar a.btn:active { transform: translateY(1px); }
+      .toolbar button.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: var(--primary-foreground);
+        font-weight: 500;
+      }
+      .toolbar button.primary:hover { color: var(--primary-foreground); }
+      .toolbar button:disabled { opacity: .55; cursor: progress; }
+      .toolbar .note { color: var(--muted-foreground); }
+      .toolbar .err { color: var(--destructive); }
+
+      /* ---------- the sheet ---------- */
+      .sheet {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 16px auto;
+        padding: 15mm 18mm;
+        background: #fff;
+        color: #000;
+        font-family: "TH Sarabun New", "TH SarabunPSK", "Sarabun",
+          "Leelawadee UI", "Segoe UI", Tahoma, sans-serif;
+        font-weight: 400;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, .12);
+        font-size: 13.5pt;
+        line-height: 1.22;
+      }
+      .page-no { text-align: right; font-size: .95em; }
+      h1 {
+        text-align: center;
+        font-size: 1.2em;
+        font-weight: 700;
+        margin: 6pt 0 8pt;
+      }
+      p.para { margin: 0 0 1pt; text-indent: 0; }
+      .indent { text-indent: 40pt; }
+
+      /* a run of text with blanks that stretch to the margin */
+      .line {
+        display: flex;
+        align-items: baseline;
+        gap: 4pt;
+        margin: 0 0 1pt;
+        flex-wrap: nowrap;
+      }
+      .line > span { white-space: nowrap; }
+      .line.wrap { flex-wrap: wrap; }
+
+      input.blank {
+        font: inherit;
+        color: inherit;
+        min-width: 0;
+        flex: 1 1 60pt;
+        border: 0;
+        border-bottom: 1px dotted #444;
+        background: transparent;
+        padding: 0 3pt 1pt;
+      }
+      input.blank.filled { background: var(--fill); }
+      input.blank { color: #000; }
+      input.blank:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
+      input.blank.w-s  { flex: 0 1 70pt; }
+      input.blank.w-m  { flex: 0 1 120pt; }
+      input.blank.w-l  { flex: 2 1 180pt; }
+
+      /* the ☐ / ☑ boxes — a text glyph so print matches the original form */
+      .check {
+        font: inherit;
+        border: 0;
+        background: transparent;
+        padding: 0 2pt 0 0;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .check .box { font-size: 1.05em; }
+      .check[aria-pressed="true"] { font-weight: 700; }
+      .check { color: #000; }
+      .check:focus-visible { outline: 2px solid var(--ring); }
+
+      .sign-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6pt 24pt;
+        margin-top: 10pt;
+      }
+      .sign { line-height: 1.7; }
+      .sign .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
+      .officer { text-align: center; display: inline-block; width: 150pt; }
+
+      /* ---------- print ---------- */
+      @page { size: A4; margin: 15mm 18mm; }
+      @media print {
+        body { background: #fff; }
+        .toolbar { display: none; }
+        .sheet {
+          width: auto;
+          min-height: 0;
+          margin: 0;
+          padding: 0;
+          box-shadow: none;
+        }
+        .sheet + .sheet { page-break-before: always; }
+        input.blank { border-bottom: 1px dotted #444; }
+        input.blank.filled { background: transparent; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar glass-panel">
+      <button type="button" class="primary" id="download">
+        <span class="material-symbols-outlined sm">download</span>ดาวน์โหลด PDF
+      </button>
+      <button type="button" id="downloadDocx">
+        <span class="material-symbols-outlined sm">description</span>ดาวน์โหลด Word
+      </button>
+      <button type="button" id="print">
+        <span class="material-symbols-outlined sm">print</span>พิมพ์ / บันทึกเอง
+      </button>
+      <button type="button" id="clear">
+        <span class="material-symbols-outlined sm">restart_alt</span>ล้างฟอร์ม
+      </button>
+      <span class="grow"></span>
+      <span class="note" id="status">ยังไม่ได้ดึงข้อมูลร้าน — กรอกเองได้ทุกช่อง</span>
+      <a class="btn" href="./index.html">
+        <span class="material-symbols-outlined sm">arrow_back</span>กลับไปค้นหา
+      </a>
+    </div>
+
+    <!-- ============================ PAGE 1 ============================ -->
+    <div class="sheet">
+      <div class="page-no">หน้าที่ 1 จาก 2</div>
+      <h1>บันทึกการตรวจสอบการประกอบวิชาชีพของผู้ประกอบวิชาชีพเภสัชกรรม</h1>
+
+      <p class="para indent">
+        อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม
+        พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย
+      </p>
+      <div class="line">
+        <input class="blank" name="officers1" value="นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง" />
+      </div>
+      <div class="line">
+        <input class="blank" name="officers2" value="นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ" />
+      </div>
+
+      <div class="line">
+        <span>ได้ทำการตรวจสถานที่ทำการของผู้ประกอบวิชาชีพเภสัชกรรมชื่อ</span>
+        <input class="blank" name="pharmacistName" />
+      </div>
+      <div class="line">
+        <span>ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ.</span>
+        <input class="blank w-m" name="pharmacistLicenseNo" />
+        <span>หมดอายุวันที่</span>
+        <input class="blank w-m" name="pharmacistLicenseExpiry" />
+      </div>
+      <div class="line">
+        <span>สถานที่ทำการประเภท ขายยาแผนปัจจุบัน ชื่อ</span>
+        <input class="blank" name="placeName" />
+      </div>
+      <div class="line">
+        <span>ตั้งอยู่เลขที่</span>
+        <input class="blank w-m" name="houseNo" />
+        <span>หมู่บ้าน/อาคาร</span>
+        <input class="blank" name="village" />
+      </div>
+      <div class="line">
+        <span>หมู่ที่</span>
+        <input class="blank w-s" name="moo" />
+        <span>ตรอก/ซอย</span>
+        <input class="blank" name="soi" />
+        <span>ถนน</span>
+        <input class="blank" name="road" />
+      </div>
+      <div class="line">
+        <span>แขวง/ตำบล</span>
+        <input class="blank" name="subdistrict" />
+        <span>เขต/อำเภอ</span>
+        <input class="blank" name="district" />
+        <span>จังหวัด</span>
+        <input class="blank" name="province" />
+      </div>
+      <div class="line">
+        <span>เบอร์โทรศัพท์ติดต่อ</span>
+        <input class="blank" name="phone" />
+        <span>เขตสถานีตำรวจ</span>
+        <input class="blank" name="policeStation" />
+      </div>
+      <div class="line">
+        <span>เมื่อวันที่</span>
+        <input class="blank w-m" name="inspectDate" />
+        <span>เวลา</span>
+        <input class="blank w-s" name="inspectTime" />
+        <span>น. ปรากฏผลดังนี้</span>
+        <span style="flex:1"></span>
+      </div>
+
+      <div class="line">
+        <span>&nbsp;1. ชื่อผู้รับอนุญาตของสถานที่ทำการ</span>
+        <input class="blank" name="licenseeName" />
+      </div>
+      <div class="line">
+        <span>ชื่อผู้ดำเนินการกิจการ</span>
+        <input class="blank" name="operatorName" />
+        <span>ใบอนุญาตขายยาแผนปัจจุบันเลขที่</span>
+        <input class="blank w-m" name="licenseNo" />
+      </div>
+      <div class="line">
+        <span>&nbsp;2. ชื่อผู้มีหน้าที่ปฏิบัติการ</span>
+        <input class="blank" name="dutyPharmacist" />
+      </div>
+      <div class="line">
+        <span>ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ.</span>
+        <input class="blank w-s" name="dutyLicenseNo" />
+        <span>หมดอายุวันที่</span>
+        <input class="blank w-s" name="dutyLicenseExpiry" />
+        <span>เวลาทำการ</span>
+        <input class="blank w-m" name="openHours" />
+        <span>น.</span>
+      </div>
+
+      <p class="para">&nbsp;3. สรุปผลการตรวจสอบพบ ดังนี้</p>
+
+      <div class="line wrap">
+        <span>(1) ขณะตรวจสอบเวลา</span>
+        <input class="blank w-s" name="checkTime" />
+        <span>น. ร้าน</span>
+        <input class="blank w-l" name="shopNameAtCheck" />
+        <button type="button" class="check" data-name="shopClosed" aria-pressed="false"><span class="box">☐</span> ปิดทำการ</button>
+        <button type="button" class="check" data-name="shopOpen" aria-pressed="false"><span class="box">☐</span> เปิดทำการตามปกติ</button>
+      </div>
+      <div class="line">
+        <span>พบ</span>
+        <input class="blank" name="personFound" />
+        <span>บัตรประจำตัวประชาชนเลขที่</span>
+        <input class="blank w-l" name="personIdCard" />
+      </div>
+      <div class="line wrap">
+        <span>ทำหน้าที่</span>
+        <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false"><span class="box">☐</span> เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button>
+        <button type="button" class="check" data-name="roleLicensee" aria-pressed="false"><span class="box">☐</span> ผู้รับอนุญาต</button>
+        <button type="button" class="check" data-name="roleAgent" aria-pressed="false"><span class="box">☐</span> ผู้แทนผู้รับอนุญาต</button>
+        <span>รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่</span>
+      </div>
+      <p class="para">ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด</p>
+
+      <div class="line wrap">
+        <span>(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่</span>
+        <button type="button" class="check" data-name="noBuy" aria-pressed="false"><span class="box">☐</span> ไม่ได้ขอซื้อยา</button>
+        <button type="button" class="check" data-name="didBuy" aria-pressed="false"><span class="box">☐</span> ขอซื้อยา</button>
+        <span>ซึ่ง</span>
+        <input class="blank" name="buyRequest" />
+      </div>
+      <div class="line">
+        <span>ได้จ่ายยา</span>
+        <input class="blank" name="drugDispensed" />
+        <span>ให้จำนวน</span>
+        <input class="blank w-s" name="drugQuantity" />
+        <span>ในราคา</span>
+        <input class="blank w-s" name="drugPrice" />
+        <span>บาท ตรวจสอบบนแผง/กล่อง</span>
+      </div>
+      <div class="line">
+        <span>ระบุข้อความ “ยาอันตราย” Reg No.</span>
+        <input class="blank w-m" name="regNo" />
+        <span>Lot</span>
+        <input class="blank w-s" name="lot" />
+        <span>ผลิต</span>
+        <input class="blank w-s" name="mfgDate" />
+        <span>ยาสิ้นอายุ</span>
+        <input class="blank w-s" name="expDate" />
+      </div>
+      <p class="para">ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น</p>
+      <div class="line">
+        <span>&nbsp;&nbsp;&nbsp;</span>
+        <button type="button" class="check" data-name="notDispensed" aria-pressed="false"><span class="box">☐</span> ไม่ได้จ่ายยา เนื่องจาก</button>
+        <input class="blank" name="notDispensedReason" />
+      </div>
+
+      <div class="line">
+        <span>(3)</span>
+        <input class="blank" name="admitPerson" />
+        <span>ได้ยอมรับว่า</span>
+        <button type="button" class="check" data-name="admitSold" aria-pressed="false"><span class="box">☐</span> ได้ขายยาตาม (2) ให้กับพนักงานเจ้าหน้าที่</button>
+      </div>
+      <p class="para">ในขณะที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่จริง</p>
+
+      <p class="para">
+        (4) พนักงานเจ้าหน้าที่ได้แจ้งวัตถุประสงค์ในการตรวจครั้งนี้ว่าเป็นการตรวจสอบภายใต้กฎหมายวิชาชีพเภสัชกรรม
+      </p>
+      <div class="line wrap">
+        <span>ตาม</span>
+        <button type="button" class="check" data-name="sourceTip" aria-pressed="false"><span class="box">☐</span> มีการแจ้งเบาะแสมายังสภาเภสัชกรรม</button>
+        <button type="button" class="check" data-name="sourcePlan" aria-pressed="false"><span class="box">☐</span> แผนการเฝ้าระวังตามมติที่ประชุมคณะกรรมการสภาเภสัชกรรม</button>
+        <button type="button" class="check" data-name="sourceComplaint" aria-pressed="false"><span class="box">☐</span> มีผู้ร้องเรียน</button>
+      </div>
+      <div class="line">
+        <span>แจ้งว่า</span>
+        <input class="blank" name="complaintDetail" />
+        <span>ซึ่ง</span>
+        <input class="blank w-l" name="acknowledgedBy" />
+      </div>
+      <p class="para">รับทราบวัตถุประสงค์ในการตรวจของพนักงานเจ้าหน้าที่และยินดีให้ตรวจสอบและตรวจค้นภายในสถานที่ประกอบการ</p>
+
+      <div class="line wrap">
+        <span>(5) ทางสถานที่ทำการ</span>
+        <button type="button" class="check" data-name="licenceShown" aria-pressed="false"><span class="box">☐</span> พบ</button>
+        <button type="button" class="check" data-name="licenceNotShown" aria-pressed="false"><span class="box">☐</span> ไม่พบ</button>
+        <span>การแสดงใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรมของผู้มีหน้าที่ปฏิบัติการ</span>
+        <button type="button" class="check" data-name="licenceOriginal" aria-pressed="false"><span class="box">☐</span> ฉบับจริง</button>
+        <button type="button" class="check" data-name="licenceCopy" aria-pressed="false"><span class="box">☐</span> ฉบับสำเนา</button>
+      </div>
+
+      <div class="line wrap">
+        <span>(6) ขณะตรวจสอบ</span>
+        <button type="button" class="check" data-name="dutyPresent" aria-pressed="false"><span class="box">☐</span> พบ</button>
+        <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false"><span class="box">☐</span> ไม่พบ</button>
+        <span>ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่</span>
+      </div>
+      <div class="line"><input class="blank" name="dutyNote" /></div>
+
+      <div class="line wrap">
+        <span>(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ</span>
+        <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false"><span class="box">☐</span> มี</button>
+        <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false"><span class="box">☐</span> ไม่มี</button>
+        <input class="blank" name="leaveProofNote" />
+      </div>
+      <div class="line"><input class="blank" name="leaveProofNote2" /></div>
+
+      <div class="line wrap">
+        <span>(8) ขณะตรวจสอบ</span>
+        <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false"><span class="box">☐</span> ไม่พบ</button>
+        <span>การปิดม่านบังยาอันตราย</span>
+        <button type="button" class="check" data-name="curtainFound" aria-pressed="false"><span class="box">☐</span> พบ</button>
+        <span>การปิดม่านบังยาอันตราย</span>
+        <input class="blank" name="curtainNote" />
+      </div>
+
+      <div class="sign-grid" style="grid-template-columns: 1fr;">
+        <div class="sign">
+          ลงชื่อ <span class="rule"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-l" name="signPage1Name" /> )
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================ PAGE 2 ============================ -->
+    <div class="sheet">
+      <div class="page-no">หน้าที่ 2 จาก 2</div>
+      <div class="line">
+        <span>ต่อจากหน้าที่</span>
+        <input class="blank w-s" name="continuedFrom" value="1" />
+        <span style="flex:1"></span>
+      </div>
+      <p class="para">&nbsp;3. สรุปผลการตรวจสอบพบ (ต่อ)</p>
+
+      <div class="line">
+        <span>(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้</span>
+        <input class="blank" name="behaviour1" />
+      </div>
+      <div class="line"><input class="blank" name="behaviour2" /></div>
+      <div class="line"><input class="blank" name="behaviour3" /></div>
+      <div class="line"><input class="blank" name="behaviour4" /></div>
+      <div class="line"><input class="blank" name="behaviour5" /></div>
+      <div class="line"><input class="blank" name="behaviour6" /></div>
+
+      <div class="line">
+        <span>(10) พนักงานเจ้าหน้าที่ได้ ยึด</span>
+        <input class="blank w-m" name="seizedItems" value="-" />
+        <span>จำนวน</span>
+        <input class="blank w-s" name="seizedCount" value="-" />
+        <span>รายการ อายัด</span>
+        <input class="blank w-m" name="heldItems" value="-" />
+        <span>จำนวน</span>
+        <input class="blank w-s" name="heldCount" value="-" />
+        <span>รายการ</span>
+      </div>
+      <p class="para">
+        เพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย
+      </p>
+
+      <p class="para">
+        (11) พนักงานเจ้าหน้าที่ได้แจ้งข้อมูลให้ทราบว่า
+        กรณีที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่ปฏิบัติหน้าที่ ให้ร้านปฏิบัติตามกฎหมายว่าด้วยยา
+        และห้ามมิให้มีการจำหน่าย จ่าย แจก หรือส่งมอบ ยาประเภทยาอันตราย ยาควบคุมพิเศษ
+        วัตถุที่ออกฤทธิ์ต่อจิตและประสาท หรือยาเสพติดให้โทษ
+        โดยบุคคลที่ไม่ได้เป็นผู้ประกอบวิชาชีพเภสัชกรรม
+        หากมีการฝ่าฝืนจะเป็นความผิดตามพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 โดย
+      </p>
+      <div class="line wrap">
+        <button type="button" class="check" data-name="informPharmacist" aria-pressed="false"><span class="box">☐</span> เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button>
+        <button type="button" class="check" data-name="informLicensee" aria-pressed="false"><span class="box">☐</span> ผู้รับอนุญาต</button>
+        <button type="button" class="check" data-name="informAgent" aria-pressed="false"><span class="box">☐</span> ผู้แทนผู้รับอนุญาต</button>
+        <span>เข้าใจและรับทราบข้อมูลตามที่แจ้ง</span>
+      </div>
+
+      <div class="line">
+        <span>(12) สิ้นสุดการตรวจเวลา</span>
+        <input class="blank w-m" name="endTime" />
+        <span>น.</span>
+        <span style="flex:1"></span>
+      </div>
+
+      <p class="para indent">
+        พนักงานเจ้าหน้าที่ที่มาทำการตรวจครั้งนี้ ได้กระทำไปตามอำนาจหน้าที่
+        มิได้เรียกรับหรือยอมจะรับทรัพย์สินของผู้หนึ่งผู้ใดมาเป็นของตนหรือบุคคลอื่น
+        มิได้บังคับขู่เข็ญหรือทำร้ายร่างกายหรือได้ทำให้ทรัพย์สินของผู้ใดที่อยู่ในที่นี้สูญหายหรือเสียหาย
+        หรือยึดเอามาเป็นส่วนตัวแต่อย่างใด อ่านให้ฟังโดยตลอดและได้อ่านเองแล้ว รับรองว่าถูกต้อง
+        จึงลงลายมือชื่อไว้เป็นสำคัญ
+      </p>
+
+      <div class="sign-grid">
+        <div class="sign">
+          ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" /> )
+        </div>
+        <div class="sign">
+          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายศิริพงษ์ เจือโร่ง</span> )
+        </div>
+        <div class="sign">
+          ลงชื่อ <span class="rule"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" /> )
+        </div>
+        <div class="sign">
+          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเทอดภูมิ พัชรสุนทรชัย</span> )
+        </div>
+        <div class="sign">
+          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวอชิดา บุญเพียร</span> )
+        </div>
+        <div class="sign">
+          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวศศิธร เจือโร่ง</span> )
+        </div>
+        <div class="sign">
+          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเจษฎา จันทรประเสริฐ</span> )
+        </div>
+      </div>
+    </div>
+
+    <script>
+      'use strict';
+
+      const API_BASE = location.protocol.startsWith('http')
+        ? location.origin
+        : 'http://localhost:3000';
+
+      /** Where index.html leaves the row it wants filled in. */
+      const HANDOFF_KEY = 'fda:form:pending';
+
+      const statusEl = document.getElementById('status');
+
+      /* ---------------- checkboxes ---------------- */
+      for (const button of document.querySelectorAll('.check')) {
+        button.addEventListener('click', () => setCheck(button, button.getAttribute('aria-pressed') !== 'true'));
+      }
+      function setCheck(button, on) {
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+        button.querySelector('.box').textContent = on ? '☑' : '☐';
+      }
+
+      /* ---------------- read / write the whole form ---------------- */
+      function collect() {
+        const values = {};
+        for (const input of document.querySelectorAll('input.blank')) {
+          values[input.name] = input.value;
+        }
+        const checks = {};
+        for (const button of document.querySelectorAll('.check')) {
+          checks[button.dataset.name] = button.getAttribute('aria-pressed') === 'true';
+        }
+        return { values, checks };
+      }
+
+      /**
+       * Fill the form. Also called by the server's PDF renderer through
+       * Puppeteer, so it must work with no user interaction.
+       */
+      window.applyData = function applyData(data) {
+        const values = (data && data.values) || {};
+        const checks = (data && data.checks) || {};
+        for (const input of document.querySelectorAll('input.blank')) {
+          if (values[input.name] === undefined) continue;
+          input.value = values[input.name];
+          input.classList.toggle('filled', Boolean(values[input.name]));
+        }
+        for (const button of document.querySelectorAll('.check')) {
+          setCheck(button, Boolean(checks[button.dataset.name]));
+        }
+      };
+
+      /** Hides the toolbar and the on-screen fill highlight before page.pdf(). */
+      window.prepareForPrint = function prepareForPrint() {
+        const toolbar = document.querySelector('.toolbar');
+        if (toolbar) toolbar.remove();
+        for (const sheet of document.querySelectorAll('.sheet')) fitSheet(sheet);
+        for (const input of document.querySelectorAll('input.blank')) {
+          input.classList.remove('filled');
+          shrinkToFit(input);
+        }
+      };
+
+      /**
+       * The original record is exactly two A4 pages, so each sheet has to stay
+       * on one. Step the sheet's type down until it does — long shop names and
+       * long addresses otherwise push a third page out.
+       *
+       * Only meaningful once print CSS is active; the server switches the page
+       * to print media before calling prepareForPrint().
+       */
+      function fitSheet(sheet) {
+        const maxHeight = 267 * (96 / 25.4); // A4 minus the 15mm print margins
+        let size = 13.5;
+        sheet.style.fontSize = size + 'pt';
+        while (sheet.getBoundingClientRect().height > maxHeight && size > 8.5) {
+          size -= 0.25;
+          sheet.style.fontSize = size + 'pt';
+        }
+      }
+
+      /**
+       * A blank is a fixed-width box, so a long shop name would simply be cut
+       * off in the PDF. Step the type down until it fits, to a floor where it
+       * is still readable on paper.
+       */
+      function shrinkToFit(input) {
+        let size = parseFloat(getComputedStyle(input.closest('.sheet')).fontSize) * 0.75;
+        input.style.fontSize = size + 'pt';
+        while (input.scrollWidth > input.clientWidth + 1 && size > 8) {
+          size -= 0.5;
+          input.style.fontSize = size + 'pt';
+        }
+      }
+
+      /* ---------------- prefill from the search page ---------------- */
+      function two(n) { return String(n).padStart(2, '0'); }
+
+      /** Map one FDA row onto the form's blanks. */
+      function fromRow(row) {
+        const area = row.area || {};
+        const now = new Date();
+        const thaiDate = `${now.getDate()} ${
+          ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][now.getMonth()]
+        } ${now.getFullYear() + 543}`;
+        const clock = `${two(now.getHours())}.${two(now.getMinutes())}`;
+
+        return {
+          values: {
+            placeName: row.placeName || '',
+            shopNameAtCheck: row.placeName || '',
+            houseNo: area.houseNo || '',
+            village: area.village || '',
+            moo: area.moo || '',
+            soi: area.soi || '',
+            road: area.road || '',
+            subdistrict: area.subdistrict || '',
+            district: area.district || '',
+            province: area.province || '',
+            phone: area.phone || '',
+            licenseeName: row.licenseeName || '',
+            operatorName: row.operatorName || '',
+            licenseNo: row.licenseNo || '',
+            openHours: row.openHours || '',
+            inspectDate: thaiDate,
+            inspectTime: clock,
+            checkTime: clock,
+          },
+          checks: {},
+        };
+      }
+
+      const handoff = localStorage.getItem(HANDOFF_KEY);
+      if (handoff) {
+        try {
+          const row = JSON.parse(handoff);
+          window.applyData(fromRow(row));
+          statusEl.textContent = `กรอกจาก: ${row.placeName || row.licenseNo || 'ข้อมูลร้าน'}`;
+          localStorage.removeItem(HANDOFF_KEY);
+        } catch (err) {
+          statusEl.textContent = 'อ่านข้อมูลร้านไม่สำเร็จ — กรอกเองได้';
+          statusEl.className = 'err';
+        }
+      }
+
+      /* ---------------- actions ---------------- */
+      document.getElementById('print').addEventListener('click', () => window.print());
+
+      document.getElementById('clear').addEventListener('click', () => {
+        for (const input of document.querySelectorAll('input.blank')) {
+          input.value = '';
+          input.classList.remove('filled');
+        }
+        for (const button of document.querySelectorAll('.check')) setCheck(button, false);
+        statusEl.textContent = 'ล้างฟอร์มแล้ว';
+        statusEl.className = 'note';
+      });
+
+      /**
+       * Both downloads are the same trip: post what is on screen, save what
+       * comes back. PDF is the record as printed; Word is the office's own
+       * file, still editable.
+       */
+      async function download(button, format, label) {
+        button.disabled = true;
+        statusEl.className = 'note';
+        statusEl.textContent = `กำลังสร้าง ${label}...`;
+        try {
+          const response = await fetch(`${API_BASE}/api/form/${format}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(collect()),
+          });
+          if (!response.ok) {
+            const problem = await response.json().catch(() => ({}));
+            throw new Error(problem.message || `สร้าง ${label} ไม่สำเร็จ`);
+          }
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          const shop = (collect().values.placeName || 'บันทึกการตรวจ').slice(0, 40);
+          link.href = url;
+          link.download = `บันทึกการตรวจ ${shop}.${format}`;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 10000);
+          statusEl.textContent = `ดาวน์โหลด ${label} แล้ว`;
+        } catch (err) {
+          statusEl.className = 'err';
+          statusEl.textContent = `${err.message} — ใช้ปุ่ม “พิมพ์ / บันทึกเอง” แทนได้`;
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      const downloadBtn = document.getElementById('download');
+      downloadBtn.addEventListener('click', () => download(downloadBtn, 'pdf', 'PDF'));
+
+      const docxBtn = document.getElementById('downloadDocx');
+      docxBtn.addEventListener('click', () => download(docxBtn, 'docx', 'Word'));
+    </script>
+  </body>
+</html>

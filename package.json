@@ -1,0 +1,19 @@
+{
+  "name": "fda-license-scraper",
+  "version": "1.0.0",
+  "description": "Backend API for scraping FDA (อย.) drug establishment license search",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "dev:web": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "install:web": "npm --prefix web install",
+    "smoke": "node smoke-form.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "puppeteer": "^23.6.0"
+  }
+}
