@@ -102,7 +102,8 @@ under "Inspection form" below.
 The same image, on a host that scales to zero between inspections. Cloud Run
 allows a 60-minute request and several gigabytes of memory, which is what this
 app needs and what the serverless platforms do not give: the measured worst
-case is 745 MB and 223 seconds.
+case is 511 MB and 92 seconds — both measured inside the container, not
+guessed from the host.
 
 ```bash
 gcloud run deploy fda-license-scraper --source . --region asia-southeast1 --memory 2Gi --cpu 2 --timeout 900 --concurrency 4 --execution-environment gen2 --allow-unauthenticated
@@ -112,9 +113,9 @@ Why those numbers:
 
 | Flag | Why |
 | --- | --- |
-| `--memory 2Gi` | a scrape holds 745 MB; 1 Gi leaves no headroom for a second request |
+| `--memory 2Gi` | "บ้านยา" runs out of room at 512 MB; 1 Gi holds it, 2 Gi leaves headroom for a second request |
 | `--cpu 2` | Chromium parses 51 pages of Telerik markup — one vCPU roughly doubles the wall clock |
-| `--timeout 900` | the broadest keyword takes 223 s, and the default 300 s leaves nothing spare |
+| `--timeout 900` | the broadest keyword takes 92 s at best and the portal's pace varies by a factor of two |
 | `--concurrency 4` | scrapes are serialised behind one browser anyway, so a high number only piles requests onto the same instance |
 | `--execution-environment gen2` | gen1's sandbox is missing syscalls Chromium expects |
 | `--allow-unauthenticated` | drop this to put the service behind IAM, which is worth considering — see below |
@@ -138,9 +139,10 @@ always-billed instance.
 ### Railway, or any container host
 
 `Dockerfile` is the one to reach for. Measured on a real search, a scrape
-holds **745 MB** across Node and Chromium's twelve processes and takes **51 s**
-for "ฟาสซิโน" (232 rows) — **223 s** for "บ้านยา". That rules out anything with
-a request timeout or a 512 MB tier, and it is why the container is the home
+for "ฟาสซิโน" (232 rows) peaks at **394 MB** and takes **52 s**, and "บ้านยา"
+(2,536 rows over 51 pages) takes **92 s** and **runs out of memory at a 512 MB
+cap**. That rules out anything with a short request timeout or a 512 MB tier,
+and it is why the container is the home
 this app actually wants: one browser, one queue and one cache serving
 everyone, warm between requests.
 
@@ -193,24 +195,36 @@ the same code runs locally against a real Chrome.
 
 **The ceiling worth knowing before you deploy.** A function has a wall-clock
 limit — 60 s on Hobby, 300 s on Pro — and a scrape is as long as the keyword
-is broad. Measured: 7 s for a rare name, **223 s for "บ้านยา"** (2,536 rows
-over 51 pages). So:
+is broad. Measured: 7 s for a rare name, **92 s for "บ้านยา"** (2,536 rows over
+51 pages). Almost all of that is paging — setup is 3 s and each pager click
+costs between 0.9 s and 1.7 s, depending on the portal's mood. So:
 
-- On **Hobby**, any keyword needing more than about 20 pages times out. Lower
-  `MAX_PAGES` to ~25 so it returns a partial answer with the "ผลลัพธ์ไม่ครบ"
-  banner instead of failing.
-- On **Pro**, `maxDuration: 300` covers everything measured so far, with
-  little margin on the broadest keywords.
+- On **Hobby**, 60 s is the ceiling, and at the portal's slow pace that is
+  about 27 pages. `MAX_PAGES=25` is the setting that fits: measured at 24 s
+  for "บ้านยา", returning its first 1,250 rows with the "ผลลัพธ์ไม่ครบ" banner
+  already in the UI. Officers searching a shop name never reach it —
+  "ฟาสซิโน" is five pages — so the cap only bites on terms broad enough that
+  the honest answer is "type more of the name".
+- On **Pro**, 300 s covers every keyword measured, including the full 51-page
+  "บ้านยา" at 92 s.
 - The keyword cache lives in the instance's memory, so it survives only as
   long as that instance does — a second officer usually pays the full scrape
   again. The single-scrape queue is likewise per-instance and no longer
   protects the FDA site from parallel scrapes.
 
-None of that is a bug to fix in the code; it is what serverless costs here.
-If the searches get heavier, this app wants a container that stays warm —
-Render, Railway, Fly — where one browser, one queue and one cache serve
-everyone, and a 4-minute scrape is just a slow request. The same
-`npm start` runs there unchanged.
+Note what the profile rules out. Splitting a scrape across several
+invocations sounds like the fix for the 60 s ceiling, and the setup cost is
+low enough — 3 s — that it would pay for itself. But filtering and the
+province facets need the whole result set, so partial chunks would have to be
+stitched somewhere, and on Vercel there is no somewhere: each invocation may
+land on a different instance. It would mean moving filtering into the browser
+or renting a store to hold half-finished scrapes. Capping the pages is one
+line and tells the officer the truth.
+
+If the searches get heavier than that, this app wants a container that stays
+warm — one browser, one queue and one cache serving everyone, and a
+92-second scrape is just a slow request. The same `npm start` runs there
+unchanged.
 
 ## Web UI
 
@@ -242,7 +256,7 @@ right or wrong, not as brand.
 
 The preloader has two variants because the app has two waits: a sub-second
 cover while the area tree loads, and the search itself, which measured between
-7 and 223 seconds depending on how common the name is. The second one counts
+7 and 92 seconds depending on how common the name is. The second one counts
 the seconds, since a bare spinner says nothing across that spread.
 
 The inspection form stays a plain static page. It is a print document, it has

@@ -66,8 +66,12 @@ module.exports = {
   // A deployment has no repository copy of it, so it is fetched from here.
   formTemplateUrl: process.env.FORM_TEMPLATE_URL || null,
 
-  // Safety caps so a very broad keyword cannot run forever.
-  maxPages: Number(process.env.MAX_PAGES || 60),
+  // Safety caps so a very broad keyword cannot run forever. A serverless
+  // deployment gets a lower one because it is not a safety cap there but a
+  // hard ceiling: Vercel's free plan kills the request at 60 seconds, and
+  // the portal's pager costs up to 1.7 s a page. Twenty-five pages fit with
+  // room to spare, and the UI already says when a result set was cut short.
+  maxPages: Number(process.env.MAX_PAGES || (serverless ? 25 : 60)),
   maxDetails: Number(process.env.MAX_DETAILS || 25),
 
   // The site sits behind a GDCC WAF that returns HTTP 500 for the default

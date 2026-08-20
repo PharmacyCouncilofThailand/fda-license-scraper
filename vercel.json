@@ -9,7 +9,7 @@
   },
   "functions": {
     "api/index.js": {
-      "maxDuration": 300,
+      "maxDuration": 60,
       "memory": 2048,
       "includeFiles": "data/**"
     }
