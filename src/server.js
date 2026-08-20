@@ -18,9 +18,6 @@ const path = require('path');
 const { renderFormDocx } = require('./docx-form');
 
 const app = express();
-// Vercel terminates TLS in front of the function; without this req.protocol
-// would read http and the form would be fetched over a redirect.
-app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -83,20 +80,6 @@ app.get('/api/fda/detail', async (req, res, next) => {
 });
 
 /**
- * Where the record's own page is served from, for the PDF to be rendered
- * against. Normally that is this very process, and it has to be: Chromium
- * runs beside it, so a container's public address — a port mapped from
- * outside — is not reachable from within. Only a serverless deployment,
- * which has no local server at all, asks the request where it came from and
- * fetches the page from the CDN.
- */
-function origin(req) {
-  return config.serverless
-    ? `${req.protocol}://${req.get('host')}`
-    : `http://127.0.0.1:${config.port}`;
-}
-
-/**
  * The shop name makes the download easy to find in a folder of them. The plain
  * `filename` is the ASCII fallback for clients that cannot read RFC 5987.
  */
@@ -116,7 +99,7 @@ function disposition(req, extension) {
  */
 app.post('/api/form/pdf', async (req, res, next) => {
   try {
-    const pdf = await renderFormPdf(req.body || {}, origin(req));
+    const pdf = await renderFormPdf(req.body || {});
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': disposition(req, 'pdf'),

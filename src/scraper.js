@@ -7,41 +7,126 @@ const { selectors, detailSelectors, ...config } = require('./config');
  * and no writable disk to download one into, so puppeteer-core drives the
  * @sparticuz/chromium build instead — a Chromium packed small enough to fit
  * inside a function bundle.
+ *
+ * Loaded with import() rather than require(): puppeteer is ESM-only from v25,
+ * and while Node 22.12 and later will require() an ES module, the runtime a
+ * deployment gets may not. Both specifiers are literal so the bundler can
+ * still see which files to ship. Resolved once, on the first launch.
  */
-const puppeteer = config.serverless
-  ? require('puppeteer-core')
-  : require('puppeteer');
+let puppeteerPromise = null;
+function loadPuppeteer() {
+  if (!puppeteerPromise) {
+    puppeteerPromise = (config.serverless
+      ? import('puppeteer-core')
+      : import('puppeteer')
+    ).then((m) => m.default || m);
+  }
+  return puppeteerPromise;
+}
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { pathToFileURL } = require('url');
+
+/** The record's own page, as built into public/ by the Vite build. */
+const FORM_PAGE = pathToFileURL(
+  path.join(__dirname, '..', 'public', 'form.html')
+).href;
 
 let browserPromise = null;
 
-/** Launch (once) and reuse a single Chromium instance for all requests. */
+/**
+ * A browsing context to work in. Locally every job gets its own, so one
+ * scrape's session cannot leak into another's. The Chromium a function runs
+ * is single-process — that flag is what lets it start at all in there — and a
+ * single-process browser cannot open a second context, so jobs share the
+ * default one and close their own pages afterwards instead.
+ */
+async function createContext(browser) {
+  if (!config.serverless) return browser.createBrowserContext();
+
+  const context = browser.defaultBrowserContext();
+  return {
+    newPage: () => context.newPage(),
+    close: async () => {
+      const pages = await context.pages();
+      // The first page is the browser's own; closing it closes the browser.
+      await Promise.all(pages.slice(1).map((page) => page.close().catch(() => {})));
+    },
+  };
+}
+
+/**
+ * Launch (once) and reuse a single Chromium instance for all requests.
+ *
+ * A failed launch must not be remembered. Holding on to the rejected promise
+ * made every later request fail instantly with the first request's error —
+ * a cold start that timed out once looked like a portal that was down for
+ * the life of the instance.
+ */
 async function getBrowser() {
   if (!browserPromise) {
     browserPromise = launchBrowser();
-    const browser = await browserPromise;
-    browser.on('disconnected', () => {
+    try {
+      const browser = await browserPromise;
+      browser.on('disconnected', () => {
+        browserPromise = null;
+      });
+    } catch (err) {
       browserPromise = null;
-    });
+      throw err;
+    }
   }
   return browserPromise;
 }
 
-function launchBrowser() {
+async function launchBrowser() {
+  const puppeteer = await loadPuppeteer();
+
   if (config.serverless) {
-    // Required here, not at the top, so a local run never loads it.
-    const chromium = require('@sparticuz/chromium');
-    return chromium.executablePath().then((executablePath) =>
-      puppeteer.launch({
-        headless: true,
-        executablePath,
-        args: [
-          ...chromium.args,
-          `--user-agent=${config.userAgent}`,
-          '--lang=th-TH,th',
-        ],
-        defaultViewport: chromium.defaultViewport,
-      })
+    // Imported here, not at the top, so a local run never loads it — and with
+    // import() because this one is ESM-only too.
+    const chromium = await import('@sparticuz/chromium').then((m) => m.default || m);
+
+    // Unpacks Chromium and points FONTCONFIG_PATH at its font directory.
+    const executablePath = await chromium.executablePath();
+
+    /*
+     * The Lambda image ships no Thai font: the record came out of it set in
+     * Open Sans with every Thai glyph missing. Sarabun goes in beside the
+     * fonts it did unpack, where fontconfig will find it. It is under the
+     * Open Font License — which the office's own TH Sarabun New is not — and
+     * form.html already names it as a fallback.
+     */
+    const fontDir = process.env.FONTCONFIG_PATH || path.join(os.tmpdir(), 'fonts');
+    await fs.promises.mkdir(fontDir, { recursive: true });
+    await Promise.all(
+      ['Sarabun-Regular.ttf', 'Sarabun-Bold.ttf'].map((file) =>
+        fs.promises.copyFile(
+          path.join(__dirname, '..', 'assets', 'fonts', file),
+          path.join(fontDir, file)
+        )
+      )
     );
+    return puppeteer.launch({
+      headless: true,
+      executablePath,
+      args: [
+        // Its own flags, unedited. Dropping --single-process to get separate
+        // browser contexts looked reasonable and cost the whole budget: the
+        // multi-process build never finished starting inside the 60 s a
+        // function gets. createContext() gives way instead.
+        ...chromium.args,
+        `--user-agent=${config.userAgent}`,
+        '--lang=th-TH,th',
+      ],
+      defaultViewport: chromium.defaultViewport,
+      // Puppeteer gives a launch 30 s by default. A cold function has to
+      // unpack the Chromium archive into /tmp first, and that alone can spend
+      // most of it.
+      timeout: config.navTimeoutMs,
+    });
   }
   return puppeteer.launch({
     headless: config.headless,
@@ -281,16 +366,21 @@ async function clickAndSettle(page, selector, readySelector) {
     });
   });
 
+  /*
+   * Not every click posts back. Selecting the radio does on the portal as
+   * served to a desktop and does not in a Lambda, where the search box is
+   * simply already there — and waiting the full navigation timeout for a
+   * postback that will never start cost 45 seconds of a 60-second budget.
+   * Ten is longer than any partial postback measured; what the click was
+   * meant to achieve is checked after this, by the caller and by
+   * readySelector, so giving up early costs nothing.
+   */
+  const settleMs = Math.min(config.navTimeoutMs, 10000);
   const navigation = page
-    .waitForNavigation({
-      waitUntil: 'domcontentloaded',
-      timeout: config.navTimeoutMs,
-    })
+    .waitForNavigation({ waitUntil: 'domcontentloaded', timeout: settleMs })
     .catch(() => null);
   const asyncDone = page
-    .waitForFunction(() => window.__postbackDone === true, {
-      timeout: config.navTimeoutMs,
-    })
+    .waitForFunction(() => window.__postbackDone === true, { timeout: settleMs })
     .catch(() => null);
 
   await robustClick(page, selector);
@@ -378,13 +468,41 @@ async function tryEnlargePageSize(page) {
  * Stops at config.maxPages so a very broad keyword cannot loop forever; when
  * that cap is what ended the walk, `capped` says the result set is incomplete.
  */
+/**
+ * How many pages the grid says it has.
+ *
+ * The pager prints "2536 items in 51 pages", and knowing the number matters:
+ * on the last page Telerik leaves the "next" button enabled, so clicking it
+ * changes nothing and the wait for a new page number burns the full
+ * navigation timeout — 45 seconds added to every search that reads to the
+ * end. Stopping on the count avoids the click entirely.
+ */
+async function readTotalPages(page) {
+  try {
+    const text = await page.$eval(selectors.resultGrid, (grid) => {
+      const pager = grid.querySelector('.rgPager') || grid.querySelector('tfoot');
+      return pager ? pager.innerText : '';
+    });
+    const match = /in\s+([\d,]+)\s+pages?/i.exec(text);
+    return match ? Number(match[1].replace(/,/g, '')) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function readAllPages(page) {
   const all = [];
   let visited = 0;
+  const totalPages = await readTotalPages(page);
 
   for (;;) {
     all.push(...(await readGridRows(page)));
     visited += 1;
+
+    if (totalPages && visited >= totalPages) {
+      return { rows: all, capped: false, pagesRead: visited };
+    }
+
     if (visited >= config.maxPages) {
       const more = await page.$(selectors.nextPage);
       const hasMore = more
@@ -544,7 +662,7 @@ async function getDetailByNewCode(newCode) {
   if (hit) return { ...hit, cached: true };
 
   const browser = await getBrowser();
-  const context = await browser.createBrowserContext();
+  const context = await createContext(browser);
   try {
     const detail = await fetchDetailByUrl(context, {
       detailUrl: `${config.detailUrlBase}?Newcode_not=${encodeURIComponent(code)}`,
@@ -591,6 +709,7 @@ async function scrapeKeyword(keyword, context) {
     selectors.radioDrugLocation
   );
 
+
   // 3. กรอก keyword ในช่องสืบค้น
   await page.waitForSelector(selectors.searchInput);
   await dismissModals(page);
@@ -602,6 +721,7 @@ async function scrapeKeyword(keyword, context) {
 
   // 4. กดปุ่ม "ค้นหา"  5. รอจนตารางผลลัพธ์โหลดเสร็จ
   await clickAndSettle(page, selectors.searchButton, selectors.resultGrid);
+
 
   if (await hasNoRecords(page)) {
     return { rows: [], capped: false, pagesRead: 0 };
@@ -648,7 +768,7 @@ async function searchDrugLocations({
   const openContext = async () => {
     if (!context) {
       const browser = await getBrowser();
-      context = await browser.createBrowserContext();
+      context = await createContext(browser);
     }
     return context;
   };
@@ -779,9 +899,9 @@ async function searchDrugLocations({
  * scraper's browser rather than adding a PDF library — Chromium already draws
  * Thai text with the system fonts.
  */
-async function renderFormPdf(data, origin) {
+async function renderFormPdf(data) {
   const browser = await getBrowser();
-  const context = await browser.createBrowserContext();
+  const context = await createContext(browser);
   try {
     const page = await context.newPage();
     // Lay the page out at the printable area of an A4 page (210mm - 2x18mm,
@@ -789,7 +909,11 @@ async function renderFormPdf(data, origin) {
     // pass measures what the PDF will actually contain.
     await page.setViewport({ width: 658, height: 1009 });
     await page.emulateMediaType('print');
-    await page.goto(`${origin}/form.html`, {
+    // Straight off disk. Fetching it over HTTP meant knowing this process's
+    // own address, which is a different answer on a laptop, inside a
+    // container and behind a deployment's access control — where what came
+    // back was the login page, not the form.
+    await page.goto(FORM_PAGE, {
       waitUntil: 'domcontentloaded',
       timeout: config.navTimeoutMs,
     });
