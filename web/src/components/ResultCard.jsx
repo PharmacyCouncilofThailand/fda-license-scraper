@@ -85,7 +85,11 @@ export default function ResultCard({
         </div>
       </div>
 
-      {previewState?.open && <Preview row={row} state={previewState} />}
+      {previewState?.open && (
+        <div className="preview-reveal">
+          <Preview row={row} state={previewState} />
+        </div>
+      )}
     </li>
   );
 }

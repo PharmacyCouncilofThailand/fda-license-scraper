@@ -385,3 +385,70 @@ a.detail:hover { text-decoration: underline; }
   .skeleton::after { animation: none; }
   #root ul li { animation: none; }
 }
+
+/* ---------------- motion ---------------- */
+
+/*
+ * Only where the movement says something: a panel that unfolds out of the
+ * card it belongs to, a bar that arrives because you picked a shop, a card
+ * that lifts under the pointer. Nothing here animates for its own sake.
+ */
+
+/* the page settling on first paint */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.wrap > h1   { animation: rise-in .4s ease both; }
+.wrap > .sub { animation: rise-in .4s ease .06s both; }
+.wrap > form { animation: rise-in .4s ease .12s both; }
+
+/* a card answering the pointer, and the ring when it becomes the chosen one */
+#root ul li {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+#root ul li:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 34px 0 rgba(115, 115, 0, .10);
+}
+#root ul li.selected:hover { transform: none; }
+#root ul li .card-head input[type="radio"] { transition: transform .15s ease; }
+#root ul li:hover .card-head input[type="radio"] { transform: scale(1.12); }
+
+/*
+ * The preview unfolds out of its card rather than shoving the list down in
+ * one frame. `grid-template-rows: 0fr → 1fr` is the one way to animate to a
+ * height nobody knows in advance.
+ */
+.preview-reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: preview-unfold .28s cubic-bezier(.4, 0, .2, 1) both;
+}
+.preview-reveal > * { min-height: 0; }
+@keyframes preview-unfold {
+  from { grid-template-rows: 0fr; opacity: 0; }
+  to   { grid-template-rows: 1fr; opacity: 1; }
+}
+
+/* the bar arrives because a shop was picked */
+@keyframes pickbar-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.pickbar { animation: pickbar-in .26s cubic-bezier(.2, .8, .3, 1) both; }
+
+/* the summary bar replacing the preloader */
+.toolbar { animation: rise-in .3s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap > h1,
+  .wrap > .sub,
+  .wrap > form,
+  .toolbar,
+  .pickbar,
+  .preview-reveal { animation: none; }
+  #root ul li,
+  #root ul li .card-head input[type="radio"] { transition: none; }
+  #root ul li:hover { transform: none; box-shadow: var(--glass-shadow); }
+}

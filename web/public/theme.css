@@ -317,3 +317,23 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* ---------------- sidebar motion ---------------- */
+
+.app-sidebar nav a {
+  transition: background .16s ease, color .16s ease, padding-left .16s ease;
+}
+.app-sidebar nav a:hover { padding-left: 15px; }
+.app-sidebar nav a .dot { transition: opacity .2s ease, transform .2s ease; transform: scale(.4); }
+.app-sidebar nav a[aria-current="page"] .dot { transform: scale(1); }
+.app-sidebar .brand .mark { transition: transform .25s cubic-bezier(.2, .8, .3, 1); }
+.app-sidebar .brand:hover .mark { transform: rotate(-3deg) scale(1.04); }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar nav a,
+  .app-sidebar nav a .dot,
+  .app-sidebar .brand .mark { transition: none; }
+  .app-sidebar nav a:hover { padding-left: 12px; }
+  .app-sidebar .brand:hover .mark { transform: none; }
+  .app-sidebar nav a .dot { transform: scale(1); }
+}
