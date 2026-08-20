@@ -16,3 +16,6 @@ npm-debug.log*
 # See "Deploying" in the README.
 templates/
 scripts/logo-source.jpg
+
+# Licensed office fonts, if they are used for the PDF — see "Deploying".
+fonts/
