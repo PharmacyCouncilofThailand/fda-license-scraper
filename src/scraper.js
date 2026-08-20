@@ -494,9 +494,12 @@ async function readAllPages(page) {
   const all = [];
   let visited = 0;
   const totalPages = await readTotalPages(page);
+  let pageSize = null;
 
   for (;;) {
-    all.push(...(await readGridRows(page)));
+    const batch = await readGridRows(page);
+    if (pageSize === null) pageSize = batch.length;
+    all.push(...batch);
     visited += 1;
 
     if (totalPages && visited >= totalPages) {
@@ -547,6 +550,34 @@ async function readAllPages(page) {
     await page.waitForSelector(selectors.resultGrid, {
       timeout: config.navTimeoutMs,
     });
+
+    /*
+     * The page number changes before the rows do. Reading straight after it
+     * caught the grid mid-render and returned short pages — 15 rows where
+     * there should have been 50 — which is how a complete-looking walk of all
+     * 51 pages still came back forty rows light, and a different forty each
+     * time. Wait for the grid to be full again. The last page is genuinely
+     * short, so it is the one page not to wait for.
+     */
+    const lastPage = Boolean(totalPages) && visited + 1 >= totalPages;
+    if (pageSize && !lastPage) {
+      await page
+        .waitForFunction(
+          (gridSelector, expected) => {
+            const grid = document.querySelector(gridSelector);
+            return (
+              grid &&
+              grid.querySelectorAll('tr.rgRow, tr.rgAltRow').length >= expected
+            );
+          },
+          { timeout: 15000 },
+          selectors.resultGrid,
+          pageSize
+        )
+        .catch(() => {
+          // Fall through and read whatever is there rather than give up.
+        });
+    }
   }
 
   return { rows: all, capped: false, pagesRead: visited };
