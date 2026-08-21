@@ -214,14 +214,20 @@ costs between 0.9 s and 1.7 s, depending on the portal's mood. So:
   again. The single-scrape queue is likewise per-instance and no longer
   protects the FDA site from parallel scrapes.
 
-Note what the profile rules out. Splitting a scrape across several
-invocations sounds like the fix for the 60 s ceiling, and the setup cost is
-low enough — 3 s — that it would pay for itself. But filtering and the
-province facets need the whole result set, so partial chunks would have to be
-stitched somewhere, and on Vercel there is no somewhere: each invocation may
-land on a different instance. It would mean moving filtering into the browser
-or renting a store to hold half-finished scrapes. Capping the pages is one
-line and tells the officer the truth.
+That ceiling is per request, though, and a search does not have to be one
+request. When a response comes back flagged incomplete, the web app keeps
+going on its own: `/api/fda/drug-locations/pages` serves one window of the
+keyword's pages — the pager's trailing "..." hops ten pages a click, so a
+slice starts mid-set without walking there — and the app pulls the rest ten
+pages at a time, showing each slice as it lands and deduplicating on Newcode.
+Once the set is whole, the browser filters it itself (`web/src/lib/area.js`
+mirrors the server's normalise/facet logic), so changing a dropdown stops
+costing a scrape on an instance whose cache is cold. Measured against the
+deployment: "บ้านยา" assembles 2,535 of its 2,536 rows in six slices over
+201 seconds — a row can drift between slices, because the FDA's set is live
+and three minutes pass between the first page and the last. The stitched-set
+caveat that used to sit here is thereby answered: the somewhere that holds
+the partial set is the browser that asked for it.
 
 If the searches get heavier than that, this app wants a container that stays
 warm — one browser, one queue and one cache serving everyone, and a
