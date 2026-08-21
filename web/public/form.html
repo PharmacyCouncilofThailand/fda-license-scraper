@@ -132,6 +132,9 @@
       input.blank.w-s  { flex: 0 1 70pt; }
       input.blank.w-m  { flex: 0 1 120pt; }
       input.blank.w-l  { flex: 2 1 180pt; }
+      /* A value too long for its blank, moved onto a line of its own — see
+         shrinkToFit(). Wins over the width classes above. */
+      input.blank.overflow { flex: 1 1 100%; }
 
       /* the ☐ / ☑ boxes — a text glyph so print matches the original form */
       .check {
@@ -595,11 +598,23 @@
        * is still readable on paper.
        */
       function shrinkToFit(input) {
-        let size = parseFloat(getComputedStyle(input.closest('.sheet')).fontSize) * 0.75;
-        input.style.fontSize = size + 'pt';
-        while (input.scrollWidth > input.clientWidth + 1 && size > 8) {
-          size -= 0.5;
+        const step = () => {
+          let size = parseFloat(getComputedStyle(input.closest('.sheet')).fontSize) * 0.75;
           input.style.fontSize = size + 'pt';
+          while (input.scrollWidth > input.clientWidth + 1 && size > 8) {
+            size -= 0.5;
+            input.style.fontSize = size + 'pt';
+          }
+        };
+        step();
+        // Still cut off at the floor — เวลาปฏิบัติการ from the FDA runs to
+        // ninety characters and no type size fits that in 120pt of blank. A
+        // record that silently drops half a value is worse than one with an
+        // extra line, so give the blank the width of the line instead.
+        if (input.scrollWidth > input.clientWidth + 1) {
+          input.classList.add('overflow');
+          input.closest('.line')?.classList.add('wrap');
+          step();
         }
       }
 
@@ -679,6 +694,23 @@
 
       /* ---------------- actions ---------------- */
       document.getElementById('print').addEventListener('click', () => window.print());
+
+      /**
+       * "พิมพ์ / บันทึกเอง" has to produce the same two pages as the PDF
+       * button, so it runs the same fitting — undone afterwards, since the
+       * page stays open and editable.
+       */
+      window.addEventListener('beforeprint', () => {
+        for (const sheet of document.querySelectorAll('.sheet')) fitSheet(sheet);
+        for (const input of document.querySelectorAll('input.blank')) shrinkToFit(input);
+      });
+      window.addEventListener('afterprint', () => {
+        for (const sheet of document.querySelectorAll('.sheet')) sheet.style.fontSize = '';
+        for (const input of document.querySelectorAll('input.blank')) {
+          input.style.fontSize = '';
+          input.classList.remove('overflow');
+        }
+      });
 
       document.getElementById('clear').addEventListener('click', () => {
         for (const input of document.querySelectorAll('input.blank')) {

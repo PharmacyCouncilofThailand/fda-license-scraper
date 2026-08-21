@@ -93,8 +93,31 @@ function escapeXml(value) {
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
 }
 
+/*
+ * On screen (7) and (9) are several blank lines each, because a browser will
+ * not wrap one input across lines. In the Word file they are a single
+ * wrapping paragraph with one blank in it, so the continuation lines fold
+ * back into their first line — otherwise everything typed below the first
+ * line is simply dropped from the download.
+ */
+const CONTINUATIONS = {
+  leaveProofNote: ['leaveProofNote2'],
+  behaviour1: ['behaviour2', 'behaviour3', 'behaviour4', 'behaviour5', 'behaviour6'],
+};
+
+function foldContinuations(values) {
+  const folded = { ...values };
+  for (const [first, rest] of Object.entries(CONTINUATIONS)) {
+    const parts = [folded[first], ...rest.map((name) => folded[name])]
+      .map((v) => String(v == null ? '' : v).trim())
+      .filter(Boolean);
+    folded[first] = parts.join(' ');
+  }
+  return folded;
+}
+
 async function renderFormDocx(data) {
-  const values = (data && data.values) || {};
+  const values = foldContinuations((data && data.values) || {});
   const checks = (data && data.checks) || {};
 
   const entries = zip.read(await loadTemplate());

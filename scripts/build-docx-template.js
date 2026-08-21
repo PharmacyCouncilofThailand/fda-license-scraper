@@ -94,6 +94,57 @@ xml = xml.replace(runRe, (run) => {
 const missing = Object.keys(FIELD_AT_TAB).length - inserted;
 if (missing !== 0) throw new Error(`expected ${Object.keys(FIELD_AT_TAB).length} blanks, filled ${inserted}`);
 
+/* ----1b. the blanks that are not tab runs ---- */
+
+/*
+ * Item (10) is written with a literal "-" in each of its four blanks rather
+ * than a tab leader, and the two page-2 signature lines are an empty "(   )"
+ * with nothing to hang a tab off. Both are edited on screen, so both have to
+ * reach the Word file — one paragraph at a time, so a "-" elsewhere in the
+ * document cannot be caught by mistake.
+ */
+function inParagraph(match, replace) {
+  let hits = 0;
+  xml = xml.replace(/<w:p(?: [^>]*)?>[\s\S]*?<\/w:p>/g, (para) => {
+    const text = para.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    if (!match(text)) return para;
+    hits += 1;
+    return replace(para);
+  });
+  return hits;
+}
+
+/* ยึด … จำนวน … อายัด … จำนวน …, in that order. */
+const SEIZED = ['seizedItems', 'seizedCount', 'heldItems', 'heldCount'];
+let dashes = 0;
+let seizedParagraphs = inParagraph(
+  (text) => text.includes('บัญชียึด อายัด และภาพถ่าย'),
+  (para) =>
+    para.replace(/<w:t([^>]*)>-<\/w:t>/g, (run, attrs) => {
+      const field = SEIZED[dashes++];
+      return field ? `<w:t${attrs}>{{${field}}}</w:t>` : run;
+    })
+);
+if (seizedParagraphs !== 1 || dashes !== SEIZED.length) {
+  throw new Error(`item (10): ${seizedParagraphs} paragraphs, ${dashes} blanks`);
+}
+
+/* The two page-2 signature names: put the token just inside the "(". */
+for (const [label, field] of [
+  ['( ) เภสัชกร', 'signDutyName'],
+  ['( ) ผู้แทนผู้รับอนุญาต', 'signLicenseeName'],
+]) {
+  const hits = inParagraph(
+    (text) => text === label,
+    (para) =>
+      para.replace(
+        /(<w:r(?: [^>]*)?>(?:(?!<\/w:r>)[\s\S])*?<w:t[^>]*>[^<]*\(<\/w:t>[\s\S]*?<\/w:r>)/,
+        `$1<w:r><w:t xml:space="preserve">{{${field}}}</w:t></w:r>`
+      )
+  );
+  if (hits !== 1) throw new Error(`signature "${label}": ${hits} paragraphs`);
+}
+
 /* ---- 2. name every checkbox ---- */
 let checkIndex = 0;
 xml = xml.replace(/☐/g, () => {
@@ -110,4 +161,8 @@ for (const e of entries) {
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, zip.write(entries));
-console.log(`ok — ${inserted} blanks, ${checkIndex} checkboxes, ${fs.statSync(OUT).size} bytes`);
+const tokens = (xml.match(/\{\{(?!chk:)/g) || []).length;
+console.log(
+  `ok — ${tokens} blanks (${inserted} tab, ${dashes + 2} literal), ` +
+    `${checkIndex} checkboxes, ${fs.statSync(OUT).size} bytes`
+);
