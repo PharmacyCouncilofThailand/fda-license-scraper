@@ -66,6 +66,12 @@ module.exports = {
   // A deployment has no repository copy of it, so it is fetched from here.
   formTemplateUrl: process.env.FORM_TEMPLATE_URL || null,
 
+  // A private Vercel Blob answers 403 without it. Set by the platform when a
+  // Blob store is linked to the project, so nothing to configure by hand —
+  // and only ever sent to the Blob host, since it is a read *and write*
+  // token. A public template URL needs none of this.
+  blobToken: process.env.BLOB_READ_WRITE_TOKEN || null,
+
   // Safety caps so a very broad keyword cannot run forever. A serverless
   // deployment gets a lower one because it is not a safety cap there but a
   // hard ceiling: Vercel's free plan kills the request at 60 seconds, of
@@ -113,6 +119,15 @@ module.exports = {
     operatorName: '#ContentPlaceHolder1_lb_operation_nm',
     storeName: '#ContentPlaceHolder1_lb_store',
     openHours: '#ContentPlaceHolder1_lb_time_store',
+    // ผู้มีหน้าที่ปฏิบัติการ — a DataList, one ลำดับที่ / ชื่อ / เวลาปฏิบัติการ
+    // triple per pharmacist, id-suffixed by row number. Prefixes, not full
+    // selectors: a shop can list several and the count is not known up front.
+    pharmacistNamePrefix:
+      'ContentPlaceHolder1_UC_location_operator_pharmacy_Datalist1_lb_pharmacy_name_',
+    pharmacistIndexPrefix:
+      'ContentPlaceHolder1_UC_location_operator_pharmacy_Datalist1_index_',
+    pharmacistHoursPrefix:
+      'ContentPlaceHolder1_UC_location_operator_pharmacy_Datalist1_lb_opentime_',
     // "map :" link — a Google Maps search URL carrying the establishment's
     // coordinates. Missing or 0,0 for records the FDA never geocoded.
     mapLink: '#ContentPlaceHolder1_lnk_premix',

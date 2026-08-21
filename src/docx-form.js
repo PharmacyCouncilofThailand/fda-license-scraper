@@ -36,10 +36,28 @@ const TEMPLATE =
 
 let downloaded = null;
 
+/**
+ * A private Vercel Blob is read with the store's token, and that token also
+ * grants writes — so it goes to the Blob host and nowhere else, however
+ * FORM_TEMPLATE_URL is set.
+ */
+function blobAuth() {
+  if (!config.blobToken) return {};
+  let host;
+  try {
+    host = new URL(config.formTemplateUrl).hostname;
+  } catch {
+    return {};
+  }
+  return host.endsWith('.blob.vercel-storage.com')
+    ? { Authorization: `Bearer ${config.blobToken}` }
+    : {};
+}
+
 async function loadTemplate() {
   if (config.formTemplateUrl) {
     if (!downloaded) {
-      downloaded = fetch(config.formTemplateUrl)
+      downloaded = fetch(config.formTemplateUrl, { headers: blobAuth() })
         .then(async (res) => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return Buffer.from(await res.arrayBuffer());

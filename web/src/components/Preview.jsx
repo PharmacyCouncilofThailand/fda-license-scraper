@@ -79,6 +79,41 @@ function MapPanel({ row, detail }) {
   );
 }
 
+/**
+ * ผู้มีหน้าที่ปฏิบัติการ — the licence can name several, each with working
+ * hours of their own, and item 2 of the record is filled from this list
+ * rather than from the shop's opening hours. Shown in the licence's order.
+ */
+function PharmacistList({ pharmacists }) {
+  if (!pharmacists || pharmacists.length === 0) {
+    return (
+      <div className="pharmacists">
+        <div className="head">ผู้มีหน้าที่ปฏิบัติการ</div>
+        <div className="empty">ระบบ อย. ไม่ได้ระบุผู้มีหน้าที่ปฏิบัติการของร้านนี้</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pharmacists">
+      <div className="head">
+        ผู้มีหน้าที่ปฏิบัติการ <small>[List of pharmacist or qualified person]</small>
+      </div>
+      {pharmacists.map((person, i) => (
+        <div className="person" key={`${person.index}-${person.name}`}>
+          <div>
+            ลำดับที่ : {person.index || i + 1} {person.name}
+          </div>
+          <div className="hours">
+            เวลาปฏิบัติการ :{' '}
+            {person.openHours || <span className="empty">ไม่ระบุ</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Preview({ row, state }) {
   if (state.status === 'loading') return <SkeletonPreview />;
   if (state.status === 'error') {
@@ -97,6 +132,7 @@ export default function Preview({ row, state }) {
           ['ที่อยู่', row.address],
         ]}
       />
+      <PharmacistList pharmacists={detail.pharmacists} />
       <MapPanel row={row} detail={detail} />
       <CopyButton
         label="คัดลอกรายละเอียด"

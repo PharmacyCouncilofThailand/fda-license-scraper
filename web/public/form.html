@@ -604,16 +604,37 @@
       }
 
       /* ---------------- prefill from the search page ---------------- */
-      function two(n) { return String(n).padStart(2, '0'); }
+
+      /**
+       * ผู้มีหน้าที่ปฏิบัติการ, as the licence lists them. A shop may name
+       * several, so the two blanks the record has for them each take the whole
+       * list — the layout of the official form is not ours to change.
+       *
+       * Item 2's เวลาทำการ is the pharmacist's own เวลาปฏิบัติการ, not the
+       * shop's opening hours: the record is about the pharmacist's duty hours.
+       * Identical hours across pharmacists are written once.
+       */
+      function dutyFromPharmacists(pharmacists) {
+        const list = Array.isArray(pharmacists) ? pharmacists.filter((p) => p && p.name) : [];
+        if (list.length === 0) return { name: '', hours: '' };
+        const hours = [];
+        for (const person of list) {
+          if (person.openHours && !hours.includes(person.openHours)) hours.push(person.openHours);
+        }
+        return {
+          name: list.map((p) => p.name).join(' / '),
+          hours: hours.join(' / '),
+        };
+      }
 
       /** Map one FDA row onto the form's blanks. */
       function fromRow(row) {
         const area = row.area || {};
-        const now = new Date();
-        const thaiDate = `${now.getDate()} ${
-          ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][now.getMonth()]
-        } ${now.getFullYear() + 543}`;
-        const clock = `${two(now.getHours())}.${two(now.getMinutes())}`;
+        const duty = dutyFromPharmacists(row.pharmacists);
+
+        // วันที่ / เวลาที่เข้าตรวจ และเวลาขณะตรวจสอบ ไม่กรอกให้: the officer
+        // writes them at the shop, and a clock reading from whenever the form
+        // was opened would be a wrong entry in the official record.
 
         return {
           values: {
@@ -631,10 +652,10 @@
             licenseeName: row.licenseeName || '',
             operatorName: row.operatorName || '',
             licenseNo: row.licenseNo || '',
-            openHours: row.openHours || '',
-            inspectDate: thaiDate,
-            inspectTime: clock,
-            checkTime: clock,
+            dutyPharmacist: duty.name,
+            // Falls back to the shop's hours only when the licence lists no
+            // pharmacist at all, so the blank is not left empty for nothing.
+            openHours: duty.hours || (duty.name ? '' : row.openHours || ''),
           },
           checks: {},
         };
@@ -645,7 +666,10 @@
         try {
           const row = JSON.parse(handoff);
           window.applyData(fromRow(row));
-          statusEl.textContent = `กรอกจาก: ${row.placeName || row.licenseNo || 'ข้อมูลร้าน'}`;
+          const duty = dutyFromPharmacists(row.pharmacists);
+          statusEl.textContent =
+            `กรอกจาก: ${row.placeName || row.licenseNo || 'ข้อมูลร้าน'}` +
+            (duty.name ? ` — ผู้มีหน้าที่ปฏิบัติการ: ${duty.name}` : '');
           localStorage.removeItem(HANDOFF_KEY);
         } catch (err) {
           statusEl.textContent = 'อ่านข้อมูลร้านไม่สำเร็จ — กรอกเองได้';

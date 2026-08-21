@@ -189,6 +189,20 @@ Set these in the project's environment variables:
 | `FORM_TEMPLATE_URL` | a private URL for the .docx | the template is not in the repository and, at 70 KB base64, does not fit in an environment variable |
 | `MAX_PAGES` | `25` on Hobby | see the ceiling below |
 
+A private Vercel Blob is the place to put the template: the file carries the
+officers' names, and a private blob answers 403 to anyone without the store's
+token, unlike a shared Drive link.
+
+```bash
+vercel blob create-store inspection-form --access private
+vercel blob put templates/inspection-form.docx --access private --pathname inspection-form.docx
+```
+
+Point `FORM_TEMPLATE_URL` at the URL it prints. `BLOB_READ_WRITE_TOKEN` comes
+with the store and needs no setting up; the template fetch sends it as a
+bearer token, but only to `*.blob.vercel-storage.com` — it grants writes too,
+so it must not follow `FORM_TEMPLATE_URL` to any other host.
+
 `VERCEL` is set by the platform, and it is what switches the scraper from
 puppeteer's bundled Chromium to `@sparticuz/chromium`. Nothing else changes:
 the same code runs locally against a real Chrome.

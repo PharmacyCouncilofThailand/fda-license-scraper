@@ -191,6 +191,15 @@ a.detail:hover { text-decoration: underline; }
 .preview dt { color: var(--muted-foreground); }
 .preview dd { margin: 0; }
 .preview .empty { color: var(--muted-foreground); font-style: italic; }
+.pharmacists { margin-top: 12px; }
+.pharmacists .head { color: var(--muted-foreground); margin-bottom: 4px; }
+.pharmacists .head small { font-size: 12px; }
+.pharmacists .person + .person {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+.pharmacists .hours { color: var(--muted-foreground); }
 .map {
   margin-top: 12px;
   border: 1px solid var(--border);

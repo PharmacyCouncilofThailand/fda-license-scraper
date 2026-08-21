@@ -7,6 +7,11 @@ export function rowAsText(row) {
     row.licenseeName ? `ผู้รับอนุญาต: ${row.licenseeName}` : '',
     row.operatorName ? `ผู้ดำเนินกิจการ: ${row.operatorName}` : '',
     `ที่อยู่: ${row.address}`,
+    ...(row.pharmacists || []).map(
+      (p, i) =>
+        `ผู้มีหน้าที่ปฏิบัติการ ลำดับที่ ${p.index || i + 1}: ${p.name}` +
+        (p.openHours ? ` (เวลาปฏิบัติการ ${p.openHours})` : '')
+    ),
     row.lat != null ? `พิกัด: ${row.lat}, ${row.lng}` : '',
   ]
     .filter(Boolean)

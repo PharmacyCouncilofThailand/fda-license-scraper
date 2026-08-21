@@ -164,7 +164,7 @@ class ScrapeError extends Error {
  * Detail pop-ups are cached separately by their Newcode.
  */
 const rowCache = new Map(); // keyword -> { rows, capped, pagesRead, at }
-const detailCache = new Map(); // newCode -> { licenseeName, operatorName, openHours }
+const detailCache = new Map(); // newCode -> { licenseeName, operatorName, openHours, pharmacists }
 
 function cacheKey(keyword) {
   return String(keyword || '').trim().toLowerCase();
@@ -745,6 +745,24 @@ async function readDetailFields(popup) {
           )
       ),
       openHours: blankToNull(read(sel.openHours)),
+      // One entry per ผู้มีหน้าที่ปฏิบัติการ, in the order the licence lists
+      // them. Empty for a lapsed licence — the FDA drops the whole block.
+      pharmacists: Array.from(
+        document.querySelectorAll(`[id^="${sel.pharmacistNamePrefix}"]`)
+      )
+        .map((el) => {
+          const row = el.id.slice(sel.pharmacistNamePrefix.length);
+          const at = (prefix) => {
+            const node = document.getElementById(prefix + row);
+            return node ? clean(node.innerText) : null;
+          };
+          return {
+            index: at(sel.pharmacistIndexPrefix) || String(Number(row) + 1),
+            name: clean(el.innerText),
+            openHours: at(sel.pharmacistHoursPrefix),
+          };
+        })
+        .filter((p) => p.name),
       mapHref: (() => {
         const link = document.querySelector(sel.mapLink);
         return link && link.getAttribute('href') ? link.href : null;
@@ -1043,6 +1061,7 @@ async function searchDrugLocations({
       licenseeName: null,
       operatorName: null,
       openHours: null,
+      pharmacists: [],
       detailError: null,
     }));
 
