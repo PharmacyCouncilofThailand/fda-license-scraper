@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchAreas, fetchDetail, searchDrugLocations } from './api.js';
+import { fetchAreas, fetchDetail, fetchResultPages, searchDrugLocations } from './api.js';
+import { buildView } from './lib/area.js';
 import Sidebar from './components/Sidebar.jsx';
 import SearchForm from './components/SearchForm.jsx';
 import Toolbar from './components/Toolbar.jsx';
@@ -21,6 +22,10 @@ export default function App() {
   const [previews, setPreviews] = useState({});
 
   const pending = useRef(null);
+  // A broad keyword is assembled slice by slice; the complete row set lives
+  // here so area filters work on it locally, without another scrape.
+  const assemblyRef = useRef(null); // { keyword, rows: Map, done }
+  const [progress, setProgress] = useState(null); // { page, total }
   // The query a search should use, so a dropdown change can re-run immediately
   // instead of waiting a render for state to settle.
   const queryRef = useRef(query);
@@ -51,12 +56,20 @@ export default function App() {
     setPreviews({});
     setData(null);
 
+    assemblyRef.current = null;
+    setProgress(null);
+
     try {
       const result = await searchDrugLocations(
         { ...current, keyword, refresh },
         controller.signal
       );
       setData(result);
+      if (result.incomplete) {
+        // The single request could not walk every page. Fetch the rest in
+        // slices and hand filtering to the browser once the set is whole.
+        await assemble(keyword, result, current, controller);
+      }
     } catch (err) {
       if (err.name === 'AbortError') return;
       setError(err.message);
@@ -68,13 +81,63 @@ export default function App() {
     }
   }, []);
 
-  /** Changing an area filter re-runs the search — it costs nothing, the
-      keyword is cached server-side and the filtering happens there locally. */
+  /**
+   * Pull the pages the first request had to leave behind, ten at a time,
+   * updating the list as each slice lands. Seeding from the first response is
+   * only sound when no area filter was set — a filtered response has already
+   * dropped rows the full set needs.
+   */
+  async function assemble(keyword, first, current, controller) {
+    const rows = new Map();
+    const unfiltered = !current.province && !current.district && !current.subdistrict;
+    let next = 1;
+    if (unfiltered) {
+      for (const row of first.results) rows.set(row.newCode || row.licenseNo, row);
+      next = first.pagesRead + 1;
+    }
+    assemblyRef.current = { keyword, rows, done: false };
+
+    let total = null;
+    while (next) {
+      setProgress({ page: next, total });
+      const slice = await fetchResultPages(keyword, next, 10, controller.signal);
+      if (assemblyRef.current?.keyword !== keyword) return; // superseded
+      for (const row of slice.results) rows.set(row.newCode || row.licenseNo, row);
+      total = slice.totalPages;
+      next = slice.nextPage;
+      setData(
+        buildView([...rows.values()], queryRef.current, {
+          assembled: true,
+          assembling: Boolean(next),
+          pagesRead: total ?? first.pagesRead,
+          totalPages: total,
+        })
+      );
+    }
+    assemblyRef.current.done = true;
+    setProgress(null);
+  }
+
+  /** Changing an area filter re-runs the search. With an assembled set in
+      hand the browser filters it directly; otherwise the server does, from
+      its keyword cache. */
   function changeQuery(patch, rerun = false) {
     const next = { ...queryRef.current, ...patch };
     queryRef.current = next;
     setQuery(next);
-    if (rerun && next.keyword.trim()) runSearch();
+    if (!rerun || !next.keyword.trim()) return;
+
+    const held = assemblyRef.current;
+    if (held && held.done && held.keyword === next.keyword.trim()) {
+      setData(
+        buildView([...held.rows.values()], next, {
+          assembled: true,
+          totalPages: null,
+        })
+      );
+      return;
+    }
+    runSearch();
   }
 
   async function togglePreview(row) {
@@ -128,10 +191,17 @@ export default function App() {
             onSubmit={() => runSearch()}
           />
 
-          {data?.incomplete && (
+          {progress && (
+            <div className="warn">
+              คำค้นนี้กว้าง กำลังทยอยอ่านหน้าที่เหลือ... หน้า {progress.page}
+              {progress.total ? ` / ${progress.total}` : ''} — แสดงผลเท่าที่ได้ระหว่างรอ
+            </div>
+          )}
+
+          {data?.incomplete && !progress && (
             <div className="warn">
               คำค้นนี้กว้างเกินไป อ่านตารางได้ {data.pagesRead} หน้าแล้วหยุดตามลิมิต
-              ผลลัพธ์จึงยังไม่ครบทั้งหมด — ระบุชื่อร้านให้เจาะจงขึ้น หรือเพิ่มค่า MAX_PAGES
+              ผลลัพธ์จึงยังไม่ครบทั้งหมด — ระบุชื่อร้านให้เจาะจงขึ้น
             </div>
           )}
 

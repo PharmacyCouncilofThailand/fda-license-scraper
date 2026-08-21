@@ -5,6 +5,7 @@ const config = require('./config');
 const areas = require('../data/areas.json');
 const {
   searchDrugLocations,
+  searchDrugLocationsChunk,
   getDetailByNewCode,
   hasFreshRows,
   clearCache,
@@ -135,6 +136,24 @@ app.get('/api/cache', (req, res) => res.json({ success: true, ...cacheStats() })
 app.delete('/api/cache', (req, res) => {
   clearCache();
   res.json({ success: true, message: 'ล้างแคชแล้ว' });
+});
+
+
+/**
+ * GET /api/fda/drug-locations/pages?keyword=X&startPage=13&pages=10
+ * One slice of a broad keyword's result set — see searchDrugLocationsChunk.
+ * Queued like every other scrape: slices must not run beside one.
+ */
+app.get('/api/fda/drug-locations/pages', async (req, res, next) => {
+  try {
+    const { keyword, startPage, pages } = req.query;
+    const data = await enqueue(() =>
+      searchDrugLocationsChunk({ keyword, startPage, pages })
+    );
+    res.json({ success: true, ...data });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**

@@ -517,6 +517,76 @@ async function waitForGridSettled(page, expected) {
 }
 
 /**
+ * Jump the pager to `target` without walking every page in between.
+ *
+ * The Telerik client API can do this in one call, but MS AJAX walks
+ * `arguments.caller` on the way and dies when automation is in the call
+ * stack. The pager's links are ordinary anchors though, and a native click
+ * runs their postback in the page's own world: the trailing "..." advances a
+ * block of ten, a numbered link lands exactly. Reaching page 45 is four
+ * ellipsis clicks and one number — measured at 1.5 s a click.
+ */
+async function hopToPage(page, target) {
+  for (let guard = 0; guard < 30; guard += 1) {
+    const state = await page.evaluate(
+      (gridSelector, currentSelector) => {
+        const grid = document.querySelector(gridSelector);
+        const pager =
+          grid && (grid.querySelector('.rgPager') || grid.querySelector('tfoot'));
+        if (!pager) return null;
+        return {
+          current: Number(
+            (document.querySelector(currentSelector) || {}).innerText || 0
+          ),
+          labels: Array.from(pager.querySelectorAll('a')).map((a) =>
+            a.innerText.trim()
+          ),
+        };
+      },
+      selectors.resultGrid,
+      selectors.currentPage
+    );
+    if (!state || state.current === target) return;
+
+    // A visible number is a direct hop; otherwise the trailing "..." moves
+    // the window ten pages at a time.
+    const label = state.labels.includes(String(target)) ? String(target) : '...';
+    const clicked = await page.evaluate(
+      (gridSelector, want, forward) => {
+        const grid = document.querySelector(gridSelector);
+        const pager =
+          grid.querySelector('.rgPager') || grid.querySelector('tfoot');
+        const matches = Array.from(pager.querySelectorAll('a')).filter(
+          (a) => a.innerText.trim() === want
+        );
+        // "..." appears at both ends mid-run; the trailing one goes forward.
+        const a = forward ? matches[matches.length - 1] : matches[0];
+        if (!a) return false;
+        a.id = '__pager_hop';
+        return true;
+      },
+      selectors.resultGrid,
+      label,
+      target > state.current
+    );
+    if (!clicked) {
+      throw new ScrapeError(
+        `ไปหน้าที่ ${target} ไม่สำเร็จ (pager ไม่มีลิงก์ให้กด)`,
+        502,
+        'SCRAPE_FAILED'
+      );
+    }
+    await page.click('#__pager_hop');
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await page.waitForSelector(selectors.resultGrid, {
+      timeout: config.navTimeoutMs,
+    });
+    await waitForGridSettled(page, null);
+  }
+  throw new ScrapeError(`ไปหน้าที่ ${target} ไม่สำเร็จ`, 502, 'SCRAPE_FAILED');
+}
+
+/**
  * How many pages the grid says it has.
  *
  * The pager prints "2536 items in 51 pages", and knowing the number matters:
@@ -538,16 +608,26 @@ async function readTotalPages(page) {
   }
 }
 
-async function readAllPages(page) {
+async function readAllPages(page, { startPage = 1, limit } = {}) {
   const all = [];
   let visited = 0;
   const totalPages = await readTotalPages(page);
   const pageSize = await readPageSize(page);
+  const maxThisCall = Math.min(limit || config.maxPages, config.maxPages);
+
+  if (startPage > 1) {
+    if (totalPages && startPage > totalPages) {
+      return { rows: [], capped: false, pagesRead: 0, totalPages };
+    }
+    await hopToPage(page, startPage);
+  }
 
   for (;;) {
+    // `current` is the absolute page number under the cursor.
+    const current = startPage + visited;
     // Including the first page: the grid is still filling when the search
     // postback returns.
-    const lastPage = Boolean(totalPages) && visited + 1 >= totalPages;
+    const lastPage = Boolean(totalPages) && current >= totalPages;
     await waitForGridSettled(page, lastPage ? null : pageSize);
 
     all.push(...(await readGridRows(page)));
@@ -556,11 +636,11 @@ async function readAllPages(page) {
       console.log('[step] read page', visited, 'rows so far', all.length);
     }
 
-    if (totalPages && visited >= totalPages) {
-      return { rows: all, capped: false, pagesRead: visited };
+    if (totalPages && startPage + visited - 1 >= totalPages) {
+      return { rows: all, capped: false, pagesRead: visited, totalPages };
     }
 
-    if (visited >= config.maxPages) {
+    if (visited >= maxThisCall) {
       const more = await page.$(selectors.nextPage);
       const hasMore = more
         ? await page.evaluate(
@@ -568,7 +648,7 @@ async function readAllPages(page) {
             more
           )
         : false;
-      return { rows: all, capped: hasMore, pagesRead: visited };
+      return { rows: all, capped: hasMore, pagesRead: visited, totalPages };
     }
 
     const nextButton = await page.$(selectors.nextPage);
@@ -606,7 +686,7 @@ async function readAllPages(page) {
     });
   }
 
-  return { rows: all, capped: false, pagesRead: visited };
+  return { rows: all, capped: false, pagesRead: visited, totalPages };
 }
 
 /**
@@ -811,7 +891,7 @@ function steps() {
   };
 }
 
-async function scrapeKeyword(keyword, context) {
+async function scrapeKeyword(keyword, context, window) {
   const step = steps();
   const page = await context.newPage();
   await page.setUserAgent(config.userAgent);
@@ -856,8 +936,8 @@ async function scrapeKeyword(keyword, context) {
   await tryEnlargePageSize(page);
   step('page size');
 
-  // 6. กวาดข้อมูลทุกแถว ทุกหน้า
-  const walked = await readAllPages(page);
+  // 6. กวาดข้อมูลทุกแถว ทุกหน้า (หรือเฉพาะช่วงที่ขอ)
+  const walked = await readAllPages(page, window);
   step('paging');
   // Parse each address once here: the result is cached with the rows, so the
   // filters and facets below never re-parse.
@@ -1059,8 +1139,64 @@ async function renderFormPdf(data) {
   }
 }
 
+/**
+ * One window of a keyword's result set: pages `startPage` onward, at most
+ * `pages` of them, raw rows with parsed addresses and nothing else — no
+ * filtering, no facets, no details.
+ *
+ * This exists for deployments whose requests die at sixty seconds. A broad
+ * keyword cannot be walked in one of those, but it can be walked in slices,
+ * each slice hopping the pager to its start; the web app calls this in a loop
+ * and assembles the full set itself, filtering locally. The result is not
+ * cached: each slice is fetched once per assembly, and a partial set in the
+ * keyword cache would masquerade as the whole.
+ */
+async function searchDrugLocationsChunk({ keyword, startPage = 1, pages } = {}) {
+  if (!keyword || !String(keyword).trim()) {
+    throw new ScrapeError('keyword is required', 400, 'INVALID_INPUT');
+  }
+  const term = String(keyword).trim();
+  const from = Math.max(1, Number(startPage) || 1);
+  const count = Math.max(1, Number(pages) || config.maxPages);
+
+  const browser = await getBrowser();
+  const context = await createContext(browser);
+  try {
+    const walked = await scrapeKeyword(term, context, {
+      startPage: from,
+      limit: count,
+    });
+    const done =
+      !walked.capped &&
+      (!walked.totalPages || from + walked.pagesRead - 1 >= walked.totalPages);
+    return {
+      keyword: term,
+      startPage: from,
+      pagesRead: walked.pagesRead,
+      totalPages: walked.totalPages || null,
+      nextPage: done ? null : from + walked.pagesRead,
+      results: walked.rows.map((r) => ({
+        licenseNo: r.licenseNo,
+        licenseType: r.licenseType,
+        placeName: r.placeName,
+        address: r.address,
+        area: r.area || null,
+        status: r.status,
+        newCode: r.newCode,
+        detailUrl: r.detailUrl,
+      })),
+    };
+  } catch (err) {
+    if (err instanceof ScrapeError) throw err;
+    throw new ScrapeError(`ดึงข้อมูลไม่สำเร็จ: ${err.message}`);
+  } finally {
+    await context.close().catch(() => {});
+  }
+}
+
 module.exports = {
   searchDrugLocations,
+  searchDrugLocationsChunk,
   getDetailByNewCode,
   hasFreshRows,
   clearCache,
