@@ -51,7 +51,7 @@ export default function SearchForm({
     >
       <input
         type="text"
-        placeholder="ชื่อร้านยา เช่น ฟาสซิโน"
+        placeholder="ชื่อร้านยา"
         autoComplete="off"
         required
         value={query.keyword}

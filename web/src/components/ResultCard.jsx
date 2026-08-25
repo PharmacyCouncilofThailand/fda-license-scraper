@@ -68,10 +68,6 @@ export default function ResultCard({
           <button type="button" className="ghost" onClick={onTogglePreview}>
             {previewState?.open ? 'ซ่อน' : 'พรีวิว'}
           </button>
-          <CopyButton
-            label="คัดลอก"
-            text={() => rowAsText(detail ? { ...row, ...detail } : row)}
-          />
           {row.detailUrl && (
             <a
               className="detail"
@@ -79,7 +75,7 @@ export default function ResultCard({
               target="_blank"
               rel="noopener noreferrer"
             >
-              เปิดแท็บใหม่ ↗
+              ดูข้อมูลต้นฉบับ ↗
             </a>
           )}
         </div>
