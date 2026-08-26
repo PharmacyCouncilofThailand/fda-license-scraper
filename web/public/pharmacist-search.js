@@ -194,7 +194,8 @@
       }
 
       if (this.controller) this.controller.abort();
-      this.controller = new AbortController();
+      const controller = new AbortController();
+      this.controller = controller;
       this.clear.hidden = false;
       this.busy(true);
       this.say('กำลังค้นหา…');
@@ -202,9 +203,19 @@
       const query = new URLSearchParams({ firstName, lastName });
       try {
         const response = await fetch(`${BASE}/api/pharmacist?${query}`, {
-          signal: this.controller.signal,
+          signal: controller.signal,
         });
-        const data = await response.json();
+        /*
+         * The API answers JSON for its own errors too, so anything else came
+         * from something in front of it — a proxy's own gateway page. Saying
+         * so beats showing the JSON parser's English complaint about "<".
+         */
+        let data;
+        try {
+          data = await response.json();
+        } catch {
+          throw new Error(`เซิร์ฟเวอร์ตอบกลับผิดปกติ (HTTP ${response.status})`);
+        }
         if (!response.ok || !data.success) {
           throw new Error(data.message || 'ค้นหาไม่สำเร็จ');
         }
@@ -214,7 +225,10 @@
         if (err.name === 'AbortError') return;
         this.say(err.message, 'ps-error');
       } finally {
-        this.busy(false);
+        // Only the search still current may clear the busy state: a superseded
+        // one finishes after its replacement started, and would otherwise
+        // unlock the button while that replacement is still loading.
+        if (this.controller === controller) this.busy(false);
       }
     }
 
