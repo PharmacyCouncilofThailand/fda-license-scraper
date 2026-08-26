@@ -345,9 +345,14 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 pharmacist-search { display: block; font-size: 0.92rem; }
 .ps-title { display: block; font-weight: 500; margin-bottom: 6px; }
 .ps-form { display: flex; flex-direction: column; gap: 6px; }
-/* Either field alone is a valid search, so neither gets to look primary. */
-.ps-fields { display: flex; gap: 6px; }
-.ps-actions { display: flex; gap: 6px; }
+/*
+ * Either field alone is a valid search, so the two are stacked at equal width
+ * and neither gets to look primary. Stacked rather than side by side because
+ * the sidebar is 240px: a stretched flex item is clamped by its min-content
+ * width, and two text inputs abreast simply do not fit.
+ */
+.ps-fields { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ps-actions { display: flex; gap: 6px; min-width: 0; }
 .ps-input {
   flex: 1;
   min-width: 0;
