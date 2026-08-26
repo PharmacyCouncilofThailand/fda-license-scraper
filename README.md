@@ -1,8 +1,14 @@
 # FDA License Scraper API
 
-Backend API (Express + Puppeteer) that scrapes the Thai FDA licence-check portal
-`SEARCH_CENTER_MAIN.aspx`, filters drug-establishment results by province, and
-returns JSON.
+Backend API (Express) over the Thai FDA licence-check portal
+(`porta.fda.moph.go.th/fda_search_center_new`): it calls the portal's own JSON
+API, filters drug-establishment results by province, and returns JSON.
+
+The portal used to be an ASP.NET WebForms page with a Telerik grid, and this
+app drove it with Puppeteer. It is an Angular app over a JSON API now, so a
+search is two HTTP calls and no browser — about a second where the old walk of
+the pager took a minute. Chromium is still here for one job: printing the
+inspection record to PDF.
 
 ## Install & run
 
@@ -46,13 +52,15 @@ template lives.
 | --- | --- | --- |
 | `PORT` | `3000` | HTTP port |
 | `HEADLESS` | `true` | set `false` to watch the browser |
-| `NAV_TIMEOUT_MS` | `45000` | navigation / selector timeout |
-| `MAX_PAGES` | `60` | max grid pages walked per search |
-| `MAX_DETAILS` | `25` | max pop-up detail pages opened per search |
-| `CACHE_TTL_MS` | `1800000` | how long a scrape stays cached (30 min) |
+| `NAV_TIMEOUT_MS` | `45000` | upstream request timeout, and PDF navigation timeout |
+| `MAX_ROWS` | `20000` | max rows kept from one search |
+| `MAX_DETAILS` | `25` | max detail records fetched per search |
+| `CACHE_TTL_MS` | `1800000` | how long a search stays cached (30 min) |
 | `CACHE_MAX` | `50` | max cached keywords (least recently used is evicted) |
-| `FDA_SEARCH_URL` | the live portal | the search page the scraper drives |
-| `FDA_DETAIL_URL` | the live portal | the detail pop-up, built from a row's Newcode |
+| `FDA_SEARCH_URL` | the live portal | search API (`GET_SEARCH`) |
+| `FDA_DETAIL_URL` | the live portal | detail API (`GET_DATA_LOCATION_DRUG`), asked by Newcode |
+| `FDA_DETAIL_PAGE_URL` | the live portal | the human-readable detail page, linked from each result |
+| `FDA_SEARCH_TYPE` | `สืบค้นสถานที่ยา` | which of the portal's search modes to ask for |
 | `FORM_TEMPLATE` | `templates/inspection-form.docx` | the tokenised Word file — see "Deploying" |
 | `CHROME_PATH` | auto | Chrome/Edge binary, when Puppeteer's own download is unavailable |
 | `USER_AGENT` | desktop Chrome | see "WAF" below |
@@ -99,11 +107,9 @@ under "Inspection form" below.
 
 ### Google Cloud Run
 
-The same image, on a host that scales to zero between inspections. Cloud Run
-allows a 60-minute request and several gigabytes of memory, which is what this
-app needs and what the serverless platforms do not give: the measured worst
-case is 511 MB and 92 seconds — both measured inside the container, not
-guessed from the host.
+The same image, on a host that scales to zero between inspections. Since the search moved to the portal's JSON API, a request is about a second
+and needs no browser at all; what still wants room is the PDF, which runs
+Chromium.
 
 ```bash
 gcloud run deploy fda-license-scraper --source . --region asia-southeast1 --memory 2Gi --cpu 2 --timeout 900 --concurrency 4 --execution-environment gen2 --allow-unauthenticated
@@ -113,10 +119,10 @@ Why those numbers:
 
 | Flag | Why |
 | --- | --- |
-| `--memory 2Gi` | "บ้านยา" runs out of room at 512 MB; 1 Gi holds it, 2 Gi leaves headroom for a second request |
-| `--cpu 2` | Chromium parses 51 pages of Telerik markup — one vCPU roughly doubles the wall clock |
-| `--timeout 900` | the broadest keyword takes 92 s at best and the portal's pace varies by a factor of two |
-| `--concurrency 4` | scrapes are serialised behind one browser anyway, so a high number only piles requests onto the same instance |
+| `--memory 2Gi` | the PDF's Chromium is the memory-hungry part; 1 Gi holds it, 2 Gi leaves headroom for a second request |
+| `--cpu 2` | one vCPU roughly doubles the PDF's wall clock |
+| `--timeout 900` | far more than any request needs; the portal's pace varies by a factor of two |
+| `--concurrency 4` | PDFs share one browser, so a high number only piles requests onto the same instance |
 | `--execution-environment gen2` | gen1's sandbox is missing syscalls Chromium expects |
 | `--allow-unauthenticated` | drop this to put the service behind IAM, which is worth considering — see below |
 
@@ -133,18 +139,15 @@ written, and it drives the FDA portal on behalf of whoever calls it — put it
 behind IAM, or at least behind the council's own network, before the URL is
 shared. And with `min-instances` at zero the first search of the morning pays
 a cold start: the image is 1.69 GB, so expect ten to twenty seconds before the
-scrape even begins. `--min-instances 1` removes that at the cost of an
+first request is answered. `--min-instances 1` removes that at the cost of an
 always-billed instance.
 
 ### Railway, or any container host
 
-`Dockerfile` is the one to reach for. Measured on a real search, a scrape
-for "ฟาสซิโน" (232 rows) peaks at **394 MB** and takes **52 s**, and "บ้านยา"
-(2,536 rows over 51 pages) takes **92 s** and **runs out of memory at a 512 MB
-cap**. That rules out anything with a short request timeout or a 512 MB tier,
-and it is why the container is the home
-this app actually wants: one browser, one queue and one cache serving
-everyone, warm between requests.
+`Dockerfile` is the one to reach for. A search is an API call now — "ฟาสซิโน"
+(233 rows) comes back in about a second — so the sizing question is only the
+PDF's Chromium, which a 512 MB tier is tight for. A container is still the
+better home: one browser and one warm cache serving everyone.
 
 ```bash
 railway up
@@ -187,7 +190,6 @@ Set these in the project's environment variables:
 | --- | --- | --- |
 | `PUPPETEER_SKIP_DOWNLOAD` | `1` | the deployment drives `@sparticuz/chromium`, so the 170 MB download at install time is wasted |
 | `FORM_TEMPLATE_URL` | a private URL for the .docx | the template is not in the repository and, at 70 KB base64, does not fit in an environment variable |
-| `MAX_PAGES` | `25` on Hobby | see the ceiling below |
 
 A private Vercel Blob is the place to put the template: the file carries the
 officers' names, and a private blob answers 403 to anyone without the store's
@@ -203,50 +205,22 @@ with the store and needs no setting up; the template fetch sends it as a
 bearer token, but only to `*.blob.vercel-storage.com` — it grants writes too,
 so it must not follow `FORM_TEMPLATE_URL` to any other host.
 
-`VERCEL` is set by the platform, and it is what switches the scraper from
-puppeteer's bundled Chromium to `@sparticuz/chromium`. Nothing else changes:
-the same code runs locally against a real Chrome.
+`VERCEL` is set by the platform, and it is what switches the PDF's browser
+from puppeteer's bundled Chromium to `@sparticuz/chromium`. Nothing else
+changes: the same code runs locally against a real Chrome.
 
-**The ceiling worth knowing before you deploy.** A function has a wall-clock
-limit — 60 s on Hobby, 300 s on Pro — and a scrape is as long as the keyword
-is broad. Measured: 7 s for a rare name, **92 s for "บ้านยา"** (2,536 rows over
-51 pages). Almost all of that is paging — setup is 3 s and each pager click
-costs between 0.9 s and 1.7 s, depending on the portal's mood. So:
+**The ceiling that used to be here is gone.** A function has a wall-clock
+limit — 60 s on Hobby, 300 s on Pro — and a search used to be as long as the
+keyword was broad: 92 s for "บ้านยา", almost all of it spent walking the
+portal's pager, which meant Hobby returned broad keywords half-read behind an
+"ผลลัพธ์ไม่ครบ" banner. The portal answers the whole set in one JSON response
+now, so every keyword fits comfortably inside 60 s, and `MAX_PAGES`, the
+browser-side slice assembly and the single-scrape queue are all gone with it.
 
-- On **Hobby**, 60 s is the ceiling and the function is slower than a
-  laptop at every step: about 15 s to reach the results at all, then 2.7 s a
-  pager page against 0.7 s here. Twelve pages is what fits — fifteen measured
-  38 s warm but 54 s cold, and six seconds is not margin. "บ้านยา" comes back
-  as its first 600 rows with the "ผลลัพธ์ไม่ครบ" banner. Officers searching a
-  shop name never reach the cap — "ฟาสซิโน" is five pages and returns all 232
-  rows in 35 s, the same 232 this machine gets — so it only bites on terms
-  broad enough that the honest answer is "type more of the name".
-- On **Pro**, 300 s covers every keyword measured, including the full 51-page
-  "บ้านยา" at 92 s.
-- The keyword cache lives in the instance's memory, so it survives only as
-  long as that instance does — a second officer usually pays the full scrape
-  again. The single-scrape queue is likewise per-instance and no longer
-  protects the FDA site from parallel scrapes.
-
-That ceiling is per request, though, and a search does not have to be one
-request. When a response comes back flagged incomplete, the web app keeps
-going on its own: `/api/fda/drug-locations/pages` serves one window of the
-keyword's pages — the pager's trailing "..." hops ten pages a click, so a
-slice starts mid-set without walking there — and the app pulls the rest ten
-pages at a time, showing each slice as it lands and deduplicating on Newcode.
-Once the set is whole, the browser filters it itself (`web/src/lib/area.js`
-mirrors the server's normalise/facet logic), so changing a dropdown stops
-costing a scrape on an instance whose cache is cold. Measured against the
-deployment: "บ้านยา" assembles 2,535 of its 2,536 rows in six slices over
-201 seconds — a row can drift between slices, because the FDA's set is live
-and three minutes pass between the first page and the last. The stitched-set
-caveat that used to sit here is thereby answered: the somewhere that holds
-the partial set is the browser that asked for it.
-
-If the searches get heavier than that, this app wants a container that stays
-warm — one browser, one queue and one cache serving everyone, and a
-92-second scrape is just a slow request. The same `npm start` runs there
-unchanged.
+What remains true: the keyword cache lives in the instance's memory, so it
+survives only as long as that instance does, and a PDF still starts Chromium
+inside the function — that is the one call that can approach the limit on a
+cold start.
 
 ## Web UI
 
@@ -277,9 +251,10 @@ the variant colour on purpose — across a list of hundreds it has to read as
 right or wrong, not as brand.
 
 The preloader has two variants because the app has two waits: a sub-second
-cover while the area tree loads, and the search itself, which measured between
-7 and 92 seconds depending on how common the name is. The second one counts
-the seconds, since a bare spinner says nothing across that spread.
+cover while the area tree loads, and the search itself — about a second now
+that the portal answers over its API, where the old scrape took 7 to 92
+seconds. The second one still counts the seconds; it simply rarely gets past
+one.
 
 The inspection form stays a plain static page. It is a print document, it has
 to render identically in the officer's browser and in the headless Chromium
@@ -310,7 +285,7 @@ that makes the PDF, and React would only add a build step between those two.
   (tab-separated, pastes straight into Excel or Google Sheets).
 - **เปิดแท็บใหม่ ↗** per row — the original FDA detail page.
 
-Changing any dropdown re-filters immediately: the scrape is cached by keyword,
+Changing any dropdown re-filters immediately: results are cached by keyword,
 so narrowing the area costs nothing.
 
 Opening `public/index.html` straight from disk works too (the API sends
@@ -338,7 +313,7 @@ loaded it: ชื่อผู้รับอนุญาต is the one blank tha
 
 Two downloads, same trip — post what is on screen, save what comes back:
 
-- **ดาวน์โหลด PDF** renders this same page through the scraper's Chromium. No PDF
+- **ดาวน์โหลด PDF** renders this same page through the app's own Chromium. No PDF
   library, no font bundle, no print dialog.
 - **ดาวน์โหลด Word** fills the office's own .docx and returns it, so the record
   can still be edited in Word afterwards. `templates/inspection-form.docx` is
@@ -382,9 +357,9 @@ POST /api/fda/drug-locations    { "keyword": "...", "province": "..." }
 | `province` | no | matched against the จังหวัด part of the "ที่อยู่" column; the word `จังหวัด` and whitespace are ignored |
 | `district` | no | matched against the อำเภอ / เขต part |
 | `subdistrict` | no | matched against the ตำบล / แขวง part |
-| `withDetails` | no | `false` skips step 8 (much faster) |
-| `limit` | no | max rows for which the detail tab is opened |
-| `refresh` | no | `true` bypasses the cache and re-scrapes |
+| `withDetails` | no | `false` skips the per-row detail call (much faster) |
+| `limit` | no | max rows for which the detail record is fetched |
+| `refresh` | no | `true` bypasses the cache and asks the portal again |
 
 Example:
 
@@ -402,7 +377,6 @@ Response:
   "totalFound": 232,
   "totalMatched": 7,
   "detailsFetched": 7,
-  "pagesRead": 5,
   "incomplete": false,
   "truncated": false,
   "results": [
@@ -413,7 +387,7 @@ Response:
       "address": "บ้านเลขที่ 269/5 ... จังหวัด เชียงใหม่ 50000โทร. 0 5326 1150-2",
       "status": "ยกเลิก",
       "newCode": "U1D03505500001C",
-      "detailUrl": "http://pertento.fda.moph.go.th/.../pop-up_drug_location_operator.aspx?Newcode_not=U1D03505500001C",
+      "detailUrl": "https://pertento.fda.moph.go.th/FDA_INFORMATION_DRUG/Home/Public_Inform_Location_Drug?Newcode_not=U1D03505500001C",
       "licenseeName": "บริษัท โปร ฟาสซิโน จำกัด",
       "operatorName": "นาย ไชยเสน พิศาลวาเลิศ",
       "openHours": "08.00 - 21.00 น.",
@@ -425,18 +399,14 @@ Response:
 
 ## Cache
 
-A scrape is cached **by keyword only** — the province filter is applied locally
+A search is cached **by keyword only** — the province filter is applied locally
 afterwards — so a second search on the same shop name answers instantly, and
-switching province costs nothing. Detail pop-ups are cached separately by
+switching province costs nothing. Detail records are cached separately by
 Newcode. Responses carry `cached` and `cachedAgeSeconds`; the UI shows a
 "จากแคช" badge with a "ดึงข้อมูลใหม่" button that re-runs with `refresh=true`.
 
-Measured: `keyword=บ้านยา` (2,415 rows / 51 pages) takes ~96 s cold and **0.0 s**
-warm; switching that same cached search to another province is also 0.0 s.
-
-A cached request skips the single-scrape queue, so it never waits behind a
-running scrape, and it does not start Chromium at all unless details are asked
-for.
+Measured: `keyword=ฟาสซิโน` (233 rows) takes ~1 s cold and **0.0 s** warm;
+switching that same cached search to another province is also 0.0 s.
 
 ```
 GET    /api/cache      → what is cached, with ages
@@ -452,74 +422,60 @@ GET    /api/fda/detail?newCode=…  → one establishment's detail, for the prev
 | --- | --- | --- |
 | 400 | `INVALID_INPUT` | `keyword` missing |
 | 504 | `UPSTREAM_TIMEOUT` | FDA site slow, or a selector no longer exists |
-| 502 | `SCRAPE_FAILED` | any other scrape failure |
+| 502 | `SCRAPE_FAILED` | any other upstream failure |
 
 A search with zero hits is **not** an error — it returns `200` with
 `totalFound: 0` and an empty `results` array.
 
 ## How it works
 
-1. `page.goto` the search page.
-2. Click radio `#ContentPlaceHolder1_R_LCN_DRUG` ("สืบค้นสถานที่ยา") — this fires
-   an ASP.NET `__doPostBack`, handled by `clickAndSettle()` (see below).
-3. Type `keyword` into `#ContentPlaceHolder1_txt_search`.
-4. Click `#ContentPlaceHolder1_btn_search` (another postback).
-5. `waitForSelector('#ContentPlaceHolder1_RAD_LCN_ctl00')` — the Telerik RadGrid.
-6. Raise the page size to 50, then walk the pager (`input.rgPageNext`), reading
-   `tr.rgRow, tr.rgAltRow` on each page. Paging is confirmed by waiting for
-   `.rgCurrentPage` to change, not by a fixed sleep.
-7. Parse each address into ตำบล/แขวง, อำเภอ/เขต and จังหวัด (`parseAddress()`,
-   run once at scrape time and cached with the rows), then filter by whichever
+1. POST the portal's search API (`GET_SEARCH`) with its own search model —
+   a multipart body of `MODEL` (JSON) and `search_input`, with
+   `RADIO_TYPE_LOCATION` set to `สืบค้นสถานที่ยา`. The whole result set comes
+   back in one JSON response; there is no pager to walk.
+2. Map each record onto the row shape the UI reads: `lcnno_no` → `licenseNo`,
+   `lcntpcd` → `licenseType` (the portal splits "ขจ กจ 4/2538" into the two),
+   `thanm` → `placeName`, `thanm_addr` → `address`, `cncnm` → `status`,
+   `Newcode` → `newCode`, `URLs` → `detailUrl`.
+3. Parse each address into ตำบล/แขวง, อำเภอ/เขต and จังหวัด (`parseAddress()`,
+   run once per fetch and cached with the rows), then filter by whichever
    of the three the caller asked for. Matching is per part, not a raw substring
    over the whole address — otherwise a Chiang Mai shop on `ถนน ลำพูน` would be
    returned for `province=ลำพูน`. The response also carries `facets`, the
    distinct districts and subdistricts still available with counts.
-8. For each match, open the last-column link's URL in a new tab, read the
-   licensee fields, close the tab.
+4. For each match (up to `MAX_DETAILS`), POST the detail API with the row's
+   Newcode for the licensee, the ผู้มีหน้าที่ปฏิบัติการ list, the opening hours
+   and the map coordinates. That endpoint answers 411 to a POST with no body
+   at all, so an empty form body goes with it; an unknown Newcode comes back
+   as an empty response, which is the 404.
 
-   The link is **not** clicked in the grid, even though it is a `target="_blank"`
-   anchor: Telerik ids the links by position inside the current pager page
-   (`..._ctl04_HyperLink1`), so after step 6 only the last page's rows are in the
-   DOM, and clicking a remembered id silently returns another shop's record.
-   The href carries the row's own Newcode, so it is always the right record —
-   and it works identically for cached rows, where no grid is open at all.
-
-Each request runs in its own `BrowserContext` (isolated cookies / ViewState) on a
-single shared Chromium instance, and requests are serialised in a queue because
-the upstream site is slow under parallel load.
+Nothing above needs a browser, so searches are not queued and Chromium is only
+started when a PDF is asked for.
 
 ## Site quirks handled
 
 - **WAF**: the FDA sites sit behind GDCC Security Center, which answers HTTP 500
-  to the default `HeadlessChrome` user agent. Chromium is launched with a normal
-  desktop `--user-agent` so the detail pop-up tab inherits it too.
-- **Announcement modal**: the landing page opens a Bootstrap modal whose
-  backdrop swallows real mouse clicks. `dismissModals()` closes it, and
-  `robustClick()` falls back to a DOM click when an element is still covered.
-- **RadAjax**: controls answer with partial async postbacks, not navigations.
-  `clickAndSettle()` races `waitForNavigation` against the MS AJAX
-  `PageRequestManager` `endRequest` event, then waits for the ready selector —
-  no fixed sleeps anywhere.
+  to the default `HeadlessChrome` user agent. Every upstream call sends a normal
+  desktop `User-Agent`, and Chromium is launched with the same one.
+- **Split licence number**: the search API returns the type (`ขจ`) and the
+  number (`กจ 4/2538`) separately — `lcnno_noo` is the two joined.
+- **411 on the detail API**: the IIS in front of it rejects a POST without a
+  content length, hence the empty body.
 
 ## Notes / caveats
 
-- Verified against the live site on 2026-08-19: `keyword=ฟาสซิโน` returns 232 rows
-  over 24 pager pages; `province=เชียงใหม่` → 11 matches, `province=ลำพูน` → 1,
-  `province=กรุงเทพมหานคร` → 64. A full run with 2 detail tabs took ~52 s.
-- Selectors were captured from the live site; if the FDA rebuilds the page they
-  are all in one place, `src/config.js`.
-- The grid returns *all* provinces, so `province` filtering happens locally after
-  every page has been read — a broad keyword means many postbacks.
-- `incomplete: true` means the walk stopped at `MAX_PAGES` while the pager still
-  had more pages, so the result set is partial — narrow the keyword or raise
-  `MAX_PAGES`. The web UI shows a yellow banner in this case.
-- Cost of a broad keyword: `keyword=บ้านยา` is 2,536 rows over 51 pages and takes
-  ~92 s. `MAX_PAGES=60` covers it; at the old default of 30 it stopped at 1,500
-  rows with `incomplete: true`.
-- Step 8 is the slow part (one page load per row). Pass `withDetails=false` when
-  only the grid columns are needed; the web UI does exactly that.
+- Verified against the live site on 2026-08-26: `keyword=ฟาสซิโน` returns 233
+  rows, `province=เชียงใหม่` → 11 matches, and the search plus one detail
+  record takes ~1 s (`node smoke.js`).
+- The API returns *all* provinces, so `province` filtering happens locally.
+- `incomplete: true` now only means the keyword brought back more than
+  `MAX_ROWS` rows. The web UI shows a yellow banner in this case.
+- Step 4 is the slow part (one request per row). Pass `withDetails=false` when
+  only the list columns are needed; the web UI does exactly that.
+- The portal redacts pharmacist names: `PERSON_FULLNAME` arrives as the title
+  alone ("นางสาว"), so `pharmacists[].name` is the title. Nothing on this side
+  can recover the rest.
 - `licenseeName` is legitimately `null` for owner-operated shops — the FDA record
   leaves ชื่อผู้รับอนุญาต blank and names the person under ผู้ดำเนินกิจการ.
-- `totalFound` for a broad keyword drifts a little between runs (2,415–2,536 for
-  `บ้านยา`). The upstream grid re-queries per pager page, so rows shift while the
-  walk is in progress. Nothing to fix on this side.
+- `/api/fda/drug-locations/pages` is gone with the pager it existed for, and
+  so is the browser-side assembly that called it (`web/src/lib/area.js`).

@@ -10,7 +10,8 @@
     "dev:web": "npm --prefix web run dev",
     "build": "npm --prefix web run build",
     "install:web": "npm --prefix web install",
-    "smoke": "node smoke-form.js"
+    "smoke": "node smoke-form.js",
+    "smoke:api": "node smoke.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "^149.0.0",

@@ -5,9 +5,7 @@ const config = require('./config');
 const areas = require('../data/areas.json');
 const {
   searchDrugLocations,
-  searchDrugLocationsChunk,
   getDetailByNewCode,
-  hasFreshRows,
   clearCache,
   cacheStats,
   closeBrowser,
@@ -22,27 +20,12 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-/**
- * Only one Puppeteer scrape runs at a time. The target site is a slow
- * ASP.NET WebForms app; parallel scrapes make it time out.
+/*
+ * Searches used to be queued: each one drove a headless browser through the
+ * portal's old WebForms grid, and two at once made it time out. The portal
+ * answers a search over its own JSON API now, so they simply run.
  */
-let queue = Promise.resolve();
-function enqueue(task) {
-  const run = queue.then(task, task);
-  queue = run.catch(() => {});
-  return run;
-}
-
-/**
- * A cached keyword needs no browser, so it must not wait behind a scrape that
- * may take a minute and a half.
- */
-function run(params) {
-  const cacheable = !params.refresh && hasFreshRows(params.keyword);
-  return cacheable
-    ? searchDrugLocations(params)
-    : enqueue(() => searchDrugLocations(params));
-}
+const run = searchDrugLocations;
 
 function parseBoolean(value, fallback) {
   if (value === undefined || value === '') return fallback;
@@ -138,23 +121,6 @@ app.delete('/api/cache', (req, res) => {
   res.json({ success: true, message: 'ล้างแคชแล้ว' });
 });
 
-
-/**
- * GET /api/fda/drug-locations/pages?keyword=X&startPage=13&pages=10
- * One slice of a broad keyword's result set — see searchDrugLocationsChunk.
- * Queued like every other scrape: slices must not run beside one.
- */
-app.get('/api/fda/drug-locations/pages', async (req, res, next) => {
-  try {
-    const { keyword, startPage, pages } = req.query;
-    const data = await enqueue(() =>
-      searchDrugLocationsChunk({ keyword, startPage, pages })
-    );
-    res.json({ success: true, ...data });
-  } catch (err) {
-    next(err);
-  }
-});
 
 /**
  * GET /api/fda/drug-locations?keyword=ฟาสซิโน&province=เชียงใหม่

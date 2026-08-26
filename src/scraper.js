@@ -1,6 +1,6 @@
 'use strict';
 
-const { selectors, detailSelectors, ...config } = require('./config');
+const config = require('./config');
 
 /*
  * Locally, puppeteer brings its own Chromium. On Vercel there is no browser
@@ -163,7 +163,7 @@ class ScrapeError extends Error {
  * applied locally afterwards — so changing only the province costs nothing.
  * Detail pop-ups are cached separately by their Newcode.
  */
-const rowCache = new Map(); // keyword -> { rows, capped, pagesRead, at }
+const rowCache = new Map(); // keyword -> { rows, capped, at }
 const detailCache = new Map(); // newCode -> { licenseeName, operatorName, openHours, pharmacists }
 
 function cacheKey(keyword) {
@@ -189,11 +189,6 @@ function setCachedRows(keyword, snapshot) {
   while (rowCache.size > config.cacheMaxKeywords) {
     rowCache.delete(rowCache.keys().next().value);
   }
-}
-
-/** Used by the server to skip the scrape queue when an answer is already held. */
-function hasFreshRows(keyword) {
-  return Boolean(getCachedRows(keyword));
 }
 
 function clearCache() {
@@ -299,397 +294,6 @@ function buildFacet(rows, part) {
 }
 
 /**
- * The landing page shows a Bootstrap announcement modal whose backdrop swallows
- * real mouse events. Close it (and any leftover backdrop) before interacting.
- */
-async function dismissModals(page) {
-  await page.evaluate(() => {
-    document.querySelectorAll('.modal.show, .modal.fade.show').forEach((modal) => {
-      const closer = Array.from(
-        modal.querySelectorAll('button, .close, [data-dismiss="modal"]')
-      )[0];
-      if (closer) closer.click();
-      modal.classList.remove('show');
-      modal.style.display = 'none';
-    });
-    document.querySelectorAll('.modal-backdrop').forEach((b) => b.remove());
-    document.body.classList.remove('modal-open');
-    document.body.style.removeProperty('overflow');
-  });
-}
-
-/**
- * Click an element, falling back to a DOM click when something (a modal
- * backdrop, a sticky header) covers it at its centre point.
- */
-async function robustClick(page, selector) {
-  await page.waitForSelector(selector, { timeout: config.navTimeoutMs });
-  await dismissModals(page);
-  const clickable = await page.evaluate((sel) => {
-    const el = document.querySelector(sel);
-    if (!el) return false;
-    el.scrollIntoView({ block: 'center' });
-    const box = el.getBoundingClientRect();
-    if (!box.width || !box.height) return false;
-    const top = document.elementFromPoint(
-      box.left + box.width / 2,
-      box.top + box.height / 2
-    );
-    return Boolean(top && (top === el || el.contains(top) || top.contains(el)));
-  }, selector);
-
-  if (clickable) {
-    await page.click(selector);
-  } else {
-    await page.evaluate((sel) => document.querySelector(sel).click(), selector);
-  }
-}
-
-/**
- * The page uses Telerik RadAjax, so a control can answer with either a full
- * postback (navigation) or a partial async postback (no navigation at all).
- * This clicks and settles on whichever happens, then waits for `readySelector`.
- */
-async function clickAndSettle(page, selector, readySelector) {
-  await page.waitForSelector(selector, { timeout: config.navTimeoutMs });
-
-  // Flag set by the MS AJAX page request manager when a partial postback ends.
-  await page.evaluate(() => {
-    window.__postbackDone = false;
-    const prm =
-      window.Sys &&
-      window.Sys.WebForms &&
-      window.Sys.WebForms.PageRequestManager &&
-      window.Sys.WebForms.PageRequestManager.getInstance();
-    if (prm) prm.add_endRequest(() => {
-      window.__postbackDone = true;
-    });
-  });
-
-  /*
-   * Not every click posts back. Selecting the radio does on the portal as
-   * served to a desktop and does not in a Lambda, where the search box is
-   * simply already there — and waiting the full navigation timeout for a
-   * postback that will never start cost 45 seconds of a 60-second budget.
-   * Five seconds is longer than any partial postback measured here; what the
-   * click was meant to achieve is checked after this, by the caller and by
-   * readySelector, so giving up early costs nothing.
-   */
-  const settleMs = Math.min(config.navTimeoutMs, 5000);
-  const navigation = page
-    .waitForNavigation({ waitUntil: 'domcontentloaded', timeout: settleMs })
-    .catch(() => null);
-  const asyncDone = page
-    .waitForFunction(() => window.__postbackDone === true, { timeout: settleMs })
-    .catch(() => null);
-
-  await robustClick(page, selector);
-  await Promise.race([navigation, asyncDone]);
-
-  if (readySelector) {
-    await page.waitForSelector(readySelector, { timeout: config.navTimeoutMs });
-  }
-}
-
-/** Read every data row of the result grid currently rendered. */
-async function readGridRows(page) {
-  return page.$$eval(
-    `${selectors.resultGrid} tr.rgRow, ${selectors.resultGrid} tr.rgAltRow`,
-    (rows) =>
-      rows
-        .map((row) => {
-          const cells = Array.from(row.cells).map((c) =>
-            c.innerText.replace(/ /g, ' ').trim()
-          );
-          if (cells.length < 6) return null;
-          const link = row.querySelector('a[href]');
-          return {
-            licenseNo: cells[0],
-            licenseType: cells[1],
-            placeName: cells[2],
-            address: cells[3],
-            status: cells[4],
-            newCode: cells[5],
-            detailUrl: link ? link.href : null,
-            detailLinkId: link ? link.id : null,
-          };
-        })
-        .filter(Boolean)
-  );
-}
-
-/** True when the grid rendered the Telerik "no records" placeholder. */
-async function hasNoRecords(page) {
-  return page.$eval(selectors.resultGrid, (grid) =>
-    /No records to display/i.test(grid.innerText)
-  );
-}
-
-/** Raise the grid page size to 50 rows so fewer postbacks are needed. */
-async function tryEnlargePageSize(page) {
-  try {
-    await page.waitForSelector(selectors.pageSizeArrow, { timeout: 5000 });
-    await page.click(selectors.pageSizeArrow);
-    await page.waitForSelector(`${selectors.pageSizeDropDown} li`, {
-      timeout: 5000,
-    });
-    const rowsBefore = (await readGridRows(page)).length;
-    const clicked = await page.evaluate((dropDown) => {
-      const item = Array.from(
-        document.querySelectorAll(`${dropDown} li`)
-      ).find((li) => li.innerText.trim() === '50');
-      if (!item) return false;
-      item.click();
-      return true;
-    }, selectors.pageSizeDropDown);
-    if (!clicked) return;
-    await page.waitForSelector(selectors.resultGrid, {
-      timeout: config.navTimeoutMs,
-    });
-    await page.waitForFunction(
-      (gridSelector, before) => {
-        const grid = document.querySelector(gridSelector);
-        if (!grid) return false;
-        return (
-          grid.querySelectorAll('tr.rgRow, tr.rgAltRow').length !== before
-        );
-      },
-      { timeout: 15000 },
-      selectors.resultGrid,
-      rowsBefore
-    );
-  } catch {
-    // Page size is a nice-to-have; fall back to the default 10 rows per page.
-  }
-}
-
-/**
- * Walk every pager page of the grid.
- * Stops at config.maxPages so a very broad keyword cannot loop forever; when
- * that cap is what ended the walk, `capped` says the result set is incomplete.
- */
-/**
- * How many rows a full page holds, according to the grid's own page-size box.
- * Counting the rows on screen is not the same question: the grid renders them
- * a few at a time, so an early look says nine.
- */
-async function readPageSize(page) {
-  try {
-    const value = await page.$eval(selectors.pageSizeInput, (el) => el.value);
-    const size = Number(String(value).replace(/\D/g, ''));
-    return size > 0 ? size : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Wait until the grid has finished drawing.
- *
- * A page number changes the moment the postback lands, and the rows arrive
- * after it. Reading in that gap is what returned short pages. When the page
- * size is known, a full page is the signal; otherwise settle for the row
- * count holding still between two polls, which is what the last page needs
- * since it is legitimately short.
- */
-async function waitForGridSettled(page, expected) {
-  await page.evaluate(() => {
-    window.__gridRows = -1;
-  });
-  await page
-    .waitForFunction(
-      (gridSelector, want) => {
-        const grid = document.querySelector(gridSelector);
-        if (!grid) return false;
-        const rows = grid.querySelectorAll('tr.rgRow, tr.rgAltRow').length;
-        if (want && rows >= want) return true;
-        const settled = rows > 0 && rows === window.__gridRows;
-        window.__gridRows = rows;
-        return settled;
-      },
-      { timeout: 15000, polling: 300 },
-      selectors.resultGrid,
-      expected || 0
-    )
-    .catch(() => {
-      // Read whatever is there rather than abandon the search.
-    });
-}
-
-/**
- * Jump the pager to `target` without walking every page in between.
- *
- * The Telerik client API can do this in one call, but MS AJAX walks
- * `arguments.caller` on the way and dies when automation is in the call
- * stack. The pager's links are ordinary anchors though, and a native click
- * runs their postback in the page's own world: the trailing "..." advances a
- * block of ten, a numbered link lands exactly. Reaching page 45 is four
- * ellipsis clicks and one number — measured at 1.5 s a click.
- */
-async function hopToPage(page, target) {
-  for (let guard = 0; guard < 30; guard += 1) {
-    const state = await page.evaluate(
-      (gridSelector, currentSelector) => {
-        const grid = document.querySelector(gridSelector);
-        const pager =
-          grid && (grid.querySelector('.rgPager') || grid.querySelector('tfoot'));
-        if (!pager) return null;
-        return {
-          current: Number(
-            (document.querySelector(currentSelector) || {}).innerText || 0
-          ),
-          labels: Array.from(pager.querySelectorAll('a')).map((a) =>
-            a.innerText.trim()
-          ),
-        };
-      },
-      selectors.resultGrid,
-      selectors.currentPage
-    );
-    if (!state || state.current === target) return;
-
-    // A visible number is a direct hop; otherwise the trailing "..." moves
-    // the window ten pages at a time.
-    const label = state.labels.includes(String(target)) ? String(target) : '...';
-    const clicked = await page.evaluate(
-      (gridSelector, want, forward) => {
-        const grid = document.querySelector(gridSelector);
-        const pager =
-          grid.querySelector('.rgPager') || grid.querySelector('tfoot');
-        const matches = Array.from(pager.querySelectorAll('a')).filter(
-          (a) => a.innerText.trim() === want
-        );
-        // "..." appears at both ends mid-run; the trailing one goes forward.
-        const a = forward ? matches[matches.length - 1] : matches[0];
-        if (!a) return false;
-        a.id = '__pager_hop';
-        return true;
-      },
-      selectors.resultGrid,
-      label,
-      target > state.current
-    );
-    if (!clicked) {
-      throw new ScrapeError(
-        `ไปหน้าที่ ${target} ไม่สำเร็จ (pager ไม่มีลิงก์ให้กด)`,
-        502,
-        'SCRAPE_FAILED'
-      );
-    }
-    await page.click('#__pager_hop');
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    await page.waitForSelector(selectors.resultGrid, {
-      timeout: config.navTimeoutMs,
-    });
-    await waitForGridSettled(page, null);
-  }
-  throw new ScrapeError(`ไปหน้าที่ ${target} ไม่สำเร็จ`, 502, 'SCRAPE_FAILED');
-}
-
-/**
- * How many pages the grid says it has.
- *
- * The pager prints "2536 items in 51 pages", and knowing the number matters:
- * on the last page Telerik leaves the "next" button enabled, so clicking it
- * changes nothing and the wait for a new page number burns the full
- * navigation timeout — 45 seconds added to every search that reads to the
- * end. Stopping on the count avoids the click entirely.
- */
-async function readTotalPages(page) {
-  try {
-    const text = await page.$eval(selectors.resultGrid, (grid) => {
-      const pager = grid.querySelector('.rgPager') || grid.querySelector('tfoot');
-      return pager ? pager.innerText : '';
-    });
-    const match = /in\s+([\d,]+)\s+pages?/i.exec(text);
-    return match ? Number(match[1].replace(/,/g, '')) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function readAllPages(page, { startPage = 1, limit } = {}) {
-  const all = [];
-  let visited = 0;
-  const totalPages = await readTotalPages(page);
-  const pageSize = await readPageSize(page);
-  const maxThisCall = Math.min(limit || config.maxPages, config.maxPages);
-
-  if (startPage > 1) {
-    if (totalPages && startPage > totalPages) {
-      return { rows: [], capped: false, pagesRead: 0, totalPages };
-    }
-    await hopToPage(page, startPage);
-  }
-
-  for (;;) {
-    // `current` is the absolute page number under the cursor.
-    const current = startPage + visited;
-    // Including the first page: the grid is still filling when the search
-    // postback returns.
-    const lastPage = Boolean(totalPages) && current >= totalPages;
-    await waitForGridSettled(page, lastPage ? null : pageSize);
-
-    all.push(...(await readGridRows(page)));
-    visited += 1;
-    if (process.env.DEBUG_STEPS && visited % 5 === 0) {
-      console.log('[step] read page', visited, 'rows so far', all.length);
-    }
-
-    if (totalPages && startPage + visited - 1 >= totalPages) {
-      return { rows: all, capped: false, pagesRead: visited, totalPages };
-    }
-
-    if (visited >= maxThisCall) {
-      const more = await page.$(selectors.nextPage);
-      const hasMore = more
-        ? await page.evaluate(
-            (el) => !el.disabled && !/rgPageDisabled|Disabled/.test(el.className),
-            more
-          )
-        : false;
-      return { rows: all, capped: hasMore, pagesRead: visited, totalPages };
-    }
-
-    const nextButton = await page.$(selectors.nextPage);
-    if (!nextButton) break;
-
-    const disabled = await page.evaluate(
-      (el) => el.disabled || /rgPageDisabled|Disabled/.test(el.className),
-      nextButton
-    );
-    if (disabled) break;
-
-    const currentLabel = await page
-      .$eval(selectors.currentPage, (el) => el.innerText.trim())
-      .catch(() => null);
-
-    await robustClick(page, selectors.nextPage);
-
-    // The pager posts back; wait until the highlighted page number changes.
-    try {
-      await page.waitForFunction(
-        (sel, previous) => {
-          const el = document.querySelector(sel);
-          return el && el.innerText.trim() !== previous;
-        },
-        { timeout: config.navTimeoutMs },
-        selectors.currentPage,
-        currentLabel
-      );
-    } catch {
-      break; // Last page, or the pager stopped responding.
-    }
-
-    await page.waitForSelector(selectors.resultGrid, {
-      timeout: config.navTimeoutMs,
-    });
-  }
-
-  return { rows: all, capped: false, pagesRead: visited, totalPages };
-}
-
-/**
  * Pull coordinates out of the detail page's Google Maps link. The FDA writes
  * 0,0 for records it never geocoded, and a few links carry no href at all, so
  * anything outside Thailand's bounding box is treated as "no location".
@@ -704,108 +308,144 @@ function parseCoordinates(mapHref) {
   return insideThailand ? { lat, lng } : null;
 }
 
-/** Read the licensee fields off an open detail pop-up page. */
-async function readDetailFields(popup) {
-  popup.setDefaultTimeout(config.navTimeoutMs);
-  // Wait on the shop name, which every record has. The licensee field is blank
-  // for owner-operated shops (the person shows up as ผู้ดำเนินกิจการ instead),
-  // so waiting on it would burn the timeout on perfectly normal records.
-  await popup
-    .waitForSelector(detailSelectors.storeName, { timeout: 15000 })
-    .catch(() => null);
-
-  return popup.evaluate((sel) => {
-    const clean = (t) =>
-      t ? t.replace(/ /g, ' ').replace(/\s+/g, ' ').trim() : null;
-    const read = (s) => {
-      const el = document.querySelector(s);
-      return el ? clean(el.innerText) : null;
-    };
-    // Fallback: the licensee DataList id is index-suffixed and can shift, so
-    // read it off the label when the primary selector misses.
-    const fromLabel = (label, next) => {
-      const text = document.body ? document.body.innerText : '';
-      const start = text.indexOf(label);
-      if (start === -1) return null;
-      const rest = text.slice(start + label.length);
-      const end = next ? rest.indexOf(next) : -1;
-      return clean((end === -1 ? rest : rest.slice(0, end)).replace(/^\s*:/, ''));
-    };
-    const blankToNull = (v) => (v ? v : null);
-    return {
-      licenseeName: blankToNull(
-        read(sel.licenseeName) ||
-          fromLabel('ชื่อผู้รับอนุญาต [Licensee Name]', 'ชื่อผู้ดำเนินกิจการ')
-      ),
-      operatorName: blankToNull(
-        read(sel.operatorName) ||
-          fromLabel(
-            'ชื่อผู้ดำเนินกิจการ [Name of authorization person]',
-            'ชื่อสถานที่'
-          )
-      ),
-      openHours: blankToNull(read(sel.openHours)),
-      // One entry per ผู้มีหน้าที่ปฏิบัติการ, in the order the licence lists
-      // them. Empty for a lapsed licence — the FDA drops the whole block.
-      pharmacists: Array.from(
-        document.querySelectorAll(`[id^="${sel.pharmacistNamePrefix}"]`)
-      )
-        .map((el) => {
-          const row = el.id.slice(sel.pharmacistNamePrefix.length);
-          const at = (prefix) => {
-            const node = document.getElementById(prefix + row);
-            return node ? clean(node.innerText) : null;
-          };
-          return {
-            index: at(sel.pharmacistIndexPrefix) || String(Number(row) + 1),
-            name: clean(el.innerText),
-            openHours: at(sel.pharmacistHoursPrefix),
-          };
-        })
-        .filter((p) => p.name),
-      mapHref: (() => {
-        const link = document.querySelector(sel.mapLink);
-        return link && link.getAttribute('href') ? link.href : null;
-      })(),
-    };
-  }, detailSelectors);
+/** Collapse the portal's non-breaking spaces and padding; blank becomes null. */
+function clean(text) {
+  const value = String(text == null ? '' : text)
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return value || null;
 }
 
-/**
- * Open the row's detail pop-up in a new tab, read it, close it.
- *
- * The link is opened by its href rather than clicked in the grid on purpose:
- * Telerik ids the links by position within the current pager page
- * (`..._ctl04_HyperLink1`), so after walking every page only the last page's
- * rows are in the DOM and clicking a remembered id would hit the wrong record.
- * The href carries the row's own Newcode, so it is always right — and it works
- * the same whether the rows came from a fresh scrape or from the cache.
- */
-async function fetchDetailByUrl(context, row) {
-  if (!row.detailUrl) return null;
-  const popup = await context.newPage();
+/** Ask an upstream endpoint, with the desktop UA the WAF insists on. */
+async function callApi(url, options) {
+  let response;
   try {
-    await popup.goto(row.detailUrl, {
-      waitUntil: 'domcontentloaded',
-      timeout: config.navTimeoutMs,
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        'User-Agent': config.userAgent,
+        'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8',
+        ...(options.headers || {}),
+      },
+      signal: AbortSignal.timeout(config.navTimeoutMs),
     });
-    const fields = await readDetailFields(popup);
-    const coordinates = parseCoordinates(fields.mapHref);
-    delete fields.mapHref;
-    return {
-      ...fields,
-      lat: coordinates ? coordinates.lat : null,
-      lng: coordinates ? coordinates.lng : null,
-    };
-  } finally {
-    await popup.close().catch(() => {});
+  } catch (err) {
+    if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+      throw new ScrapeError(
+        'เว็บไซต์ อย. ไม่ตอบสนองภายในเวลาที่กำหนด',
+        504,
+        'UPSTREAM_TIMEOUT'
+      );
+    }
+    throw new ScrapeError(`ติดต่อเว็บไซต์ อย. ไม่สำเร็จ: ${err.message}`);
   }
+  if (!response.ok) {
+    throw new ScrapeError(`เว็บไซต์ อย. ตอบกลับ HTTP ${response.status}`);
+  }
+  return response.text();
 }
 
 /**
- * Fetch one establishment's detail pop-up by its Newcode, for the in-page
- * preview. Shares the same cache the search path fills, so previewing a shop
- * that was already detailed costs nothing.
+ * Every row for one keyword, from the portal's own search API.
+ *
+ * The search page is an Angular app: it posts the search model to GET_SEARCH
+ * and renders the JSON that comes back — the whole result set in one answer,
+ * with no pager to walk. So this asks the same question the same way, which
+ * is why no browser is involved in a search any more.
+ */
+async function fetchRows(keyword) {
+  const body = new FormData();
+  body.append(
+    'MODEL',
+    JSON.stringify({
+      SEARCH_VALUE: keyword,
+      RADIO_TYPE: null,
+      RADIO_TYPE_ETC_FOOD: null,
+      RADIO_TYPE_ETC_DRUG: null,
+      RADIO_TYPE_ETC_HERB: null,
+      RADIO_TYPE_ETC_TXC: null,
+      RADIO_TYPE_ETC_CMT: null,
+      RADIO_TYPE_ETC_NCT: null,
+      RADIO_TYPE_ETC_MDC: null,
+      RADIO_TYPE_ETC_ADVER: null,
+      // What picks "สืบค้นสถานที่ยา" over the product searches.
+      RADIO_TYPE_LOCATION: config.searchLocationType,
+    })
+  );
+  body.append('search_input', keyword);
+
+  const text = await callApi(config.searchApiUrl, { method: 'POST', body });
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new ScrapeError('เว็บไซต์ อย. ตอบกลับด้วยข้อมูลที่อ่านไม่ได้');
+  }
+  if (!Array.isArray(data)) {
+    throw new ScrapeError('รูปแบบข้อมูลของเว็บไซต์ อย. เปลี่ยนไป');
+  }
+
+  // The licence number arrives split: "ขจ" (type) and "กจ 4/2538" (number).
+  const rows = data.slice(0, config.maxRows).map((r) => ({
+    licenseNo: clean(r.lcnno_no),
+    licenseType: clean(r.lcntpcd),
+    placeName: clean(r.thanm),
+    address: clean(r.thanm_addr),
+    status: clean(r.cncnm),
+    newCode: clean(r.Newcode),
+    detailUrl:
+      r.URLs ||
+      (r.Newcode ? `${config.detailPageUrl}?Newcode_not=${encodeURIComponent(r.Newcode)}` : null),
+  }));
+  for (const row of rows) row.area = parseAddress(row.address);
+
+  // Only ever true for a keyword so broad it passed MAX_ROWS.
+  return { rows, capped: data.length > rows.length };
+}
+
+/**
+ * One establishment's own record: licensee, operator, hours, the
+ * ผู้มีหน้าที่ปฏิบัติการ list and the map coordinates. The detail page is an
+ * AngularJS view over this same call, so it is asked directly.
+ *
+ * An unknown Newcode is answered with an empty body, not an error.
+ */
+async function fetchDetail(newCode) {
+  const url = `${config.detailApiUrl}?Newcode_not=${encodeURIComponent(newCode)}`;
+  // The IIS in front of it answers 411 to a POST with no body at all.
+  const text = await callApi(url, { method: 'POST', body: new URLSearchParams() });
+  if (!text.trim()) return null;
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new ScrapeError('เว็บไซต์ อย. ตอบกลับด้วยข้อมูลที่อ่านไม่ได้');
+  }
+
+  const coordinates = parseCoordinates(data.URLGoogleMap);
+  return {
+    licenseeName: clean(data.ENTREPRENEUR_NAME),
+    operatorName: clean(data.OPERATOR_NAME),
+    openHours: clean(data.LOCATION_JOB_TIME),
+    // Empty for a lapsed licence — the FDA drops the whole block.
+    pharmacists: (data.PHAR_LIST || [])
+      .map((entry, i) => ({
+        index: String(i + 1),
+        name: clean(entry.PERSON_FULLNAME),
+        openHours: clean(entry.LOCATION_JOB_TIME),
+      }))
+      .filter((p) => p.name),
+    lat: coordinates ? coordinates.lat : null,
+    lng: coordinates ? coordinates.lng : null,
+  };
+}
+
+/**
+ * Fetch one establishment's record by its Newcode, for the in-page preview.
+ * Shares the same cache the search path fills, so previewing a shop that was
+ * already detailed costs nothing.
  */
 async function getDetailByNewCode(newCode) {
   const code = String(newCode || '').trim();
@@ -816,151 +456,12 @@ async function getDetailByNewCode(newCode) {
   const hit = detailCache.get(code);
   if (hit) return { ...hit, cached: true };
 
-  const browser = await getBrowser();
-  const context = await createContext(browser);
-  try {
-    const detail = await fetchDetailByUrl(context, {
-      detailUrl: `${config.detailUrlBase}?Newcode_not=${encodeURIComponent(code)}`,
-    });
-    if (!detail) {
-      throw new ScrapeError('ไม่พบรายละเอียดของรายการนี้', 404, 'NOT_FOUND');
-    }
-    detailCache.set(code, detail);
-    return { ...detail, cached: false };
-  } catch (err) {
-    if (err instanceof ScrapeError) throw err;
-    throw new ScrapeError(`ดึงรายละเอียดไม่สำเร็จ: ${err.message}`);
-  } finally {
-    await context.close().catch(() => {});
+  const detail = await fetchDetail(code);
+  if (!detail) {
+    throw new ScrapeError('ไม่พบรายละเอียดของรายการนี้', 404, 'NOT_FOUND');
   }
-}
-
-/**
- * Steps 1–6: drive the search form and read every grid page for one keyword.
- * Returns the raw rows; the caller owns closing `context`.
- */
-/**
- * Make sure the search really is in "สืบค้นสถานที่ยา" mode.
- *
- * The click leaves the radio checked on a desktop browser. Inside a
- * serverless function it did not, and waiting for a checked state that never
- * arrived spent the whole request budget. So: give it a few seconds, and if
- * it is still unset, tick it directly and fire the handler the page has bound
- * to it. Searching in the wrong mode would return the wrong records, so this
- * asks rather than assumes, and says so plainly when it cannot.
- */
-async function selectDrugLocationMode(page) {
-  const isChecked = () =>
-    page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      return Boolean(el && el.checked);
-    }, selectors.radioDrugLocation);
-
-  const waitChecked = (ms) =>
-    page
-      .waitForFunction(
-        (sel) => {
-          const el = document.querySelector(sel);
-          return Boolean(el && el.checked);
-        },
-        { timeout: ms },
-        selectors.radioDrugLocation
-      )
-      .then(() => true)
-      .catch(() => false);
-
-  /*
-   * Two seconds, not the eight this started with. Where the click works the
-   * radio is checked almost at once, and where it does not — inside a
-   * function — no amount of waiting helps, so the wait is pure cost: it was
-   * eighteen seconds of a sixty-second budget.
-   */
-  if (await waitChecked(2000)) return;
-
-  await page.evaluate((sel) => {
-    const el = document.querySelector(sel);
-    if (!el) return;
-    el.checked = true;
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    el.click();
-  }, selectors.radioDrugLocation);
-
-  await waitChecked(8000);
-  if (!(await isChecked())) {
-    throw new ScrapeError(
-      'เลือกโหมด "สืบค้นสถานที่ยา" บนเว็บ อย. ไม่สำเร็จ',
-      502,
-      'SCRAPE_FAILED'
-    );
-  }
-}
-
-/**
- * Step timings, for when the scraper is somewhere you cannot attach to it.
- * Silent unless DEBUG_STEPS is set; the portal behaves differently inside a
- * serverless function than it does on a desk, and this is how that gets seen.
- */
-function steps() {
-  if (!process.env.DEBUG_STEPS) return () => {};
-  let last = Date.now();
-  return (what) => {
-    console.log('[step]', what, ((Date.now() - last) / 1000).toFixed(1) + 's');
-    last = Date.now();
-  };
-}
-
-async function scrapeKeyword(keyword, context, window) {
-  const step = steps();
-  const page = await context.newPage();
-  await page.setUserAgent(config.userAgent);
-  await page.setExtraHTTPHeaders({ 'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8' });
-  page.setDefaultTimeout(config.navTimeoutMs);
-  page.setDefaultNavigationTimeout(config.navTimeoutMs);
-
-  // 1. ไปที่เว็บไซต์เป้าหมาย
-  await page.goto(config.targetUrl, {
-    waitUntil: 'domcontentloaded',
-    timeout: config.navTimeoutMs,
-  });
-  step('goto portal');
-  await dismissModals(page);
-
-  // 2. เลือก radio "สืบค้นสถานที่ยา" (ทำให้เกิด ASP.NET postback)
-  await clickAndSettle(page, selectors.radioDrugLocation, selectors.searchInput);
-  await selectDrugLocationMode(page);
-
-
-  step('radio checked');
-
-  // 3. กรอก keyword ในช่องสืบค้น
-  await page.waitForSelector(selectors.searchInput);
-  await dismissModals(page);
-  await page.evaluate((sel) => {
-    document.querySelector(sel).value = '';
-  }, selectors.searchInput);
-  await page.focus(selectors.searchInput);
-  await page.type(selectors.searchInput, keyword, { delay: 20 });
-
-  // 4. กดปุ่ม "ค้นหา"  5. รอจนตารางผลลัพธ์โหลดเสร็จ
-  await clickAndSettle(page, selectors.searchButton, selectors.resultGrid);
-
-
-  step('grid after search');
-
-  if (await hasNoRecords(page)) {
-    return { rows: [], capped: false, pagesRead: 0 };
-  }
-
-  await tryEnlargePageSize(page);
-  step('page size');
-
-  // 6. กวาดข้อมูลทุกแถว ทุกหน้า (หรือเฉพาะช่วงที่ขอ)
-  const walked = await readAllPages(page, window);
-  step('paging');
-  // Parse each address once here: the result is cached with the rows, so the
-  // filters and facets below never re-parse.
-  for (const row of walked.rows) row.area = parseAddress(row.address);
-  return walked;
+  detailCache.set(code, detail);
+  return { ...detail, cached: false };
 }
 
 /**
@@ -968,7 +469,7 @@ async function scrapeKeyword(keyword, context, window) {
  * @param {object} params
  * @param {string} params.keyword ชื่อร้านยาที่ต้องการค้นหา
  * @param {string} [params.province] จังหวัดที่ใช้กรองจากคอลัมน์ "ที่อยู่"
- * @param {boolean} [params.withDetails=true] เปิดแท็บใหม่เพื่อดึงชื่อผู้รับอนุญาต
+ * @param {boolean} [params.withDetails=true] ดึงรายละเอียดของแต่ละแถวเพิ่ม
  * @param {number} [params.limit] จำกัดจำนวนแถวที่ดึงรายละเอียด
  * @param {boolean} [params.refresh=false] ข้ามแคช บังคับดึงข้อมูลใหม่
  */
@@ -988,32 +489,20 @@ async function searchDrugLocations({
 
   const cached = refresh ? null : getCachedRows(term);
 
-  // Chromium is only started when there is real browser work: a cache hit with
-  // `withDetails=false` answers without touching it at all.
-  let context = null;
-  const openContext = async () => {
-    if (!context) {
-      const browser = await getBrowser();
-      context = await createContext(browser);
-    }
-    return context;
-  };
-
   try {
     let snapshot = cached;
 
     if (!snapshot) {
-      const scraped = await scrapeKeyword(term, await openContext());
+      const fetched = await fetchRows(term);
       snapshot = {
-        rows: scraped.rows,
-        capped: scraped.capped,
-        pagesRead: scraped.pagesRead,
+        rows: fetched.rows,
+        capped: fetched.capped,
         at: Date.now(),
       };
       setCachedRows(term, snapshot);
     }
 
-    const { rows, capped, pagesRead } = snapshot;
+    const { rows, capped } = snapshot;
     for (const row of rows) {
       if (!row.area) row.area = parseAddress(row.address);
     }
@@ -1065,17 +554,17 @@ async function searchDrugLocations({
       detailError: null,
     }));
 
-    // 8. เปิดแท็บใหม่ดึงชื่อผู้รับอนุญาต แล้วปิดแท็บกลับหน้าเดิม
+    // 8. ดึงรายละเอียดของแต่ละแถว (ชื่อผู้รับอนุญาต / เภสัชกร / พิกัด)
     let detailsFetched = 0;
     if (withDetails) {
       for (let i = 0; i < Math.min(results.length, detailCap); i += 1) {
-        const row = matched[i];
-        const key = row.newCode;
+        const key = matched[i].newCode;
+        if (!key) continue;
         try {
-          let detail = key ? detailCache.get(key) : null;
+          let detail = detailCache.get(key);
           if (!detail) {
-            detail = await fetchDetailByUrl(await openContext(), row);
-            if (detail && key) detailCache.set(key, detail);
+            detail = await fetchDetail(key);
+            if (detail) detailCache.set(key, detail);
           }
           if (detail) Object.assign(results[i], detail);
           detailsFetched += 1;
@@ -1094,9 +583,8 @@ async function searchDrugLocations({
       totalFound: rows.length,
       totalMatched: matched.length,
       detailsFetched,
-      pagesRead,
-      // The keyword produced more grid pages than MAX_PAGES allows, so
-      // `results` is a partial view of what the FDA site holds.
+      // The keyword brought back more rows than MAX_ROWS allows, so `results`
+      // is a partial view of what the FDA site holds.
       incomplete: capped,
       truncated: withDetails && matched.length > detailCap,
       cached: Boolean(cached),
@@ -1113,8 +601,6 @@ async function searchDrugLocations({
       );
     }
     throw new ScrapeError(`ดึงข้อมูลไม่สำเร็จ: ${err.message}`);
-  } finally {
-    if (context) await context.close().catch(() => {});
   }
 }
 
@@ -1158,66 +644,9 @@ async function renderFormPdf(data) {
   }
 }
 
-/**
- * One window of a keyword's result set: pages `startPage` onward, at most
- * `pages` of them, raw rows with parsed addresses and nothing else — no
- * filtering, no facets, no details.
- *
- * This exists for deployments whose requests die at sixty seconds. A broad
- * keyword cannot be walked in one of those, but it can be walked in slices,
- * each slice hopping the pager to its start; the web app calls this in a loop
- * and assembles the full set itself, filtering locally. The result is not
- * cached: each slice is fetched once per assembly, and a partial set in the
- * keyword cache would masquerade as the whole.
- */
-async function searchDrugLocationsChunk({ keyword, startPage = 1, pages } = {}) {
-  if (!keyword || !String(keyword).trim()) {
-    throw new ScrapeError('keyword is required', 400, 'INVALID_INPUT');
-  }
-  const term = String(keyword).trim();
-  const from = Math.max(1, Number(startPage) || 1);
-  const count = Math.max(1, Number(pages) || config.maxPages);
-
-  const browser = await getBrowser();
-  const context = await createContext(browser);
-  try {
-    const walked = await scrapeKeyword(term, context, {
-      startPage: from,
-      limit: count,
-    });
-    const done =
-      !walked.capped &&
-      (!walked.totalPages || from + walked.pagesRead - 1 >= walked.totalPages);
-    return {
-      keyword: term,
-      startPage: from,
-      pagesRead: walked.pagesRead,
-      totalPages: walked.totalPages || null,
-      nextPage: done ? null : from + walked.pagesRead,
-      results: walked.rows.map((r) => ({
-        licenseNo: r.licenseNo,
-        licenseType: r.licenseType,
-        placeName: r.placeName,
-        address: r.address,
-        area: r.area || null,
-        status: r.status,
-        newCode: r.newCode,
-        detailUrl: r.detailUrl,
-      })),
-    };
-  } catch (err) {
-    if (err instanceof ScrapeError) throw err;
-    throw new ScrapeError(`ดึงข้อมูลไม่สำเร็จ: ${err.message}`);
-  } finally {
-    await context.close().catch(() => {});
-  }
-}
-
 module.exports = {
   searchDrugLocations,
-  searchDrugLocationsChunk,
   getDetailByNewCode,
-  hasFreshRows,
   clearCache,
   cacheStats,
   closeBrowser,

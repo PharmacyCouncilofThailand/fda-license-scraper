@@ -323,9 +323,9 @@ a.detail:hover { text-decoration: underline; }
 /* ---------------- loading skeletons ---------------- */
 
 /*
- * A search has no progress to report — the API answers once, after walking
- * however many pager pages the keyword needs — so the loading state shows the
- * shape of what is coming rather than a fake percentage.
+ * A search has no progress to report — the API answers in one shot — so the
+ * loading state shows the shape of what is coming rather than a fake
+ * percentage.
  */
 .skeleton {
   position: relative;

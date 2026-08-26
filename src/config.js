@@ -72,15 +72,12 @@ module.exports = {
   // token. A public template URL needs none of this.
   blobToken: process.env.BLOB_READ_WRITE_TOKEN || null,
 
-  // Safety caps so a very broad keyword cannot run forever. A serverless
-  // deployment gets a lower one because it is not a safety cap there but a
-  // hard ceiling: Vercel's free plan kills the request at 60 seconds, of
-  // which about 15 go on reaching the results at all, and its Chromium turns
-  // each pager page over in 2.7 s rather than the 0.7 s a real machine
-  // manages. Fifteen pages measured 38 s warm and 54 s cold — six seconds of
-  // margin, which one slow page would eat — so twelve. The UI already says
-  // when a result set was cut short.
-  maxPages: Number(process.env.MAX_PAGES || (serverless ? 12 : 60)),
+  // How many rows one keyword may bring back, and how many of them get their
+  // detail record fetched. The portal answers a search in one JSON response,
+  // so there are no pages to walk any more — this is only a memory guard.
+  // Measured: "ยา", the broadest term there is, is 18,414 rows / 13 MB, and
+  // "ฟาร์มาซี" is 7,836 — so 20,000 truncates nothing an officer would type.
+  maxRows: Number(process.env.MAX_ROWS || 20000),
   maxDetails: Number(process.env.MAX_DETAILS || 25),
 
   // The site sits behind a GDCC WAF that returns HTTP 500 for the default
@@ -89,47 +86,24 @@ module.exports = {
     process.env.USER_AGENT ||
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 
-  // The two upstream pages. They live in the environment so a move — or a
+  // The two upstream endpoints. The portal is an Angular app talking to a
+  // JSON API, so these are the API calls its own page makes — no browser and
+  // no HTML parsing involved. They live in the environment so a move — or a
   // staging mirror — does not need a code change.
-  detailUrlBase:
-    process.env.FDA_DETAIL_URL ||
-    'http://pertento.fda.moph.go.th/FDA_SEARCH_DRUG/SEARCH_DRUG/pop-up_drug_location_operator.aspx',
-
-  targetUrl:
+  searchApiUrl:
     process.env.FDA_SEARCH_URL ||
-    'https://meshlog.fda.moph.go.th/SEARCH_CENTER_HERB/MAIN/SEARCH_CENTER_MAIN.aspx',
+    'https://porta.fda.moph.go.th/FDA_SEARCH_CENTER_BACKEND/SEACH_ALL/GET_SEARCH',
 
-  selectors: {
-    radioDrugLocation: '#ContentPlaceHolder1_R_LCN_DRUG',
-    searchInput: '#ContentPlaceHolder1_txt_search',
-    searchButton: '#ContentPlaceHolder1_btn_search',
-    resultGrid: '#ContentPlaceHolder1_RAD_LCN_ctl00',
-    pageSizeInput: '#ContentPlaceHolder1_RAD_LCN_ctl00_ctl03_ctl01_PageSizeComboBox_Input',
-    pageSizeArrow: '#ContentPlaceHolder1_RAD_LCN_ctl00_ctl03_ctl01_PageSizeComboBox_Arrow',
-    pageSizeDropDown: '#ContentPlaceHolder1_RAD_LCN_ctl00_ctl03_ctl01_PageSizeComboBox_DropDown',
-    currentPage: '#ContentPlaceHolder1_RAD_LCN_ctl00 .rgCurrentPage',
-    nextPage: '#ContentPlaceHolder1_RAD_LCN_ctl00 input.rgPageNext',
-  },
+  detailApiUrl:
+    process.env.FDA_DETAIL_URL ||
+    'https://pertento.fda.moph.go.th/FDA_INFORMATION_DRUG/SV_CENTER/GET_DATA_LOCATION_DRUG',
 
-  // Detail pop-up page (opens in a new tab / window).
-  detailSelectors: {
-    licenseNo: '#ContentPlaceHolder1_lb_fdpdtno_pop',
-    licenseeName:
-      '#ContentPlaceHolder1_UC_location_operator_licen_Datalist1_lb_licen_0',
-    operatorName: '#ContentPlaceHolder1_lb_operation_nm',
-    storeName: '#ContentPlaceHolder1_lb_store',
-    openHours: '#ContentPlaceHolder1_lb_time_store',
-    // ผู้มีหน้าที่ปฏิบัติการ — a DataList, one ลำดับที่ / ชื่อ / เวลาปฏิบัติการ
-    // triple per pharmacist, id-suffixed by row number. Prefixes, not full
-    // selectors: a shop can list several and the count is not known up front.
-    pharmacistNamePrefix:
-      'ContentPlaceHolder1_UC_location_operator_pharmacy_Datalist1_lb_pharmacy_name_',
-    pharmacistIndexPrefix:
-      'ContentPlaceHolder1_UC_location_operator_pharmacy_Datalist1_index_',
-    pharmacistHoursPrefix:
-      'ContentPlaceHolder1_UC_location_operator_pharmacy_Datalist1_lb_opentime_',
-    // "map :" link — a Google Maps search URL carrying the establishment's
-    // coordinates. Missing or 0,0 for records the FDA never geocoded.
-    mapLink: '#ContentPlaceHolder1_lnk_premix',
-  },
+  // The search page's own radio value for "สืบค้นสถานที่ยา"; the API keys the
+  // whole query off this string.
+  searchLocationType: process.env.FDA_SEARCH_TYPE || 'สืบค้นสถานที่ยา',
+
+  // Where a human reads the same record. Sent to the UI as `detailUrl`.
+  detailPageUrl:
+    process.env.FDA_DETAIL_PAGE_URL ||
+    'https://pertento.fda.moph.go.th/FDA_INFORMATION_DRUG/Home/Public_Inform_Location_Drug',
 };

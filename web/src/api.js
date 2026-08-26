@@ -38,12 +38,3 @@ export function searchDrugLocations(params, signal) {
 export function fetchDetail(newCode) {
   return get(`/api/fda/detail?newCode=${encodeURIComponent(newCode)}`);
 }
-
-/**
- * One slice of a broad keyword's pages — raw rows, no filtering. The app
- * calls this in a loop to assemble a set the single request could not finish.
- */
-export function fetchResultPages(keyword, startPage, pages, signal) {
-  const query = new URLSearchParams({ keyword, startPage, pages });
-  return get(`/api/fda/drug-locations/pages?${query}`, { signal });
-}

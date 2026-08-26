@@ -1,7 +1,7 @@
 /**
- * Placeholder cards for while a search is out. The API answers in one shot
- * after walking the pager, so there is no progress to show — this shows the
- * shape of the answer instead.
+ * Placeholder cards for while a search is out. The API answers in one shot,
+ * so there is no progress to show — this shows the shape of the answer
+ * instead.
  */
 export function SkeletonList({ count = 3 }) {
   return (
