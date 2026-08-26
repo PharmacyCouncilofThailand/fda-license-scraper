@@ -18,12 +18,29 @@ const { pathToFileURL } = require('url');
 const zip = require('./src/zip');
 
 const TEMPLATE = path.join(__dirname, 'templates', 'inspection-form.docx');
-const PAGE = pathToFileURL(path.join(__dirname, 'public', 'form.html')).href;
+// public/form.html is the build output, and it is what renderFormPdf() opens —
+// so it, not the source, is what has to be measured. That cuts both ways: a
+// stale build would let this suite pass on a file nobody edited. Compare the
+// two and stop rather than report on the wrong one.
+const SOURCE = path.join(__dirname, 'web', 'public', 'form.html');
+const BUILT = path.join(__dirname, 'public', 'form.html');
+const PAGE = pathToFileURL(BUILT).href;
 
 if (!fs.existsSync(TEMPLATE)) {
   console.log('skip — templates/inspection-form.docx not present');
   process.exit(0);
 }
+
+if (!fs.existsSync(BUILT) || fs.statSync(BUILT).mtimeMs < fs.statSync(SOURCE).mtimeMs) {
+  console.error(
+    'public/form.html is older than web/public/form.html — run `npm --prefix web run build` first'
+  );
+  process.exit(1);
+}
+
+const FIXTURE = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'test', 'fixtures', 'form-sample.json'), 'utf8')
+);
 
 const twipsToMm = (twips) => Number(twips) / 1440 * 25.4;
 // DrawingML anchors and shape extents are in EMU — 36000 per millimetre,
@@ -66,6 +83,16 @@ function readTemplate() {
   const tableBlock = blocks.find((b) => b.type === 'table');
   const gridCol = tableBlock && tableBlock.block.match(/<w:gridCol w:w="(\d+)"\/>/);
 
+  // How many paragraphs each <w:tc> of the signature table holds — that is
+  // how many lines the cell is entitled to, and no more. Word gives a row the
+  // height of its tallest cell, so the row's budget is the larger of the two.
+  const cellParagraphs = (tableBlock ? tableBlock.block.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || [] : [])
+    .map((row) =>
+      (row.match(/<w:tc>[\s\S]*?<\/w:tc>/g) || []).map(
+        (cell) => (cell.match(/<w:p [\s\S]*?<\/w:p>|<w:p\/>/g) || []).length
+      )
+    );
+
   return {
     page: {
       widthMm: twipsToMm(size[1]),
@@ -76,6 +103,8 @@ function readTemplate() {
         bottom: twipsToMm(attr('bottom')),
         left: twipsToMm(attr('left')),
       },
+      // w:footer — the footer band, measured up from the paper's edge.
+      footerMm: twipsToMm(attr('footer')),
     },
     blocks,
     seal: extent && {
@@ -84,10 +113,17 @@ function readTemplate() {
       offsetMm: offset ? emuToMm(offset[1]) : null,
     },
     signaturesColMm: gridCol ? twipsToMm(gridCol[1]) : null,
+    cellParagraphs,
   };
 }
 
-/** The record page, laid out for print with its fonts settled. */
+/**
+ * The record page, laid out for print with its fonts settled and *filled in*.
+ * An empty record is not the one the office prints: every defect this suite
+ * missed — the seal over item 3's first line, the signature labels wrapping,
+ * the footer up the page — only has a size once there is text on the sheet.
+ * Same fixture the smoke check uses.
+ */
 async function renderSheets() {
   const puppeteer = require('puppeteer');
   const browser = await puppeteer.launch({ headless: 'new' });
@@ -95,6 +131,7 @@ async function renderSheets() {
   await page.emulateMediaType('print');
   await page.goto(PAGE, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => document.fonts.ready);
+  await page.evaluate((filled) => window.applyData(filled), FIXTURE);
   return { browser, page };
 }
 
@@ -254,6 +291,120 @@ const pxToMm = (px) => px / 96 * 25.4;
     );
 
     console.log('ok — ตราสภาฯ ตารางลงชื่อ และท้ายกระดาษตรงกับไฟล์ Word');
+
+    // --- the seal must not sit on top of the record ----------------------
+    // The template floats it with <wp:wrapNone/>, so nothing in the flow is
+    // pushed aside and only the layout above it keeps the text clear. When
+    // that stopped being true, item 3 opened underneath the seal and
+    // "อาศัยอำนาจตาม" could not be read. Ink, not boxes: Range rects are what
+    // is actually drawn.
+    const overSeal = await page.evaluate(() => {
+      const seal = document.querySelector('.seal').getBoundingClientRect();
+      const hits = [];
+      for (const para of document.querySelectorAll('.sheet .para')) {
+        if (para.contains(document.querySelector('.seal'))) continue; // its own anchor
+        const range = document.createRange();
+        range.selectNodeContents(para);
+        for (const line of range.getClientRects()) {
+          if (line.width < 1 || line.height < 1) continue;
+          if (
+            line.right > seal.left && line.left < seal.right &&
+            line.bottom > seal.top && line.top < seal.bottom
+          ) {
+            hits.push(`${para.textContent.trim().slice(0, 24)}… (${(seal.bottom - line.top).toFixed(2)}px ทับ)`);
+          }
+        }
+      }
+      return hits;
+    });
+    assert.deepStrictEqual(overSeal, [], `บรรทัดทับตราสภาฯ: ${overSeal.join(' / ')}`);
+
+    // --- no signature cell may run longer than the template's -------------
+    // Each <w:tc> is a fixed number of paragraphs; a cell that needs more
+    // lines than that is a label wrapping where the template does not.
+    const cellLines = await page.evaluate(() =>
+      [...document.querySelectorAll('.signatures tr')].map((row) =>
+        [...row.children].map((td) => {
+          // The cell's own lines, not the row's: a <td> is stretched to the
+          // height of the tallest cell beside it.
+          const lh = parseFloat(getComputedStyle(td).lineHeight);
+          return {
+            lines: [...td.children].reduce(
+              (n, line) => n + Math.round(line.getBoundingClientRect().height / lh),
+              0
+            ),
+            text: td.textContent.replace(/\s+/g, ' ').trim().slice(0, 40),
+          };
+        })
+      )
+    );
+    assert.strictEqual(
+      cellLines.length,
+      template.cellParagraphs.length,
+      `จำนวนแถวตารางลงชื่อไม่ตรง: หน้าเว็บ ${cellLines.length} Word ${template.cellParagraphs.length}`
+    );
+    cellLines.forEach((row, r) =>
+      row.forEach((cell, c) =>
+        assert.ok(
+          cell.lines <= template.cellParagraphs[r][c],
+          `ช่องลงชื่อ แถว ${r} คอลัมน์ ${c} ใช้ ${cell.lines} บรรทัด Word ให้ ${template.cellParagraphs[r][c]}: ${cell.text}`
+        )
+      )
+    );
+
+    // --- the footer sits on the page, not on the content ------------------
+    // .sheet has no min-height (see the page-height check below, which needs
+    // it not to), so `bottom:` would follow the content up the page. The
+    // template puts the line on the bottom margin: 297mm - 10mm = 287mm,
+    // inside the footer band w:footer="709" opens 12.5mm above the edge.
+    const footerBottoms = await page.evaluate(() =>
+      [...document.querySelectorAll('.page-no')].map((node) => {
+        const sheet = node.closest('.sheet').getBoundingClientRect();
+        return node.getBoundingClientRect().bottom - sheet.top;
+      })
+    );
+    const wantFooterMm = template.page.heightMm - template.page.marginMm.bottom;
+    footerBottoms.forEach((px, i) => {
+      const got = pxToMm(px);
+      assert.ok(
+        Math.abs(got - wantFooterMm) <= 1,
+        `ท้ายกระดาษแผ่นที่ ${i + 1} อยู่ที่ ${got.toFixed(2)}mm ควรเป็น ${wantFooterMm.toFixed(2)}mm`
+      );
+      assert.ok(
+        got >= template.page.heightMm - template.page.footerMm - 6,
+        `ท้ายกระดาษแผ่นที่ ${i + 1} หลุดออกนอกแถบท้ายกระดาษของไฟล์ Word`
+      );
+    });
+
+    // --- a blank may not swallow what is typed into it --------------------
+    // A clipped value still reaches collect() and so still reaches the DOCX:
+    // the PDF and the Word copy of one record disagree, and the officer is
+    // never told. Every single-line blank clips somewhere — 85-odd Thai
+    // characters at 15pt, less on a short one — so the record does not
+    // promise to show everything, it promises to *say* when it cannot. Feed
+    // every blank far more than it can hold and check that each one either
+    // shows the lot or is marked.
+    const silent = await page.evaluate(() => {
+      const long = 'ก'.repeat(200);
+      const quiet = [];
+      for (const field of document.querySelectorAll('input.blank, textarea.blank')) {
+        const was = field.value;
+        field.value = long;
+        field.dispatchEvent(new Event('input'));
+        const clipped =
+          field.scrollWidth > field.clientWidth + 1 ||
+          field.scrollHeight > field.clientHeight + 1;
+        if (clipped && !field.classList.contains('over')) {
+          quiet.push(`${field.name} (${field.scrollWidth}x${field.scrollHeight} ใน ${field.clientWidth}x${field.clientHeight})`);
+        }
+        field.value = was;
+        field.dispatchEvent(new Event('input'));
+      }
+      return quiet;
+    });
+    assert.deepStrictEqual(silent, [], `ช่องกรอกที่ตัดข้อความทิ้งเงียบ ๆ: ${silent.join(' / ')}`);
+
+    console.log('ok — ตราไม่ทับข้อความ ช่องลงชื่อไม่ตกบรรทัด ท้ายกระดาษอยู่ขอบล่าง และไม่มีช่องใดตัดข้อความ');
 
     // --- page height ------------------------------------------------------
     // fitSheet()/shrinkToFit() are gone; nothing may silently reintroduce a
