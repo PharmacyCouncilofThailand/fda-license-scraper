@@ -8,19 +8,14 @@
  */
 'use strict';
 
-// Its own port, so the check runs while a dev server is up on 3000.
-process.env.PORT = process.env.PORT || '3199';
-
 const assert = require('assert');
-const config = require('./src/config');
 const { parseAddress, renderFormPdf, closeBrowser } = require('./src/scraper');
 const { renderFormDocx } = require('./src/docx-form');
 const zip = require('./src/zip');
 
-// renderFormPdf loads form.html over HTTP, exactly as the real endpoint
-// does, so the app has to be listening. It does not listen on its own any
-// more — a serverless deployment imports it instead.
-const server = require('./src/server').listen(config.port);
+// renderFormPdf opens public/form.html straight off disk over file:// — see
+// FORM_PAGE in src/scraper.js — so nothing here has to be listening, and
+// this check no longer starts the app or takes a port off it.
 
 const area = parseAddress(
   'บ้านเลขที่ 269/5 หมู่ที่ - ตรอก/ซอย - ถนน เชียงใหม่-ลำพูน ตำบล วัดเกต ' +
@@ -68,14 +63,16 @@ const payload = {
 
 (async () => {
   try {
-    const pdf = await renderFormPdf(payload, `http://127.0.0.1:${config.port}`);
+    const pdf = await renderFormPdf(payload);
 
     const bytes = Buffer.from(pdf);
     assert.strictEqual(bytes.subarray(0, 5).toString('latin1'), '%PDF-');
 
-    // The record is a two-page form; a third page means the fit pass failed.
+    // The record is two pages for a shop whose details are of ordinary
+    // length. It is allowed to run over for a long one, exactly as the Word
+    // copy does — the type is no longer shrunk to prevent it.
     const pages = (bytes.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
-    assert.strictEqual(pages, 2, `expected 2 pages, got ${pages}`);
+    assert.strictEqual(pages, 2, `expected 2 pages for the sample record, got ${pages}`);
 
 
     // The Word copy carries the same values and no leftover placeholders.
@@ -95,6 +92,5 @@ const payload = {
     process.exit(1);
   } finally {
     await closeBrowser();
-    server.close();
   }
 })();

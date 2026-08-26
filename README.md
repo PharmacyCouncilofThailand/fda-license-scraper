@@ -162,12 +162,23 @@ ships. It runs as a non-root user and reads nothing but its own files.
 Set `FORM_TEMPLATE_URL` in the service's variables; `PORT` is provided by the
 platform. Everything else in `.env.example` has a working default.
 
-**Fonts.** The record no longer depends on what the machine has installed:
-`web/public/fonts/` ships TH Sarabun New as a webfont and `form.html` names it
-in an `@font-face`, so a laptop, the container and a Vercel function all set
-the sheet in the same face and break the lines in the same places. The font is
-SIPA's national typeface, distributed free of charge. `fonts-thai-tlwg` stays
-in the image as the fallback for anything the webfont does not cover.
+**Fonts.** The record carries its own typeface: `web/public/fonts/` ships TH
+SarabunPSK — the face the office's Word template names — and `form.html`
+declares it in an `@font-face`, so a laptop, the container and a Vercel
+function all set the sheet identically. The font is SIPA's, released under the
+GNU GPL v2 or later with the font embedding exception — read straight out of
+the binaries' own name ID 13, not the SIL OFL. The exception is what lets a
+PDF made with it stay the office's own document. `web/public/fonts/LICENSE.txt`
+carries that text so the redistribution carries it too. `fonts-thai-tlwg`
+stays in the image as a fallback.
+
+**Chromium 123 or newer.** Every blank on the record sizes itself with CSS
+`field-sizing: content`, which is what makes it take the room its value needs
+instead of a box of its own — the layout is built on it, not decorated with
+it. On an older engine the property is ignored, every blank silently reverts
+to the UA default width and the sheet stops matching the Word original. The
+image below pins Debian's Chromium, which is well past that; check it if you
+swap the base image or point `CHROME_PATH` at something else.
 
 The same image runs on Fly, Render, or a machine inside the council — which
 is the better answer if their IT will give you one, since the Word template
@@ -330,9 +341,11 @@ Two downloads, same trip — post what is on screen, save what comes back:
 **พิมพ์ / บันทึกเอง** falls back to the browser's own print dialog if the API is
 unreachable.
 
-Long shop names and long addresses would push the form onto a third page, so
-before printing each sheet steps its type down until it fits one A4 page, and
-each blank steps down until its own value fits.
+Each blank sits inline in its line, dotted-underlined and elastic — it grows
+with what is typed into it, the same as a blank filled by hand. A long shop
+name or address is free to run the record onto a third page, exactly as it
+would in the Word original; the sheet no longer shrinks its type to force
+everything onto two.
 
 ```
 GET  /form.html         → the form
@@ -343,6 +356,12 @@ POST /api/form/docx     { values: {...}, checks: {...} } → .docx
 `node smoke-form.js` checks both halves without touching the FDA site: the
 address parser, that a filled form still renders to exactly two pages, and
 that the Word copy comes out with every placeholder replaced.
+
+`npm run test:parity` compares the rendered record against
+`templates/inspection-form.docx` — page setup, typeface, every paragraph's
+wording and size, the number of blanks, the seal, the signature table and the
+footer. It skips when the template is not present, so it is a check for a
+developer's machine rather than for the deployment.
 
 ## Endpoint
 

@@ -621,10 +621,12 @@ async function renderFormPdf(data) {
   const context = await createContext(browser);
   try {
     const page = await context.newPage();
-    // Lay the page out at the printable area of an A4 page (210mm - 2x18mm,
-    // 297mm - 2x15mm) under print rules, so the form's own fit-to-one-page
-    // pass measures what the PDF will actually contain.
-    await page.setViewport({ width: 658, height: 1009 });
+    // Lay the page out at a full A4 sheet in CSS pixels (210mm x 297mm at
+    // 96dpi) under print rules — the sheet carries the template's own
+    // 12/20/10mm margins as its own padding (see .sheet, box-sizing:
+    // border-box), so the viewport has to match the page.pdf() geometry
+    // below rather than some pre-inset printable area.
+    await page.setViewport({ width: 794, height: 1123 });
     await page.emulateMediaType('print');
     // Straight off disk. Fetching it over HTTP meant knowing this process's
     // own address, which is a different answer on a laptop, inside a
@@ -634,17 +636,24 @@ async function renderFormPdf(data) {
       waitUntil: 'domcontentloaded',
       timeout: config.navTimeoutMs,
     });
-    // The sheet's fit pass measures text, so it has to run against the real
-    // typeface: domcontentloaded fires before the embedded font is decoded.
+    // domcontentloaded fires before the embedded font is decoded, and every
+    // line of the record is laid out against that face — waiting for it is
+    // what keeps the printed sheet the same shape as the measured one.
     await page.evaluate(() => document.fonts.ready);
     await page.evaluate((filled) => {
       window.applyData(filled);
       window.prepareForPrint();
     }, data || {});
+    // No margin here: the .sheet element is already a full A4-width box
+    // (210mm, border-box) whose own padding *is* the template's 12/20/10mm
+    // margin. This JS option turns out not to be what Chromium actually
+    // consults for content margin in this pipeline — form.html's own
+    // `@page { margin: 0 }` is (see that rule) — but it's left at 0 here
+    // too so intent and behaviour agree if that ever changes upstream.
     return await page.pdf({
       format: 'A4',
       printBackground: false,
-      margin: { top: '15mm', bottom: '15mm', left: '18mm', right: '18mm' },
+      margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' },
     });
   } finally {
     await context.close();
