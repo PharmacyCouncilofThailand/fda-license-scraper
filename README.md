@@ -165,8 +165,20 @@ platform. Everything else in `.env.example` has a working default.
 **Fonts.** The record carries its own typeface: `web/public/fonts/` ships TH
 SarabunPSK — the face the office's Word template names — and `form.html`
 declares it in an `@font-face`, so a laptop, the container and a Vercel
-function all set the sheet identically. The font is SIPA's, under the SIL Open
-Font License 1.1. `fonts-thai-tlwg` stays in the image as a fallback.
+function all set the sheet identically. The font is SIPA's, released under the
+GNU GPL v2 or later with the font embedding exception — read straight out of
+the binaries' own name ID 13, not the SIL OFL. The exception is what lets a
+PDF made with it stay the office's own document. `web/public/fonts/LICENSE.txt`
+carries that text so the redistribution carries it too. `fonts-thai-tlwg`
+stays in the image as a fallback.
+
+**Chromium 123 or newer.** Every blank on the record sizes itself with CSS
+`field-sizing: content`, which is what makes it take the room its value needs
+instead of a box of its own — the layout is built on it, not decorated with
+it. On an older engine the property is ignored, every blank silently reverts
+to the UA default width and the sheet stops matching the Word original. The
+image below pins Debian's Chromium, which is well past that; check it if you
+swap the base image or point `CHROME_PATH` at something else.
 
 The same image runs on Fly, Render, or a machine inside the council — which
 is the better answer if their IT will give you one, since the Word template

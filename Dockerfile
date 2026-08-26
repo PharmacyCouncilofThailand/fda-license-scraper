@@ -15,6 +15,11 @@ FROM node:22-slim
 # patched by the distribution, and it is the only copy in the image. Bookworm
 # carries 151 and puppeteer 25.8 targets 152 — one version apart, which is why
 # the dependency was moved off the 23.x line.
+# 123 is the floor, not 152: the record's blanks are laid out with CSS
+# `field-sizing: content`, which arrived in Chrome 123. An older engine
+# ignores it, every blank falls back to the UA's own width, and the printed
+# sheet stops matching the Word original — with nothing in the log to say so.
+# Check the version before pinning an older base image.
 # fonts-thai-tlwg is what makes the PDF legible at all — without a Thai font
 # Chromium draws the whole record as boxes.
 RUN apt-get update && apt-get install -y --no-install-recommends \
