@@ -43,6 +43,42 @@
     if (!ok) throw new Error('copy rejected');
   }
 
+  /*
+   * The FDA writes a pharmacist as one string with the title run into the
+   * first name — "นางสาวกุลนิดา บูรณ์สิริจรุงรัฐ" — while the council searches
+   * first name and surname separately. Longest titles first, so นางสาว is not
+   * read as นาง with a stray สาว left on the front of the name.
+   */
+  const TITLES = [
+    'เภสัชกรหญิง',
+    'เภสัชกร',
+    'ว่าที่ร้อยตรีหญิง',
+    'ว่าที่ร้อยตรี',
+    'นางสาว',
+    'นาง',
+    'นาย',
+    'ภญ.',
+    'ภก.',
+    'ดร.',
+    'ผศ.',
+    'รศ.',
+    'ศ.',
+  ].sort((a, b) => b.length - a.length);
+
+  function splitThaiName(full) {
+    let rest = String(full || '').trim().replace(/\s+/g, ' ');
+    for (const title of TITLES) {
+      if (rest.startsWith(title)) {
+        rest = rest.slice(title.length).trim();
+        break;
+      }
+    }
+    const space = rest.indexOf(' ');
+    return space === -1
+      ? { firstName: rest, lastName: '' }
+      : { firstName: rest.slice(0, space), lastName: rest.slice(space + 1).trim() };
+  }
+
   const el = (tag, className, textContent) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -56,10 +92,29 @@
       this.dataset.ready = '1';
       this.controller = null;
       this.render();
+      /*
+       * The result preview offers "ค้นเลข ภ." beside each pharmacist it lists.
+       * It announces the name on the document rather than reaching for this
+       * element, so the two need no reference to each other — and the same
+       * event works from React and from a plain page alike.
+       */
+      this.onFill = (event) => this.fill(event.detail && event.detail.name);
+      document.addEventListener('pharmacist-search:fill', this.onFill);
     }
 
     disconnectedCallback() {
       if (this.controller) this.controller.abort();
+      document.removeEventListener('pharmacist-search:fill', this.onFill);
+    }
+
+    /** Take a pharmacist's full name, split it into the two fields, and search. */
+    fill(name) {
+      const { firstName, lastName } = splitThaiName(name);
+      if (!firstName && !lastName) return;
+      this.first.value = firstName;
+      this.last.value = lastName;
+      this.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      this.search();
     }
 
     render() {
