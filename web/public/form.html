@@ -118,13 +118,18 @@
         line-height: 1.15;
       }
       .page-no { text-align: right; font-size: .95em; }
-      h1 {
-        text-align: center;
-        font-size: 1.2em;
-        font-weight: 700;
-        margin: 6pt 0 8pt;
-      }
-      p.para { margin: 0 0 1pt; text-indent: 0; }
+
+      /* One <p class="para"> per Word paragraph, in template order — see
+         test-form-parity.js, which measures these directly against the
+         template's own paragraph text and szCs. */
+      .para { margin: 0; text-align: justify; text-justify: inter-word; }
+      .para.sm { font-size: 14pt; }
+      .para.title { font-size: 18pt; font-weight: 700; text-align: center; }
+      .para.centre { text-align: center; }
+      .para.right { text-align: right; }
+      .para.left { text-align: left; }
+      .para.gap { margin-top: 6pt; }   /* Word's spacing w:before="120" */
+      .para.blank-line { min-height: 1em; }
       .indent { text-indent: 40pt; }
 
       /* a run of text with blanks that stretch to the margin */
@@ -158,7 +163,11 @@
          shrinkToFit(). Wins over the width classes above. */
       input.blank.overflow { flex: 1 1 100%; }
 
-      /* the ☐ / ☑ boxes — a text glyph so print matches the original form */
+      /* the ☐ / ☑ boxes — CSS content, not a text node: the box is UI chrome
+         for ticking the item, not part of the record's own wording, so it
+         must stay out of the paragraph's textContent (see the parity test's
+         paragraph-text assertion, which compares against the template with
+         only the {{chk:...}} token removed — never a box glyph). */
       .check {
         font: inherit;
         border: 0;
@@ -167,7 +176,8 @@
         cursor: pointer;
         white-space: nowrap;
       }
-      .check .box { font-size: 1.05em; }
+      .check::before { content: "☐ "; font-size: 1.05em; }
+      .check[aria-pressed="true"]::before { content: "☑ "; }
       .check[aria-pressed="true"] { font-weight: 700; }
       .check { color: #000; }
       .check:focus-visible { outline: 2px solid var(--ring); }
@@ -267,286 +277,94 @@
     </div>
 
     <!-- ============================ PAGE 1 ============================ -->
+    <!-- Paragraph numbers in the comments below are the template's own
+         paragraph index (see the dump command in the task brief) — kept so a
+         later pass can find its place in the Word file quickly. -->
     <div class="sheet">
       <div class="page-no">หน้าที่ 1 จาก 2</div>
-      <h1>บันทึกการตรวจสอบการประกอบวิชาชีพของผู้ประกอบวิชาชีพเภสัชกรรม</h1>
+      <p class="para blank-line centre"><!-- 0: holds the seal --></p>
+      <p class="para title">บันทึกการตรวจสอบการประกอบวิชาชีพของผู้ประกอบวิชาชีพเภสัชกรรม</p>
+      <p class="para blank-line centre"><!-- 2 --></p>
 
-      <p class="para indent">
-        อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม
-        พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย
-      </p>
-      <div class="line">
-        <input class="blank" name="officers1" value="นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง" />
-      </div>
-      <div class="line">
-        <input class="blank" name="officers2" value="นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ" />
-      </div>
+      <!-- 3: the officers' names are baked into the template as plain text,
+           not a {{token}} — same as the six "officer" signature lines below.
+           The two blanks stay, hidden, only so their `name`s keep working if
+           anything downstream still reads them; the visible wording matches
+           the Word file's own literal names. -->
+      <p class="para">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ</p>
+      <input class="blank" name="officers1" value="นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง" hidden />
+      <input class="blank" name="officers2" value="นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ" hidden />
 
-      <div class="line">
-        <span>ได้ทำการตรวจสถานที่ทำการของผู้ประกอบวิชาชีพเภสัชกรรมชื่อ</span>
-        <input class="blank" name="pharmacistName" />
-      </div>
-      <div class="line">
-        <span>ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ.</span>
-        <input class="blank w-m" name="pharmacistLicenseNo" />
-        <span>หมดอายุวันที่</span>
-        <input class="blank w-m" name="pharmacistLicenseExpiry" />
-      </div>
-      <div class="line">
-        <span>สถานที่ทำการประเภท ขายยาแผนปัจจุบัน ชื่อ</span>
-        <input class="blank" name="placeName" />
-      </div>
-      <div class="line">
-        <span>ตั้งอยู่เลขที่</span>
-        <input class="blank w-m" name="houseNo" />
-        <span>หมู่บ้าน/อาคาร</span>
-        <input class="blank" name="village" />
-      </div>
-      <div class="line">
-        <span>หมู่ที่</span>
-        <input class="blank w-s" name="moo" />
-        <span>ตรอก/ซอย</span>
-        <input class="blank" name="soi" />
-        <span>ถนน</span>
-        <input class="blank" name="road" />
-      </div>
-      <div class="line">
-        <span>แขวง/ตำบล</span>
-        <input class="blank" name="subdistrict" />
-        <span>เขต/อำเภอ</span>
-        <input class="blank" name="district" />
-        <span>จังหวัด</span>
-        <input class="blank" name="province" />
-      </div>
-      <div class="line">
-        <span>เบอร์โทรศัพท์ติดต่อ</span>
-        <input class="blank" name="phone" />
-        <span>เขตสถานีตำรวจ</span>
-        <input class="blank" name="policeStation" />
-      </div>
-      <div class="line">
-        <span>เมื่อวันที่</span>
-        <input class="blank w-m" name="inspectDate" />
-        <span>เวลา</span>
-        <input class="blank w-s" name="inspectTime" />
-        <span>น. ปรากฏผลดังนี้</span>
-        <span style="flex:1"></span>
-      </div>
+      <p class="para"><!-- 4 -->ได้ทำการตรวจสถานที่ทำการของผู้ประกอบวิชาชีพเภสัชกรรมชื่อ<input class="blank" name="pharmacistName" /></p>
+      <p class="para"><!-- 5 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-m" name="pharmacistLicenseNo" /> หมดอายุวันที่ <input class="blank w-m" name="pharmacistLicenseExpiry" /></p>
+      <p class="para"><!-- 6 -->สถานที่ทำการประเภทขายยาแผนปัจจุบันชื่อ<input class="blank" name="placeName" /></p>
+      <p class="para"><!-- 7 -->ตั้งอยู่เลขที่<input class="blank w-m" name="houseNo" /> หมู่บ้าน/อาคาร<input class="blank" name="village" /></p>
+      <p class="para"><!-- 8 -->หมู่ที่<input class="blank w-s" name="moo" /> ตรอก/ซอย<input class="blank" name="soi" /> ถนน<input class="blank" name="road" /></p>
+      <p class="para"><!-- 9 -->แขวง/ตำบล<input class="blank" name="subdistrict" /> เขต/อำเภอ<input class="blank" name="district" /> จังหวัด<input class="blank" name="province" /></p>
+      <p class="para"><!-- 10 -->เบอร์โทรศัพท์ติดต่อ<input class="blank" name="phone" /> เขตสถานีตำรวจ<input class="blank" name="policeStation" /></p>
+      <p class="para"><!-- 11 -->เมื่อวันที่<input class="blank w-m" name="inspectDate" /> เวลา<input class="blank w-s" name="inspectTime" /> น. ปรากฏผลดังนี้</p>
 
-      <div class="line">
-        <span>&nbsp;1. ชื่อผู้รับอนุญาตของสถานที่ทำการ</span>
-        <input class="blank" name="licenseeName" />
-      </div>
-      <div class="line">
-        <span>ชื่อผู้ดำเนินการกิจการ</span>
-        <input class="blank" name="operatorName" />
-        <span>ใบอนุญาตขายยาแผนปัจจุบันเลขที่</span>
-        <input class="blank w-m" name="licenseNo" />
-      </div>
-      <div class="line">
-        <span>&nbsp;2. ชื่อผู้มีหน้าที่ปฏิบัติการ</span>
-        <input class="blank" name="dutyPharmacist" />
-      </div>
-      <div class="line">
-        <span>ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ.</span>
-        <input class="blank w-s" name="dutyLicenseNo" />
-        <span>หมดอายุวันที่</span>
-        <input class="blank w-s" name="dutyLicenseExpiry" />
-        <span>เวลาทำการ</span>
-        <input class="blank w-m" name="openHours" />
-        <span>น.</span>
-      </div>
+      <p class="para sm"><!-- 12 -->1. ชื่อผู้รับอนุญาตของสถานที่ทำการ<input class="blank" name="licenseeName" /></p>
+      <p class="para"><!-- 13 -->ชื่อผู้ดำเนินการกิจการ<input class="blank" name="operatorName" /> ใบอนุญาตขายยาแผนปัจจุบันเลขที่<input class="blank w-m" name="licenseNo" /></p>
+      <p class="para sm"><!-- 14 -->2. ชื่อผู้มีหน้าที่ปฏิบัติการ<input class="blank" name="dutyPharmacist" /></p>
+      <p class="para sm"><!-- 15 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-s" name="dutyLicenseNo" /> หมดอายุวันที่ <input class="blank w-s" name="dutyLicenseExpiry" /> เวลาทำการ <input class="blank w-m" name="openHours" /> น.</p>
 
-      <p class="para">&nbsp;3. สรุปผลการตรวจสอบพบ ดังนี้</p>
+      <p class="para">3. สรุปผลการตรวจสอบพบ ดังนี้<!-- 16 --></p>
 
-      <div class="line wrap">
-        <span>(1) ขณะตรวจสอบเวลา</span>
-        <input class="blank w-s" name="checkTime" />
-        <span>น. ร้าน</span>
-        <input class="blank w-l" name="shopNameAtCheck" />
-        <button type="button" class="check" data-name="shopClosed" aria-pressed="false"><span class="box">☐</span> ปิดทำการ</button>
-        <button type="button" class="check" data-name="shopOpen" aria-pressed="false"><span class="box">☐</span> เปิดทำการตามปกติ</button>
-      </div>
-      <div class="line">
-        <span>พบ</span>
-        <input class="blank" name="personFound" />
-        <span>บัตรประจำตัวประชาชนเลขที่</span>
-        <input class="blank w-l" name="personIdCard" />
-      </div>
-      <div class="line wrap">
-        <span>ทำหน้าที่</span>
-        <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false"><span class="box">☐</span> เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button>
-        <button type="button" class="check" data-name="roleLicensee" aria-pressed="false"><span class="box">☐</span> ผู้รับอนุญาต</button>
-        <button type="button" class="check" data-name="roleAgent" aria-pressed="false"><span class="box">☐</span> ผู้แทนผู้รับอนุญาต</button>
-        <span>รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่</span>
-      </div>
-      <p class="para">ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด</p>
+      <p class="para sm"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> พบ<input class="blank" name="personFound" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" /></p>
+      <p class="para sm"><!-- 18 -->ทำหน้าที่ <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="roleLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="roleAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่ ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด</p>
 
-      <div class="line wrap">
-        <span>(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่</span>
-        <button type="button" class="check" data-name="noBuy" aria-pressed="false"><span class="box">☐</span> ไม่ได้ขอซื้อยา</button>
-        <button type="button" class="check" data-name="didBuy" aria-pressed="false"><span class="box">☐</span> ขอซื้อยา</button>
-        <span>ซึ่ง</span>
-        <input class="blank" name="buyRequest" />
-      </div>
-      <div class="line">
-        <span>ได้จ่ายยา</span>
-        <input class="blank" name="drugDispensed" />
-        <span>ให้จำนวน</span>
-        <input class="blank w-s" name="drugQuantity" />
-        <span>ในราคา</span>
-        <input class="blank w-s" name="drugPrice" />
-        <span>บาท ตรวจสอบบนแผง/กล่อง</span>
-      </div>
-      <div class="line">
-        <span>ระบุข้อความ “ยาอันตราย” Reg No.</span>
-        <input class="blank w-m" name="regNo" />
-        <span>Lot</span>
-        <input class="blank w-s" name="lot" />
-        <span>ผลิต</span>
-        <input class="blank w-s" name="mfgDate" />
-        <span>ยาสิ้นอายุ</span>
-        <input class="blank w-s" name="expDate" />
-      </div>
-      <p class="para">ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น</p>
-      <div class="line">
-        <span>&nbsp;&nbsp;&nbsp;</span>
-        <button type="button" class="check" data-name="notDispensed" aria-pressed="false"><span class="box">☐</span> ไม่ได้จ่ายยา เนื่องจาก</button>
-        <input class="blank" name="notDispensedReason" />
-      </div>
+      <p class="para sm"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" /> ได้จ่ายยา <input class="blank" name="drugDispensed" /> ให้จำนวน<input class="blank w-s" name="drugQuantity" /> ในราคา<input class="blank w-s" name="drugPrice" /> บาท ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" /> Lot<input class="blank w-s" name="lot" /> ผลิต<input class="blank w-s" name="mfgDate" /> ยาสิ้นอายุ<input class="blank w-s" name="expDate" /> ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น</p>
+      <p class="para sm"><!-- 20 --><button type="button" class="check" data-name="notDispensed" aria-pressed="false">ไม่ได้จ่ายยา เนื่องจาก</button> <input class="blank" name="notDispensedReason" /></p>
 
-      <div class="line">
-        <span>(3)</span>
-        <input class="blank" name="admitPerson" />
-        <span>ได้ยอมรับว่า</span>
-        <button type="button" class="check" data-name="admitSold" aria-pressed="false"><span class="box">☐</span> ได้ขายยาตาม (2) ให้กับพนักงานเจ้าหน้าที่</button>
-      </div>
-      <p class="para">ในขณะที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่จริง</p>
+      <p class="para sm"><!-- 21 -->(3) <input class="blank" name="admitPerson" />ได้ยอมรับว่า <button type="button" class="check" data-name="admitSold" aria-pressed="false">ได้ขายยาตาม (2) ให้กับพนักงานเจ้าหน้าที่</button>ในขณะที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่จริง</p>
 
-      <p class="para">
-        (4) พนักงานเจ้าหน้าที่ได้แจ้งวัตถุประสงค์ในการตรวจครั้งนี้ว่าเป็นการตรวจสอบภายใต้กฎหมายวิชาชีพเภสัชกรรม
-      </p>
-      <div class="line wrap">
-        <span>ตาม</span>
-        <button type="button" class="check" data-name="sourceTip" aria-pressed="false"><span class="box">☐</span> มีการแจ้งเบาะแสมายังสภาเภสัชกรรม</button>
-        <button type="button" class="check" data-name="sourcePlan" aria-pressed="false"><span class="box">☐</span> แผนการเฝ้าระวังตามมติที่ประชุมคณะกรรมการสภาเภสัชกรรม</button>
-        <button type="button" class="check" data-name="sourceComplaint" aria-pressed="false"><span class="box">☐</span> มีผู้ร้องเรียน</button>
-      </div>
-      <div class="line">
-        <span>แจ้งว่า</span>
-        <input class="blank" name="complaintDetail" />
-        <span>ซึ่ง</span>
-        <input class="blank w-l" name="acknowledgedBy" />
-      </div>
-      <p class="para">รับทราบวัตถุประสงค์ในการตรวจของพนักงานเจ้าหน้าที่และยินดีให้ตรวจสอบและตรวจค้นภายในสถานที่ประกอบการ</p>
+      <p class="para sm"><!-- 22 -->(4) พนักงานเจ้าหน้าที่ได้แจ้งวัตถุประสงค์ในการตรวจครั้งนี้ว่าเป็นการตรวจสอบภายใต้กฎหมายวิชาชีพเภสัชกรรมตาม <button type="button" class="check" data-name="sourceTip" aria-pressed="false">มีการแจ้งเบาะแสมายังสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourcePlan" aria-pressed="false">แผนการเฝ้าระวังตามมติที่ประชุมคณะกรรมการสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourceComplaint" aria-pressed="false">มีผู้ร้องเรียน</button> แจ้งว่า<input class="blank" name="complaintDetail" /> ซึ่ง<input class="blank w-l" name="acknowledgedBy" /> รับทราบวัตถุประสงค์ในการตรวจของพนักงานเจ้าหน้าที่และยินดีให้ตรวจสอบและตรวจค้นภายในสถานที่ประกอบการ</p>
 
-      <div class="line wrap">
-        <span>(5) ทางสถานที่ทำการ</span>
-        <button type="button" class="check" data-name="licenceShown" aria-pressed="false"><span class="box">☐</span> พบ</button>
-        <button type="button" class="check" data-name="licenceNotShown" aria-pressed="false"><span class="box">☐</span> ไม่พบ</button>
-        <span>การแสดงใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรมของผู้มีหน้าที่ปฏิบัติการ</span>
-        <button type="button" class="check" data-name="licenceOriginal" aria-pressed="false"><span class="box">☐</span> ฉบับจริง</button>
-        <button type="button" class="check" data-name="licenceCopy" aria-pressed="false"><span class="box">☐</span> ฉบับสำเนา</button>
-      </div>
+      <p class="para sm"><!-- 23 -->(5) ทางสถานที่ทำการ <button type="button" class="check" data-name="licenceShown" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="licenceNotShown" aria-pressed="false">ไม่พบ</button> การแสดงใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรมของผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="licenceOriginal" aria-pressed="false">ฉบับจริง</button> <button type="button" class="check" data-name="licenceCopy" aria-pressed="false">ฉบับสำเนา</button></p>
 
-      <div class="line wrap">
-        <span>(6) ขณะตรวจสอบ</span>
-        <button type="button" class="check" data-name="dutyPresent" aria-pressed="false"><span class="box">☐</span> พบ</button>
-        <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false"><span class="box">☐</span> ไม่พบ</button>
-        <span>ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่</span>
-      </div>
-      <div class="line"><input class="blank" name="dutyNote" /></div>
+      <p class="para sm"><!-- 24 -->(6) ขณะตรวจสอบ <button type="button" class="check" data-name="dutyPresent" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false">ไม่พบ</button> ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่<input class="blank" name="dutyNote" /></p>
 
-      <div class="line wrap">
-        <span>(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ</span>
-        <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false"><span class="box">☐</span> มี</button>
-        <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false"><span class="box">☐</span> ไม่มี</button>
-        <input class="blank" name="leaveProofNote" />
-      </div>
-      <div class="line"><input class="blank" name="leaveProofNote2" /></div>
+      <p class="para sm"><!-- 25 -->(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false">มี</button> <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false">ไม่มี</button> <input class="blank" name="leaveProofNote" /><input class="blank" name="leaveProofNote2" hidden /></p>
 
-      <div class="line wrap">
-        <span>(8) ขณะตรวจสอบ</span>
-        <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false"><span class="box">☐</span> ไม่พบ</button>
-        <span>การปิดม่านบังยาอันตราย</span>
-        <button type="button" class="check" data-name="curtainFound" aria-pressed="false"><span class="box">☐</span> พบ</button>
-        <span>การปิดม่านบังยาอันตราย</span>
-        <input class="blank" name="curtainNote" />
-      </div>
+      <p class="para sm"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <input class="blank" name="curtainNote" /></p>
 
-      <div class="sign-grid" style="grid-template-columns: 1fr;">
-        <div class="sign">
-          ลงชื่อ <span class="rule"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-l" name="signPage1Name" /> )
-        </div>
-      </div>
+      <p class="para sm blank-line"><!-- 27 --></p>
+      <p class="para sm left"><!-- 28 -->ลงชื่อ <span class="rule"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
+      <p class="para sm left"><!-- 29 -->( <input class="blank w-l" name="signPage1Name" /> )</p>
     </div>
 
     <!-- ============================ PAGE 2 ============================ -->
     <div class="sheet">
       <div class="page-no">หน้าที่ 2 จาก 2</div>
-      <div class="line">
-        <span>ต่อจากหน้าที่</span>
-        <input class="blank w-s" name="continuedFrom" value="1" />
-        <span style="flex:1"></span>
-      </div>
-      <p class="para">&nbsp;3. สรุปผลการตรวจสอบพบ (ต่อ)</p>
 
-      <div class="line">
-        <span>(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้</span>
-        <input class="blank" name="behaviour1" />
-      </div>
-      <div class="line"><input class="blank" name="behaviour2" /></div>
-      <div class="line"><input class="blank" name="behaviour3" /></div>
-      <div class="line"><input class="blank" name="behaviour4" /></div>
-      <div class="line"><input class="blank" name="behaviour5" /></div>
-      <div class="line"><input class="blank" name="behaviour6" /></div>
+      <!-- 30: "ต่อจากหน้าที่ 1" is literal in the template, like the officers'
+           names above — the record is always two pages, never re-numbered.
+           The blank stays, hidden, for the same reason as officers1/2. -->
+      <p class="para sm right">ต่อจากหน้าที่ 1</p>
+      <input class="blank w-s" name="continuedFrom" value="1" hidden />
 
-      <div class="line">
-        <span>(10) พนักงานเจ้าหน้าที่ได้ ยึด</span>
-        <input class="blank w-m" name="seizedItems" value="-" />
-        <span>จำนวน</span>
-        <input class="blank w-s" name="seizedCount" value="-" />
-        <span>รายการ อายัด</span>
-        <input class="blank w-m" name="heldItems" value="-" />
-        <span>จำนวน</span>
-        <input class="blank w-s" name="heldCount" value="-" />
-        <span>รายการ</span>
-      </div>
-      <p class="para">
-        เพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย
-      </p>
+      <p class="para sm"><!-- 31 -->3. สรุปผลการตรวจสอบพบ (ต่อ)</p>
 
-      <p class="para">
-        (11) พนักงานเจ้าหน้าที่ได้แจ้งข้อมูลให้ทราบว่า
-        กรณีที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่ปฏิบัติหน้าที่ ให้ร้านปฏิบัติตามกฎหมายว่าด้วยยา
-        และห้ามมิให้มีการจำหน่าย จ่าย แจก หรือส่งมอบ ยาประเภทยาอันตราย ยาควบคุมพิเศษ
-        วัตถุที่ออกฤทธิ์ต่อจิตและประสาท หรือยาเสพติดให้โทษ
-        โดยบุคคลที่ไม่ได้เป็นผู้ประกอบวิชาชีพเภสัชกรรม
-        หากมีการฝ่าฝืนจะเป็นความผิดตามพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 โดย
-      </p>
-      <div class="line wrap">
-        <button type="button" class="check" data-name="informPharmacist" aria-pressed="false"><span class="box">☐</span> เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button>
-        <button type="button" class="check" data-name="informLicensee" aria-pressed="false"><span class="box">☐</span> ผู้รับอนุญาต</button>
-        <button type="button" class="check" data-name="informAgent" aria-pressed="false"><span class="box">☐</span> ผู้แทนผู้รับอนุญาต</button>
-        <span>เข้าใจและรับทราบข้อมูลตามที่แจ้ง</span>
-      </div>
+      <p class="para sm"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" /></p>
+      <p class="para sm"><input class="blank" name="behaviour2" /></p>
+      <p class="para sm"><input class="blank" name="behaviour3" /></p>
+      <p class="para sm"><input class="blank" name="behaviour4" /></p>
+      <p class="para sm"><input class="blank" name="behaviour5" /></p>
+      <p class="para sm"><input class="blank" name="behaviour6" /></p>
 
-      <div class="line">
-        <span>(12) สิ้นสุดการตรวจเวลา</span>
-        <input class="blank w-m" name="endTime" />
-        <span>น.</span>
-        <span style="flex:1"></span>
-      </div>
+      <p class="para sm gap"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<input class="blank w-m" name="seizedItems" value="-" /> จำนวน <input class="blank w-s" name="seizedCount" value="-" /> รายการ อายัด <input class="blank w-m" name="heldItems" value="-" /> จำนวน <input class="blank w-s" name="heldCount" value="-" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
 
-      <p class="para indent">
-        พนักงานเจ้าหน้าที่ที่มาทำการตรวจครั้งนี้ ได้กระทำไปตามอำนาจหน้าที่
-        มิได้เรียกรับหรือยอมจะรับทรัพย์สินของผู้หนึ่งผู้ใดมาเป็นของตนหรือบุคคลอื่น
-        มิได้บังคับขู่เข็ญหรือทำร้ายร่างกายหรือได้ทำให้ทรัพย์สินของผู้ใดที่อยู่ในที่นี้สูญหายหรือเสียหาย
-        หรือยึดเอามาเป็นส่วนตัวแต่อย่างใด อ่านให้ฟังโดยตลอดและได้อ่านเองแล้ว รับรองว่าถูกต้อง
-        จึงลงลายมือชื่อไว้เป็นสำคัญ
-      </p>
+      <p class="para sm gap"><!-- 34 -->(11) พนักงานเจ้าหน้าที่ได้แจ้งข้อมูลให้ทราบว่า กรณีที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่ปฏิบัติหน้าที่ ให้ร้านปฏิบัติตามกฎหมายว่าด้วยยา และห้ามมิให้มีการจำหน่าย จ่าย แจก หรือส่งมอบ ยาประเภทยาอันตราย ยาควบคุมพิเศษ วัตถุที่ออกฤทธิ์ต่อจิตและประสาท หรือยาเสพติดให้โทษ โดยบุคคลที่ไม่ได้เป็นผู้ประกอบวิชาชีพเภสัชกรรม หากมีการฝ่าฝืนจะเป็นความผิดตามพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 โดย <button type="button" class="check" data-name="informPharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="informLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="informAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> เข้าใจและรับทราบข้อมูลตามที่แจ้ง</p>
 
+      <p class="para sm gap"><!-- 35 -->(12) สิ้นสุดการตรวจเวลา<input class="blank w-m" name="endTime" /> น.</p>
+
+      <p class="para sm gap"><!-- 36 -->พนักงานเจ้าหน้าที่ที่มาทำการตรวจครั้งนี้ ได้กระทำไปตามอำนาจหน้าที่ มิได้เรียกรับหรือยอมจะรับทรัพย์สินของผู้หนึ่งผู้ใดมาเป็นของตนหรือบุคคลอื่น มิได้บังคับขู่เข็ญหรือทำร้ายร่างกายหรือได้ทำให้ทรัพย์สินของผู้ใดที่อยู่ในที่นี้สูญหายหรือเสียหายหรือยึดเอามาเป็นส่วนตัวแต่อย่างใด อ่านให้ฟังโดยตลอดและได้อ่านเองแล้ว รับรองว่าถูกต้อง จึงลงลายมือชื่อไว้เป็นสำคัญ</p>
+
+      <p class="para blank-line"><!-- 37 --></p>
+      <p class="para blank-line"><!-- 38 --></p>
+
+      <!-- 39: the signature table — Task 4's job. -->
       <div class="sign-grid">
         <div class="sign">
           ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร<br />
@@ -577,6 +395,9 @@
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเจษฎา จันทรประเสริฐ</span> )
         </div>
       </div>
+      <p class="para blank-line"><!-- 40 --></p>
+      <p class="para sm blank-line"><!-- 41 --></p>
+      <p class="para sm blank-line"><!-- 42 --></p>
     </div>
 
     <script>
@@ -596,8 +417,9 @@
         button.addEventListener('click', () => setCheck(button, button.getAttribute('aria-pressed') !== 'true'));
       }
       function setCheck(button, on) {
+        // The box glyph itself is CSS content keyed off aria-pressed — see
+        // the .check::before rule — so toggling the attribute is enough.
         button.setAttribute('aria-pressed', on ? 'true' : 'false');
-        button.querySelector('.box').textContent = on ? '☑' : '☐';
       }
 
       /* ---------------- read / write the whole form ---------------- */

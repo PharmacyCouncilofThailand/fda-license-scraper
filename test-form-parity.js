@@ -134,6 +134,44 @@ const pxToMm = (px) => px / 96 * 25.4;
     close(sheet.fontSize / 96 * 72, 15, 'ขนาดตัวอักษรพื้นฐาน (pt)');
 
     console.log('ok — หน้ากระดาษ ฟอนต์ และขนาดพื้นฐานตรงกับไฟล์ Word');
+
+    // --- paragraphs -------------------------------------------------------
+    // The tokens stand for the blanks, which hold no text until the record is
+    // filled in; strip them from the template's text before comparing.
+    const expected = template.blocks
+      .filter((b) => b.type === 'paragraph')
+      .map((b) => ({
+        text: b.text.replace(/\{\{[^}]*\}\}/g, ' ').replace(/\s+/g, ' ').trim(),
+        pt: b.pt,
+      }))
+      .filter((b) => b.text !== '');
+
+    const actual = await page.evaluate(() =>
+      [...document.querySelectorAll('.sheet .para')].map((node) => ({
+        text: node.textContent.replace(/\s+/g, ' ').trim(),
+        pt: Math.round(parseFloat(getComputedStyle(node).fontSize) / 96 * 72 * 2) / 2,
+      })).filter((p) => p.text !== '')
+    );
+
+    assert.strictEqual(
+      actual.length,
+      expected.length,
+      `จำนวนย่อหน้าไม่ตรง: หน้าเว็บ ${actual.length} ไฟล์ Word ${expected.length}`
+    );
+    expected.forEach((want, i) => {
+      assert.strictEqual(
+        actual[i].text,
+        want.text,
+        `ย่อหน้าที่ ${i} ไม่ตรง\n  หน้าเว็บ: ${actual[i].text}\n  Word:     ${want.text}`
+      );
+      assert.strictEqual(
+        actual[i].pt,
+        want.pt,
+        `ขนาดตัวอักษรย่อหน้าที่ ${i}: หน้าเว็บ ${actual[i].pt}pt Word ${want.pt}pt`
+      );
+    });
+
+    console.log(`ok — ${expected.length} ย่อหน้าตรงกับไฟล์ Word ทั้งข้อความและขนาด`);
   } finally {
     await browser.close();
   }
