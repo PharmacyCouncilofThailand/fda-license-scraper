@@ -28,15 +28,15 @@
        * the PDF renderer opens this file over file://, the browser over http.
        */
       @font-face {
-        font-family: "TH Sarabun New";
-        src: url("./fonts/THSarabunNew.woff") format("woff");
+        font-family: "TH SarabunPSK";
+        src: url("./fonts/THSarabunPSK.ttf") format("truetype");
         font-weight: 400;
         font-style: normal;
         font-display: block;
       }
       @font-face {
-        font-family: "TH Sarabun New";
-        src: url("./fonts/THSarabunNew-Bold.woff") format("woff");
+        font-family: "TH SarabunPSK";
+        src: url("./fonts/THSarabunPSK-Bold.ttf") format("truetype");
         font-weight: 700;
         font-style: normal;
         font-display: block;
@@ -107,17 +107,15 @@
       /* ---------- the sheet ---------- */
       .sheet {
         width: 210mm;
-        min-height: 297mm;
         margin: 16px auto;
-        padding: 15mm 18mm;
+        padding: 12mm 20mm 10mm;
         background: #fff;
         color: #000;
-        font-family: "TH Sarabun New", "TH SarabunPSK", "Sarabun",
-          "Leelawadee UI", "Segoe UI", Tahoma, sans-serif;
+        font-family: "TH SarabunPSK", "TH Sarabun New", "Leelawadee UI", sans-serif;
         font-weight: 400;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, .12);
-        font-size: 13.5pt;
-        line-height: 1.22;
+        font-size: 15pt;
+        line-height: 1.15;
       }
       .page-no { text-align: right; font-size: .95em; }
       h1 {
@@ -226,16 +224,14 @@
       }
 
       /* ---------- print ---------- */
-      @page { size: A4; margin: 15mm 18mm; }
+      @page { size: A4; margin: 12mm 20mm 10mm; }
       @media print {
         body { background: #fff; }
         .toolbar { display: none; }
         .lookup { display: none; }
         .sheet {
-          width: auto;
           min-height: 0;
           margin: 0;
-          padding: 0;
           box-shadow: none;
         }
         .sheet + .sheet { page-break-before: always; }

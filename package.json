@@ -13,6 +13,7 @@
     "smoke": "node smoke-form.js",
     "smoke:api": "node smoke.js",
     "test:parse": "node test-parse.js",
+    "test:parity": "node test-form-parity.js",
     "smoke:pharmacist": "node smoke-pharmacist.js"
   },
   "dependencies": {
