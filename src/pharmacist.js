@@ -48,10 +48,13 @@ function text(html) {
  */
 function splitNameCell(cellHtml) {
   const notes = [];
-  const spans = cellHtml.matchAll(/<span[^>]*>([^<]*)/gi);
-  for (const [, inner] of spans) {
+  const spans = cellHtml.matchAll(/<span([^>]*)>([^<]*)/gi);
+  for (const [, attributes, inner] of spans) {
     const note = text(inner).replace(/^[-–\s]+/, '').trim();
-    if (note) notes.push(note);
+    // The council colours a real warning — lapsed CE credits, a suspension —
+    // red, and plain facts about the licence blue. That is the only thing
+    // separating the two, so carry it through instead of guessing from wording.
+    if (note) notes.push({ text: note, warning: /red/i.test(attributes) });
   }
 
   const nameHtml = cellHtml.split(/<br\s*\/?>|<span/i)[0];

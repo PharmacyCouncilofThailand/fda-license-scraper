@@ -337,3 +337,66 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
   .app-sidebar .brand:hover .mark { transform: none; }
   .app-sidebar nav a .dot { transform: scale(1); }
 }
+
+/* ---------- <pharmacist-search> ----------
+   Shared by the sidebar of the search page and the record page. Uses the
+   tokens above so it looks the same in both.
+   ------------------------------------------------------------------ */
+pharmacist-search { display: block; font-size: 0.92rem; }
+.ps-title { display: block; font-weight: 500; margin-bottom: 6px; }
+.ps-form { display: flex; flex-direction: column; gap: 6px; }
+.ps-row { display: flex; gap: 6px; }
+.ps-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+}
+.ps-input:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
+.ps-submit {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font: inherit;
+  cursor: pointer;
+}
+.ps-output { margin-top: 8px; max-height: 46vh; overflow-y: auto; }
+.ps-group + .ps-group { margin-top: 6px; }
+.ps-summary { cursor: pointer; color: var(--muted-foreground); padding: 4px 0; }
+.ps-card {
+  padding: 8px 10px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--card);
+}
+.ps-name { font-weight: 500; }
+.ps-licence { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.ps-copy {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.ps-meta { color: var(--muted-foreground); font-size: 0.85rem; }
+.ps-note { color: var(--muted-foreground); font-size: 0.85rem; margin: 6px 0 0; }
+.ps-note-row {
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: calc(var(--radius) - 6px);
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  font-size: 0.8rem;
+}
+.ps-note-plain { margin-top: 4px; color: var(--muted-foreground); font-size: 0.8rem; }
+.ps-error { color: var(--destructive); }

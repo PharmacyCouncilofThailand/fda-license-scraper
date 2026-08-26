@@ -47,17 +47,30 @@ assert.ok(padded, 'ไม่เจอเลขใบอนุญาตที่�
 // --- notes ----------------------------------------------------------------
 const noted = parseResultTable(fixture('pharmacist-notes.html'));
 const warned = noted.find((r) =>
-  r.notes.some((n) => n.includes('หน่วยกิตการศึกษาต่อเนื่อง'))
+  r.notes.some((n) => n.text.includes('หน่วยกิตการศึกษาต่อเนื่อง'))
 );
 assert.ok(warned, 'ไม่เจอแถวที่มีหมายเหตุหน่วยกิต');
 assert.ok(
-  warned.notes.some((n) => n.includes('ใบแทน')),
+  warned.notes.some((n) => n.text.includes('ใบแทน')),
   'หมายเหตุบรรทัดสีน้ำเงินหายไป'
 );
 for (const note of warned.notes) {
-  assert.ok(!/^[-\s]/.test(note), `หมายเหตุยังมีขีด/ช่องว่างนำหน้า: ${note}`);
-  assert.ok(!/[<>]/.test(note), 'หมายเหตุยังมีแท็ก HTML ติดมา');
+  assert.ok(!/^[-\s]/.test(note.text), `หมายเหตุยังมีขีด/ช่องว่างนำหน้า: ${note.text}`);
+  assert.ok(!/[<>]/.test(note.text), 'หมายเหตุยังมีแท็ก HTML ติดมา');
 }
+
+// Red is a warning, blue is a plain fact about the licence. Anything else and
+// the panel paints a benign line in the alarm colour.
+assert.strictEqual(
+  warned.notes.find((n) => n.text.includes('หน่วยกิตการศึกษาต่อเนื่อง')).warning,
+  true,
+  'หมายเหตุหน่วยกิตต้องเป็นคำเตือน'
+);
+assert.strictEqual(
+  warned.notes.find((n) => n.text.includes('ใบแทน')).warning,
+  false,
+  'บรรทัดเรื่องใบแทนไม่ใช่คำเตือน'
+);
 
 // --- nothing found --------------------------------------------------------
 assert.deepStrictEqual(
