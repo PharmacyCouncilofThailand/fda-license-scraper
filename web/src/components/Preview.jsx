@@ -84,6 +84,29 @@ function MapPanel({ row, detail }) {
  * hours of their own, and item 2 of the record is filled from this list
  * rather than from the shop's opening hours. Shown in the licence's order.
  */
+/**
+ * Hands a pharmacist's name to the licence lookup in the sidebar. The FDA
+ * names the person but not their ภ. number, which is the one thing the
+ * inspection record needs — so this saves retyping the name to find it.
+ */
+function FindLicenceButton({ name }) {
+  return (
+    <button
+      type="button"
+      className="find-licence"
+      title={`ค้นเลข ภ. ของ ${name}`}
+      onClick={() =>
+        document.dispatchEvent(
+          new CustomEvent('pharmacist-search:fill', { detail: { name } })
+        )
+      }
+    >
+      <span className="material-symbols-outlined sm">badge</span>
+      ค้นเลข ภ.
+    </button>
+  );
+}
+
 function PharmacistList({ pharmacists }) {
   if (!pharmacists || pharmacists.length === 0) {
     return (
@@ -101,8 +124,11 @@ function PharmacistList({ pharmacists }) {
       </div>
       {pharmacists.map((person, i) => (
         <div className="person" key={`${person.index}-${person.name}`}>
-          <div>
-            ลำดับที่ : {person.index || i + 1} {person.name}
+          <div className="who">
+            <span>
+              ลำดับที่ : {person.index || i + 1} {person.name}
+            </span>
+            <FindLicenceButton name={person.name} />
           </div>
           <div className="hours">
             เวลาปฏิบัติการ :{' '}
