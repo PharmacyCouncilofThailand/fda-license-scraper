@@ -130,18 +130,6 @@
       .para.left { text-align: left; }
       .para.gap { margin-top: 6pt; }   /* Word's spacing w:before="120" */
       .para.blank-line { min-height: 1em; }
-      .indent { text-indent: 40pt; }
-
-      /* a run of text with blanks that stretch to the margin */
-      .line {
-        display: flex;
-        align-items: baseline;
-        gap: 4pt;
-        margin: 0 0 1pt;
-        flex-wrap: nowrap;
-      }
-      .line > span { white-space: nowrap; }
-      .line.wrap { flex-wrap: wrap; }
 
       input.blank {
         font: inherit;
@@ -291,9 +279,7 @@
            The two blanks stay, hidden, only so their `name`s keep working if
            anything downstream still reads them; the visible wording matches
            the Word file's own literal names. -->
-      <p class="para">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ</p>
-      <input class="blank" name="officers1" value="นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง" hidden />
-      <input class="blank" name="officers2" value="นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ" hidden />
+      <p class="para">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ<input class="blank" name="officers1" value="นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง" hidden /><input class="blank" name="officers2" value="นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ" hidden /></p>
 
       <p class="para"><!-- 4 -->ได้ทำการตรวจสถานที่ทำการของผู้ประกอบวิชาชีพเภสัชกรรมชื่อ<input class="blank" name="pharmacistName" /></p>
       <p class="para"><!-- 5 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-m" name="pharmacistLicenseNo" /> หมดอายุวันที่ <input class="blank w-m" name="pharmacistLicenseExpiry" /></p>
@@ -325,7 +311,8 @@
 
       <p class="para sm"><!-- 24 -->(6) ขณะตรวจสอบ <button type="button" class="check" data-name="dutyPresent" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false">ไม่พบ</button> ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่<input class="blank" name="dutyNote" /></p>
 
-      <p class="para sm"><!-- 25 -->(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false">มี</button> <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false">ไม่มี</button> <input class="blank" name="leaveProofNote" /><input class="blank" name="leaveProofNote2" hidden /></p>
+      <p class="para sm"><!-- 25 -->(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false">มี</button> <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false">ไม่มี</button> <input class="blank" name="leaveProofNote" /></p>
+      <p class="para sm"><input class="blank" name="leaveProofNote2" /></p>
 
       <p class="para sm"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <input class="blank" name="curtainNote" /></p>
 
@@ -341,12 +328,11 @@
       <!-- 30: "ต่อจากหน้าที่ 1" is literal in the template, like the officers'
            names above — the record is always two pages, never re-numbered.
            The blank stays, hidden, for the same reason as officers1/2. -->
-      <p class="para sm right">ต่อจากหน้าที่ 1</p>
-      <input class="blank w-s" name="continuedFrom" value="1" hidden />
+      <p class="para sm right">ต่อจากหน้าที่ 1<input class="blank w-s" name="continuedFrom" value="1" hidden /></p>
 
       <p class="para sm"><!-- 31 -->3. สรุปผลการตรวจสอบพบ (ต่อ)</p>
 
-      <p class="para sm"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" /></p>
+      <p class="para sm gap"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" /></p>
       <p class="para sm"><input class="blank" name="behaviour2" /></p>
       <p class="para sm"><input class="blank" name="behaviour3" /></p>
       <p class="para sm"><input class="blank" name="behaviour4" /></p>
