@@ -119,6 +119,17 @@
       }
       .page-no { text-align: right; font-size: .95em; }
 
+      /* Anchored top-left of page 1 and riding 5.6mm above the top margin,
+         exactly as the template places it. */
+      .sheet { position: relative; }
+      .seal {
+        position: absolute;
+        top: calc(12mm - 5.6mm);
+        left: 20mm;
+        width: 17.6mm;
+        height: 25.6mm;
+      }
+
       /* One <p class="para"> per Word paragraph, in template order — see
          test-form-parity.js, which measures these directly against the
          template's own paragraph text and szCs. */
@@ -174,14 +185,15 @@
       .check { color: #000; }
       .check:focus-visible { outline: 2px solid var(--ring); }
 
-      .sign-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6pt 24pt;
-        margin-top: 10pt;
-      }
-      .sign { line-height: 1.7; }
-      .sign .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
+      /* The council's signature block, straight off the template's own
+         table: 4814-twip (81.6mm) columns, every border none. The "ลงชื่อ"
+         line is a rule to be hand-signed, not a blank — same as the
+         page-1 signature line above (see .rule.blank there) — so it stays
+         a plain .rule with no `blank` class and does not enter the count. */
+      .signatures { width: 100%; border-collapse: collapse; margin-top: 10pt; }
+      .signatures col { width: 81.6mm; }
+      .signatures td { border: 0; padding: 0 0 6pt 0; vertical-align: bottom; line-height: 1.7; }
+      .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
       .officer { text-align: center; display: inline-block; width: 150pt; }
 
       /*
@@ -274,7 +286,7 @@
          later pass can find its place in the Word file quickly. -->
     <div class="sheet">
       <div class="page-no">หน้าที่ 1 จาก 2</div>
-      <p class="para blank-line centre"><!-- 0: holds the seal --></p>
+      <p class="para blank-line centre"><!-- 0: holds the seal --><img class="seal" src="./seal.png" alt="ตราสภาเภสัชกรรม" /></p>
       <p class="para title">บันทึกการตรวจสอบการประกอบวิชาชีพของผู้ประกอบวิชาชีพเภสัชกรรม</p>
       <p class="para blank-line centre"><!-- 2 --></p>
 
@@ -354,37 +366,59 @@
       <p class="para blank-line"><!-- 37 --></p>
       <p class="para blank-line"><!-- 38 --></p>
 
-      <!-- 39: the signature table — Task 4's job. -->
-      <div class="sign-grid">
-        <div class="sign">
-          ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" /> )
-        </div>
-        <div class="sign">
-          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายศิริพงษ์ เจือโร่ง</span> )
-        </div>
-        <div class="sign">
-          ลงชื่อ <span class="rule"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" /> )
-        </div>
-        <div class="sign">
-          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเทอดภูมิ พัชรสุนทรชัย</span> )
-        </div>
-        <div class="sign">
-          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวอชิดา บุญเพียร</span> )
-        </div>
-        <div class="sign">
-          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวศศิธร เจือโร่ง</span> )
-        </div>
-        <div class="sign">
-          ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเจษฎา จันทรประเสริฐ</span> )
-        </div>
-      </div>
+      <!-- 39: the signature table, straight off the template's own <w:tbl> —
+           two 4814-twip columns, no borders; two ลงชื่อ rows on the left,
+           five on the right. Only the two rows that carry a {{token}} in
+           the template (signDutyName, signLicenseeName) get an <input>; the
+           five officers' names are baked into the template as plain text,
+           same as elsewhere in the record (see the officers1/2 comment on
+           page 1) so they render as static text with no blank at all. -->
+      <table class="signatures">
+        <colgroup><col /><col /></colgroup>
+        <tbody>
+          <tr>
+            <td>
+              ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" /> )
+            </td>
+            <td>
+              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายศิริพงษ์ เจือโร่ง</span> )
+            </td>
+          </tr>
+          <tr>
+            <td>
+              ลงชื่อ <span class="rule"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" /> )
+            </td>
+            <td>
+              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเทอดภูมิ พัชรสุนทรชัย</span> )
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>
+              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวอชิดา บุญเพียร</span> )
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>
+              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวศศิธร เจือโร่ง</span> )
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>
+              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเจษฎา จันทรประเสริฐ</span> )
+            </td>
+          </tr>
+        </tbody>
+      </table>
       <p class="para blank-line"><!-- 40 --></p>
       <p class="para sm blank-line"><!-- 41 --></p>
       <p class="para sm blank-line"><!-- 42 --></p>

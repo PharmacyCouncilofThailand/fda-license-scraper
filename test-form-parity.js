@@ -199,6 +199,36 @@ const pxToMm = (px) => px / 96 * 25.4;
     );
 
     console.log(`ok — ช่องกรอก ${haveBlanks} ช่องตรงกับไฟล์ Word`);
+
+    // --- seal, signatures, footer ----------------------------------------
+    const furniture = await page.evaluate(() => {
+      const seal = document.querySelector('.sheet .seal');
+      const rect = seal && seal.getBoundingClientRect();
+      const rows = [...document.querySelectorAll('.signatures tr')];
+      return {
+        seal: rect && { w: rect.width, h: rect.height },
+        columns: document.querySelectorAll('.signatures col').length,
+        left: rows.filter((r) => r.children[0] && r.children[0].textContent.includes('ลงชื่อ')).length,
+        right: rows.filter((r) => r.children[1] && r.children[1].textContent.includes('ลงชื่อ')).length,
+        footers: [...document.querySelectorAll('.page-no')].map((n) =>
+          n.textContent.replace(/\s+/g, ' ').trim()
+        ),
+      };
+    });
+
+    assert.ok(furniture.seal, 'ไม่พบตราสภาเภสัชกรรมบนแผ่นงาน');
+    close(pxToMm(furniture.seal.w), 17.6, 'ความกว้างตราสภาฯ (มม.)');
+    close(pxToMm(furniture.seal.h), 25.6, 'ความสูงตราสภาฯ (มม.)');
+    assert.strictEqual(furniture.columns, 2, 'ตารางลงชื่อควรมี 2 คอลัมน์');
+    assert.strictEqual(furniture.left, 2, 'คอลัมน์ซ้ายควรมี 2 บรรทัดลงชื่อ');
+    assert.strictEqual(furniture.right, 5, 'คอลัมน์ขวาควรมี 5 บรรทัดลงชื่อ');
+    assert.deepStrictEqual(
+      furniture.footers,
+      ['หน้าที่ 1 จาก 2', 'หน้าที่ 2 จาก 2'],
+      `ท้ายกระดาษไม่ตรง: ${furniture.footers.join(' / ')}`
+    );
+
+    console.log('ok — ตราสภาฯ ตารางลงชื่อ และท้ายกระดาษตรงกับไฟล์ Word');
   } finally {
     await browser.close();
   }
