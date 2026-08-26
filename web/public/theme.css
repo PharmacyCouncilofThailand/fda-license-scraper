@@ -388,14 +388,25 @@ pharmacist-search { display: block; font-size: 0.92rem; }
 .ps-group + .ps-group { margin-top: 6px; }
 .ps-summary { cursor: pointer; color: var(--muted-foreground); padding: 4px 0; }
 .ps-card {
-  padding: 8px 10px;
+  padding: 10px 12px;
   margin-top: 6px;
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   background: var(--card);
 }
-.ps-name { font-weight: 500; }
-.ps-licence { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+/* The name and the number lead; everything else on the card is context. */
+.ps-name { font-weight: 600; font-size: 1rem; line-height: 1.35; }
+.ps-licence { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
+.ps-licence-label { color: var(--muted-foreground); font-size: 0.9rem; }
+.ps-licence-no {
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.ps-card-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .ps-copy,
 .ps-source {
   padding: 2px 8px;
@@ -408,7 +419,7 @@ pharmacist-search { display: block; font-size: 0.92rem; }
   cursor: pointer;
 }
 .ps-source { margin-left: auto; }
-.ps-meta { color: var(--muted-foreground); font-size: 0.85rem; }
+.ps-meta { color: var(--muted-foreground); font-size: 0.78rem; margin-top: 6px; }
 .ps-note { color: var(--muted-foreground); font-size: 0.85rem; margin: 6px 0 0; }
 .ps-note-row {
   margin-top: 4px;
@@ -418,5 +429,5 @@ pharmacist-search { display: block; font-size: 0.92rem; }
   color: var(--danger-fg);
   font-size: 0.8rem;
 }
-.ps-note-plain { margin-top: 4px; color: var(--muted-foreground); font-size: 0.8rem; }
+.ps-note-plain { margin-top: 4px; color: var(--muted-foreground); font-size: 0.75rem; }
 .ps-error { color: var(--destructive); }

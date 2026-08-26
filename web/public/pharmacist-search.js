@@ -222,12 +222,21 @@
       return box;
     }
 
+    /*
+     * The name and the licence number are what the inspector came for and what
+     * gets written onto the record, so they lead the card at full size. Status,
+     * expiry and the council's notes are context and sit below, quieter.
+     */
     card(row) {
       const card = el('div', 'ps-card');
       card.append(el('div', 'ps-name', row.fullName));
 
       const licence = el('div', 'ps-licence');
-      licence.append(el('b', null, `ภ. ${row.licenseNo}`));
+      licence.append(el('span', 'ps-licence-label', 'ภ.'));
+      licence.append(el('span', 'ps-licence-no', row.licenseNo));
+      card.append(licence);
+
+      const actions = el('div', 'ps-card-actions');
 
       const button = el('button', 'ps-copy', 'คัดลอก');
       button.type = 'button';
@@ -247,8 +256,8 @@
       source.title = 'เปิดข้อมูลคนนี้บนเว็บสภาเภสัชกรรม';
       source.addEventListener('click', () => this.openSource(row.licenseNo));
 
-      licence.append(button, source);
-      card.append(licence);
+      actions.append(button, source);
+      card.append(actions);
 
       const meta = [row.status, row.expiry && `หมดอายุ ${row.expiry}`]
         .filter(Boolean)
