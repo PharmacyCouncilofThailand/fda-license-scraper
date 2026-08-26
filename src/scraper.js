@@ -566,8 +566,12 @@ async function searchDrugLocations({
             detail = await fetchDetail(key);
             if (detail) detailCache.set(key, detail);
           }
-          if (detail) Object.assign(results[i], detail);
-          detailsFetched += 1;
+          // A record the FDA never filled in answers empty; the row keeps
+          // its nulls and is not counted as fetched.
+          if (detail) {
+            Object.assign(results[i], detail);
+            detailsFetched += 1;
+          }
         } catch (err) {
           results[i].detailError = err.message;
         }
