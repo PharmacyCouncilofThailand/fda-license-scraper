@@ -13,6 +13,12 @@ const {
   ScrapeError,
 } = require('./scraper');
 
+const {
+  searchPharmacists,
+  clearPharmacistCache,
+  pharmacistCacheStats,
+} = require('./pharmacist');
+
 const path = require('path');
 const { renderFormDocx } = require('./docx-form');
 
@@ -114,10 +120,30 @@ app.post('/api/form/docx', async (req, res, next) => {
   }
 });
 
-app.get('/api/cache', (req, res) => res.json({ success: true, ...cacheStats() }));
+/**
+ * GET /api/pharmacist?firstName=สมชาย&lastName=ใจดี
+ * The pharmacist's ภ. licence number, from the Pharmacy Council register.
+ * At least one of the two is required.
+ */
+app.get('/api/pharmacist', async (req, res, next) => {
+  try {
+    const data = await searchPharmacists({
+      firstName: req.query.firstName,
+      lastName: req.query.lastName,
+    });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/cache', (req, res) =>
+  res.json({ success: true, ...cacheStats(), pharmacist: pharmacistCacheStats() })
+);
 
 app.delete('/api/cache', (req, res) => {
   clearCache();
+  clearPharmacistCache();
   res.json({ success: true, message: 'ล้างแคชแล้ว' });
 });
 

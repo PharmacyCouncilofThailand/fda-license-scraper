@@ -15,6 +15,7 @@
  * results are intersected here.
  */
 
+const config = require('./config');
 const { ScrapeError } = require('./scraper');
 
 /** Rows kept per group. "สมชาย" alone is 71; a screen panel is not a phone book. */
@@ -114,7 +115,132 @@ function parseResultTable(html) {
   return rows;
 }
 
+/** Search modes the council's form understands. We never use 1 (licence no). */
+const BY_FIRST_NAME = '2';
+const BY_LAST_NAME = '3';
+
+/** One upstream search: one field, one exact term, rows back. */
+async function fetchByField(type, term) {
+  const body = new URLSearchParams({ txtfind_type: type, txtfind_id: term });
+  let response;
+  try {
+    response = await fetch(config.pharmacistSearchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent': config.userAgent,
+      },
+      body,
+      signal: AbortSignal.timeout(config.navTimeoutMs),
+    });
+  } catch (err) {
+    throw new ScrapeError(
+      `ติดต่อเว็บสภาเภสัชกรรมไม่ได้: ${err.message}`,
+      502,
+      'UPSTREAM_ERROR'
+    );
+  }
+  if (!response.ok) {
+    throw new ScrapeError(
+      `เว็บสภาเภสัชกรรมตอบกลับผิดปกติ (HTTP ${response.status})`,
+      502,
+      'UPSTREAM_ERROR'
+    );
+  }
+  return parseResultTable(await response.text());
+}
+
+/* Cached by the pair of terms, least recently used evicted first — the same
+ * shape as the scrape cache in src/scraper.js. */
+const searchCache = new Map(); // "first|last" -> { result, at }
+
+function cacheKey(firstName, lastName) {
+  return `${firstName}|${lastName}`;
+}
+
+function getCached(key) {
+  const hit = searchCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > config.cacheTtlMs) {
+    searchCache.delete(key);
+    return null;
+  }
+  searchCache.delete(key);
+  searchCache.set(key, hit);
+  return hit.result;
+}
+
+function setCached(key, result) {
+  searchCache.set(key, { result, at: Date.now() });
+  while (searchCache.size > config.cacheMaxKeywords) {
+    searchCache.delete(searchCache.keys().next().value);
+  }
+}
+
+function clearPharmacistCache() {
+  searchCache.clear();
+}
+
+function pharmacistCacheStats() {
+  return { queries: searchCache.size, ttlMs: config.cacheTtlMs };
+}
+
+/**
+ * Search by first name, surname, or both.
+ *
+ * With both filled the two searches are intersected: a row found by both is
+ * the person being looked for, and the two leftover groups are what saves a
+ * search when one of the two fields is misspelt — which is easy to do against
+ * an upstream that matches exactly.
+ */
+async function searchPharmacists({ firstName, lastName } = {}) {
+  const first = String(firstName || '').trim();
+  const last = String(lastName || '').trim();
+  if (!first && !last) {
+    throw new ScrapeError('กรุณาระบุชื่อหรือนามสกุล', 400, 'MISSING_QUERY');
+  }
+
+  const key = cacheKey(first, last);
+  const hit = getCached(key);
+  if (hit) return { ...hit, cached: true };
+
+  const [firstRows, lastRows] = await Promise.all([
+    first ? fetchByField(BY_FIRST_NAME, first) : Promise.resolve([]),
+    last ? fetchByField(BY_LAST_NAME, last) : Promise.resolve([]),
+  ]);
+
+  const lastByLicence = new Set(lastRows.map((r) => r.licenseNo));
+  const bothRows = first && last ? firstRows.filter((r) => lastByLicence.has(r.licenseNo)) : [];
+  const bothByLicence = new Set(bothRows.map((r) => r.licenseNo));
+
+  const groups = {
+    both: bothRows,
+    firstName: firstRows.filter((r) => !bothByLicence.has(r.licenseNo)),
+    lastName: lastRows.filter((r) => !bothByLicence.has(r.licenseNo)),
+  };
+  const counts = {
+    both: groups.both.length,
+    firstName: groups.firstName.length,
+    lastName: groups.lastName.length,
+  };
+
+  const result = {
+    query: { firstName: first, lastName: last },
+    counts,
+    groups: {
+      both: groups.both.slice(0, MAX_ROWS_PER_GROUP),
+      firstName: groups.firstName.slice(0, MAX_ROWS_PER_GROUP),
+      lastName: groups.lastName.slice(0, MAX_ROWS_PER_GROUP),
+    },
+  };
+  setCached(key, result);
+  return { ...result, cached: false };
+}
+
 module.exports = {
   parseResultTable,
+  searchPharmacists,
+  clearPharmacistCache,
+  pharmacistCacheStats,
   MAX_ROWS_PER_GROUP,
 };
