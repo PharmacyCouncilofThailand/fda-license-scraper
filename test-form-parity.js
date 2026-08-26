@@ -172,6 +172,33 @@ const pxToMm = (px) => px / 96 * 25.4;
     });
 
     console.log(`ok — ${expected.length} ย่อหน้าตรงกับไฟล์ Word ทั้งข้อความและขนาด`);
+
+    // --- blanks -----------------------------------------------------------
+    // Word writes one blank as many consecutive dotted runs; count the groups.
+    const wantBlanks = template.blocks
+      .filter((b) => b.type === 'paragraph')
+      .reduce((total, b) => {
+        const runs = b.block.match(/<w:r[ >][\s\S]*?<\/w:r>/g) || [];
+        let groups = 0;
+        let inGroup = false;
+        for (const run of runs) {
+          const dotted = /<w:u w:val="dotted"/.test(run);
+          if (dotted && !inGroup) groups += 1;
+          inGroup = dotted;
+        }
+        return total + groups;
+      }, 0);
+
+    const haveBlanks = await page.evaluate(
+      () => document.querySelectorAll('.sheet .blank').length
+    );
+    assert.strictEqual(
+      haveBlanks,
+      wantBlanks,
+      `จำนวนช่องกรอกไม่ตรง: หน้าเว็บ ${haveBlanks} Word ${wantBlanks}`
+    );
+
+    console.log(`ok — ช่องกรอก ${haveBlanks} ช่องตรงกับไฟล์ Word`);
   } finally {
     await browser.close();
   }

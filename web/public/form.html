@@ -131,11 +131,18 @@
       .para.gap { margin-top: 6pt; }   /* Word's spacing w:before="120" */
       .para.blank-line { min-height: 1em; }
 
+      /* A blank in the Word original is dotted-underlined text sitting inside
+         the paragraph, not a box: it takes only the room its value needs and
+         the paragraph wraps around it like any other run. field-sizing lets
+         the input grow with its content the same way; max-width keeps a long
+         value from pushing past the paragraph's own edge, so it wraps to the
+         next line instead of overflowing the sheet's right margin. */
       input.blank {
+        field-sizing: content;
         font: inherit;
         color: inherit;
-        min-width: 0;
-        flex: 1 1 60pt;
+        min-width: 60pt;
+        max-width: 100%;
         border: 0;
         border-bottom: 1px dotted #444;
         background: transparent;
@@ -144,12 +151,9 @@
       input.blank.filled { background: var(--fill); }
       input.blank { color: #000; }
       input.blank:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
-      input.blank.w-s  { flex: 0 1 70pt; }
-      input.blank.w-m  { flex: 0 1 120pt; }
-      input.blank.w-l  { flex: 2 1 180pt; }
-      /* A value too long for its blank, moved onto a line of its own — see
-         shrinkToFit(). Wins over the width classes above. */
-      input.blank.overflow { flex: 1 1 100%; }
+      input.blank.w-s  { min-width: 70pt; }
+      input.blank.w-m  { min-width: 120pt; }
+      input.blank.w-l  { min-width: 180pt; }
 
       /* the ☐ / ☑ boxes — CSS content, not a text node: the box is UI chrome
          for ticking the item, not part of the record's own wording, so it
@@ -317,7 +321,7 @@
       <p class="para sm"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <input class="blank" name="curtainNote" /></p>
 
       <p class="para sm blank-line"><!-- 27 --></p>
-      <p class="para sm left"><!-- 28 -->ลงชื่อ <span class="rule"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
+      <p class="para sm left"><!-- 28 -->ลงชื่อ <span class="rule blank"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
       <p class="para sm left"><!-- 29 -->( <input class="blank w-l" name="signPage1Name" /> )</p>
     </div>
 
@@ -442,60 +446,10 @@
       window.prepareForPrint = function prepareForPrint() {
         const toolbar = document.querySelector('.toolbar');
         if (toolbar) toolbar.remove();
-        for (const sheet of document.querySelectorAll('.sheet')) fitSheet(sheet);
         for (const input of document.querySelectorAll('input.blank')) {
           input.classList.remove('filled');
-          shrinkToFit(input);
         }
       };
-
-      /**
-       * The original record is exactly two A4 pages, so each sheet has to stay
-       * on one. Step the sheet's type down until it does — long shop names and
-       * long addresses otherwise push a third page out.
-       *
-       * Only meaningful once print CSS is active; the server switches the page
-       * to print media before calling prepareForPrint().
-       */
-      function fitSheet(sheet) {
-        // A4 minus the 15mm print margins, less a line of slack: the fit pass
-        // measures on screen and Chromium lays the PDF out again for print,
-        // where a sheet measured a few pixels under the limit still spills a
-        // page. The slack costs a quarter of a point of type at most.
-        const maxHeight = 267 * (96 / 25.4) - 16;
-        let size = 13.5;
-        sheet.style.fontSize = size + 'pt';
-        while (sheet.getBoundingClientRect().height > maxHeight && size > 8.5) {
-          size -= 0.25;
-          sheet.style.fontSize = size + 'pt';
-        }
-      }
-
-      /**
-       * A blank is a fixed-width box, so a long shop name would simply be cut
-       * off in the PDF. Step the type down until it fits, to a floor where it
-       * is still readable on paper.
-       */
-      function shrinkToFit(input) {
-        const step = () => {
-          let size = parseFloat(getComputedStyle(input.closest('.sheet')).fontSize) * 0.75;
-          input.style.fontSize = size + 'pt';
-          while (input.scrollWidth > input.clientWidth + 1 && size > 8) {
-            size -= 0.5;
-            input.style.fontSize = size + 'pt';
-          }
-        };
-        step();
-        // Still cut off at the floor — เวลาปฏิบัติการ from the FDA runs to
-        // ninety characters and no type size fits that in 120pt of blank. A
-        // record that silently drops half a value is worse than one with an
-        // extra line, so give the blank the width of the line instead.
-        if (input.scrollWidth > input.clientWidth + 1) {
-          input.classList.add('overflow');
-          input.closest('.line')?.classList.add('wrap');
-          step();
-        }
-      }
 
       /* ---------------- prefill from the search page ---------------- */
 
@@ -573,23 +527,6 @@
 
       /* ---------------- actions ---------------- */
       document.getElementById('print').addEventListener('click', () => window.print());
-
-      /**
-       * "พิมพ์ / บันทึกเอง" has to produce the same two pages as the PDF
-       * button, so it runs the same fitting — undone afterwards, since the
-       * page stays open and editable.
-       */
-      window.addEventListener('beforeprint', () => {
-        for (const sheet of document.querySelectorAll('.sheet')) fitSheet(sheet);
-        for (const input of document.querySelectorAll('input.blank')) shrinkToFit(input);
-      });
-      window.addEventListener('afterprint', () => {
-        for (const sheet of document.querySelectorAll('.sheet')) sheet.style.fontSize = '';
-        for (const input of document.querySelectorAll('input.blank')) {
-          input.style.fontSize = '';
-          input.classList.remove('overflow');
-        }
-      });
 
       document.getElementById('clear').addEventListener('click', () => {
         for (const input of document.querySelectorAll('input.blank')) {
