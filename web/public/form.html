@@ -18,6 +18,30 @@
     <link rel="stylesheet" href="./theme.css" />
     <style>
       /*
+       * The record's own typeface, shipped with the app rather than taken from
+       * the machine. Chromium in the serverless function has no Thai face at
+       * all, so the sheet fell back to a wider one and spilled onto a third
+       * page; an inspector's laptop may or may not have TH Sarabun New
+       * installed either. Self-hosted, every render measures the same.
+       *
+       * SIPA national font, free to redistribute. Relative URLs on purpose:
+       * the PDF renderer opens this file over file://, the browser over http.
+       */
+      @font-face {
+        font-family: "TH Sarabun New";
+        src: url("./fonts/THSarabunNew.woff") format("woff");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "TH Sarabun New";
+        src: url("./fonts/THSarabunNew-Bold.woff") format("woff");
+        font-weight: 700;
+        font-style: normal;
+        font-display: block;
+      }
+      /*
        * The toolbar is app chrome and follows the council design system.
        * The sheet below it is the official record: always black on white,
        * always the government TH Sarabun stack, never glass, never themed —
@@ -630,7 +654,11 @@
        * to print media before calling prepareForPrint().
        */
       function fitSheet(sheet) {
-        const maxHeight = 267 * (96 / 25.4); // A4 minus the 15mm print margins
+        // A4 minus the 15mm print margins, less a line of slack: the fit pass
+        // measures on screen and Chromium lays the PDF out again for print,
+        // where a sheet measured a few pixels under the limit still spills a
+        // page. The slack costs a quarter of a point of type at most.
+        const maxHeight = 267 * (96 / 25.4) - 16;
         let size = 13.5;
         sheet.style.fontSize = size + 'pt';
         while (sheet.getBoundingClientRect().height > maxHeight && size > 8.5) {

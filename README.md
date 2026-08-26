@@ -162,13 +162,12 @@ ships. It runs as a non-root user and reads nothing but its own files.
 Set `FORM_TEMPLATE_URL` in the service's variables; `PORT` is provided by the
 platform. Everything else in `.env.example` has a working default.
 
-**Fonts.** `fonts-thai-tlwg` is installed, so the record renders as Thai text
-rather than boxes — but TH Sarabun New is not in any Debian repository and is
-not redistributed here, so the PDF falls back to a TLWG face and the line
-breaks will not match the office's Word copy exactly. To get the original,
-put the .ttf files in `fonts/` before building; the Dockerfile picks the
-directory up if it exists and ignores it if it does not. Keep them out of the
-repository for the same reason the Word template is out of it.
+**Fonts.** The record no longer depends on what the machine has installed:
+`web/public/fonts/` ships TH Sarabun New as a webfont and `form.html` names it
+in an `@font-face`, so a laptop, the container and a Vercel function all set
+the sheet in the same face and break the lines in the same places. The font is
+SIPA's national typeface, distributed free of charge. `fonts-thai-tlwg` stays
+in the image as the fallback for anything the webfont does not cover.
 
 The same image runs on Fly, Render, or a machine inside the council — which
 is the better answer if their IT will give you one, since the Word template
