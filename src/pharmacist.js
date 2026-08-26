@@ -122,12 +122,19 @@ function parseResultTable(html) {
 const BY_FIRST_NAME = '2';
 const BY_LAST_NAME = '3';
 
-/** One upstream search: one field, one exact term, rows back. */
+/**
+ * One upstream search: one field, one exact term, rows back.
+ *
+ * Reading the body is inside the same guard as the request itself: the council
+ * site can answer its headers and then stall, and the timeout that fires then
+ * lands on `text()`, not on `fetch()`. Left outside, it escaped as a bare
+ * TimeoutError and the API reported the council's outage as our own 500.
+ */
 async function fetchByField(type, term) {
   const body = new URLSearchParams({ txtfind_type: type, txtfind_id: term });
-  let response;
+  let html;
   try {
-    response = await fetch(config.pharmacistSearchUrl, {
+    const response = await fetch(config.pharmacistSearchUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -136,21 +143,26 @@ async function fetchByField(type, term) {
       body,
       signal: AbortSignal.timeout(config.navTimeoutMs),
     });
+    if (!response.ok) {
+      throw new ScrapeError(
+        `เว็บสภาเภสัชกรรมตอบกลับผิดปกติ (HTTP ${response.status})`,
+        502,
+        'UPSTREAM_ERROR'
+      );
+    }
+    html = await response.text();
   } catch (err) {
+    // The status check above already says it better than this would.
+    if (err instanceof ScrapeError) throw err;
     throw new ScrapeError(
       `ติดต่อเว็บสภาเภสัชกรรมไม่ได้: ${err.message}`,
       502,
       'UPSTREAM_ERROR'
     );
   }
-  if (!response.ok) {
-    throw new ScrapeError(
-      `เว็บสภาเภสัชกรรมตอบกลับผิดปกติ (HTTP ${response.status})`,
-      502,
-      'UPSTREAM_ERROR'
-    );
-  }
-  return parseResultTable(await response.text());
+  // Outside the guard on purpose: a page we cannot read is PARSE_ERROR, and
+  // that is a different thing to tell the user than an upstream outage.
+  return parseResultTable(html);
 }
 
 /* Cached by the pair of terms, least recently used evicted first — the same

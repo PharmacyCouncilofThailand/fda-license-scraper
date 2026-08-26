@@ -88,17 +88,27 @@
 
   class PharmacistSearch extends HTMLElement {
     connectedCallback() {
-      if (this.dataset.ready) return; // React may re-attach the same node
-      this.dataset.ready = '1';
-      this.controller = null;
-      this.render();
+      // The fields are built once; re-attaching the same node keeps them and
+      // whatever the user had typed in them.
+      if (!this.dataset.ready) {
+        this.dataset.ready = '1';
+        this.controller = null;
+        this.render();
+      }
       /*
-       * The result preview offers "ค้นเลข ภ." beside each pharmacist it lists.
-       * It announces the name on the document rather than reaching for this
-       * element, so the two need no reference to each other — and the same
-       * event works from React and from a plain page alike.
+       * The result preview offers "ค้นหาเลข ภ." beside each pharmacist it
+       * lists. It announces the name on the document rather than reaching for
+       * this element, so the two need no reference to each other — and the
+       * same event works from React and from a plain page alike.
+       *
+       * Bound on every connect, not just the first: disconnectedCallback drops
+       * it, so a node that is moved in the DOM would otherwise come back deaf.
+       * The handler is the same reference each time, so a connect without an
+       * intervening disconnect does not register it twice.
        */
-      this.onFill = (event) => this.fill(event.detail && event.detail.name);
+      if (!this.onFill) {
+        this.onFill = (event) => this.fill(event.detail && event.detail.name);
+      }
       document.addEventListener('pharmacist-search:fill', this.onFill);
     }
 
