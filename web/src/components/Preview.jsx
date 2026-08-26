@@ -89,7 +89,7 @@ function FindLicenceButton({ name }) {
     <button
       type="button"
       className="find-licence"
-      title={`ค้นเลข ภ. ของ ${name}`}
+      title={`ค้นหาเลข ภ. ของ ${name}`}
       onClick={() =>
         document.dispatchEvent(
           new CustomEvent('pharmacist-search:fill', { detail: { name } })
