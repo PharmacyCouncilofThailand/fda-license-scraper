@@ -120,14 +120,16 @@
       .page-no { text-align: right; font-size: .95em; }
 
       /* Anchored top-left of page 1 and riding 5.6mm above the top margin,
-         exactly as the template places it. */
+         exactly as the template places it. The template's own
+         <wp:extent cx="668968" cy="972000"/> is in EMU (36000 per mm):
+         668968/36000 = 18.58mm, 972000/36000 = 27mm. */
       .sheet { position: relative; }
       .seal {
         position: absolute;
         top: calc(12mm - 5.6mm);
         left: 20mm;
-        width: 17.6mm;
-        height: 25.6mm;
+        width: 18.58mm;
+        height: 27mm;
       }
 
       /* One <p class="para"> per Word paragraph, in template order — see
@@ -190,8 +192,14 @@
          line is a rule to be hand-signed, not a blank — same as the
          page-1 signature line above (see .rule.blank there) — so it stays
          a plain .rule with no `blank` class and does not enter the count. */
-      .signatures { width: 100%; border-collapse: collapse; margin-top: 10pt; }
-      .signatures col { width: 81.6mm; }
+      /* table-layout: fixed makes the browser honour <col> widths at all —
+         under the default `auto` layout they're only a hint the layout
+         algorithm is free to ignore once a `width` is set on the table
+         itself. 4814 twips (the template's own <w:gridCol>) / 1440 * 25.4
+         = 84.91mm; no `width` here so the table sizes to its columns
+         exactly rather than being stretched to fill the sheet. */
+      .signatures { table-layout: fixed; border-collapse: collapse; margin-top: 10pt; }
+      .signatures col { width: 84.91mm; }
       .signatures td { border: 0; padding: 0 0 6pt 0; vertical-align: bottom; line-height: 1.7; }
       .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
       .officer { text-align: center; display: inline-block; width: 150pt; }
@@ -238,7 +246,13 @@
       }
 
       /* ---------- print ---------- */
-      @page { size: A4; margin: 12mm 20mm 10mm; }
+      /* Zero here on purpose: .sheet is already a full A4-width box whose
+         own padding (12mm 20mm 10mm, above) *is* the template's margin —
+         both this rule and renderFormPdf()'s page.pdf() call must leave the
+         margin at 0, or it prints twice (this @page rule turns out to be
+         the one Chromium actually honours for both window.print() and
+         Puppeteer's page.pdf(), regardless of the JS `margin` option). */
+      @page { size: A4; margin: 0; }
       @media print {
         body { background: #fff; }
         .toolbar { display: none; }

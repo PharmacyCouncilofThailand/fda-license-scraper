@@ -26,6 +26,9 @@ if (!fs.existsSync(TEMPLATE)) {
 }
 
 const twipsToMm = (twips) => Number(twips) / 1440 * 25.4;
+// DrawingML anchors and shape extents are in EMU — 36000 per millimetre,
+// same unit the seal's <wp:extent> and <wp:posOffset> are written in.
+const emuToMm = (emu) => Number(emu) / 36000;
 
 /** The template's page setup and its blocks, in document order. */
 function readTemplate() {
@@ -54,6 +57,15 @@ function readTemplate() {
       };
     });
 
+  // The seal — the document's one <wp:extent>/<wp:posOffset> anchor.
+  const extent = xml.match(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/);
+  const offset = xml.match(/<wp:posOffset>(-?\d+)<\/wp:posOffset>/);
+
+  // The signature table's own <w:tblGrid> — both columns are the same
+  // width in the template, so either <w:gridCol> will do.
+  const tableBlock = blocks.find((b) => b.type === 'table');
+  const gridCol = tableBlock && tableBlock.block.match(/<w:gridCol w:w="(\d+)"\/>/);
+
   return {
     page: {
       widthMm: twipsToMm(size[1]),
@@ -66,6 +78,12 @@ function readTemplate() {
       },
     },
     blocks,
+    seal: extent && {
+      widthMm: emuToMm(extent[1]),
+      heightMm: emuToMm(extent[2]),
+      offsetMm: offset ? emuToMm(offset[1]) : null,
+    },
+    signaturesColMm: gridCol ? twipsToMm(gridCol[1]) : null,
   };
 }
 
@@ -205,9 +223,11 @@ const pxToMm = (px) => px / 96 * 25.4;
       const seal = document.querySelector('.sheet .seal');
       const rect = seal && seal.getBoundingClientRect();
       const rows = [...document.querySelectorAll('.signatures tr')];
+      const firstRowCells = rows[0] ? [...rows[0].children] : [];
       return {
         seal: rect && { w: rect.width, h: rect.height },
         columns: document.querySelectorAll('.signatures col').length,
+        colWidths: firstRowCells.map((td) => td.getBoundingClientRect().width),
         left: rows.filter((r) => r.children[0] && r.children[0].textContent.includes('ลงชื่อ')).length,
         right: rows.filter((r) => r.children[1] && r.children[1].textContent.includes('ลงชื่อ')).length,
         footers: [...document.querySelectorAll('.page-no')].map((n) =>
@@ -217,9 +237,14 @@ const pxToMm = (px) => px / 96 * 25.4;
     });
 
     assert.ok(furniture.seal, 'ไม่พบตราสภาเภสัชกรรมบนแผ่นงาน');
-    close(pxToMm(furniture.seal.w), 17.6, 'ความกว้างตราสภาฯ (มม.)');
-    close(pxToMm(furniture.seal.h), 25.6, 'ความสูงตราสภาฯ (มม.)');
+    assert.ok(template.seal, 'ไม่พบขนาดตราในไฟล์ Word');
+    close(pxToMm(furniture.seal.w), template.seal.widthMm, 'ความกว้างตราสภาฯ (มม.)');
+    close(pxToMm(furniture.seal.h), template.seal.heightMm, 'ความสูงตราสภาฯ (มม.)');
     assert.strictEqual(furniture.columns, 2, 'ตารางลงชื่อควรมี 2 คอลัมน์');
+    assert.ok(template.signaturesColMm, 'ไม่พบความกว้างคอลัมน์ในตารางลงชื่อของไฟล์ Word');
+    furniture.colWidths.forEach((w, i) =>
+      close(pxToMm(w), template.signaturesColMm, `ความกว้างคอลัมน์ที่ ${i} ของตารางลงชื่อ (มม.)`)
+    );
     assert.strictEqual(furniture.left, 2, 'คอลัมน์ซ้ายควรมี 2 บรรทัดลงชื่อ');
     assert.strictEqual(furniture.right, 5, 'คอลัมน์ขวาควรมี 5 บรรทัดลงชื่อ');
     assert.deepStrictEqual(
