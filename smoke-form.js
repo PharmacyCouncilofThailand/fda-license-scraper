@@ -73,9 +73,11 @@ const payload = {
     const bytes = Buffer.from(pdf);
     assert.strictEqual(bytes.subarray(0, 5).toString('latin1'), '%PDF-');
 
-    // The record is a two-page form; a third page means the fit pass failed.
+    // The record is two pages for a shop whose details are of ordinary
+    // length. It is allowed to run over for a long one, exactly as the Word
+    // copy does — the type is no longer shrunk to prevent it.
     const pages = (bytes.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
-    assert.strictEqual(pages, 2, `expected 2 pages, got ${pages}`);
+    assert.strictEqual(pages, 2, `expected 2 pages for the sample record, got ${pages}`);
 
 
     // The Word copy carries the same values and no leftover placeholders.

@@ -1,0 +1,20 @@
+{
+  "values": {
+    "placeName": "ร้านยาฟาสซิโน สาขาศูนย์ยาเชียงใหม่ ชื่อยาวเพื่อทดสอบการย่อขนาด",
+    "houseNo": "269/5",
+    "road": "เชียงใหม่-ลำพูน",
+    "subdistrict": "วัดเกต",
+    "district": "เมืองเชียงใหม่",
+    "province": "เชียงใหม่",
+    "phone": "0 5326 1150-2",
+    "licenseeName": "บริษัท โปร ฟาสซิโน จำกัด",
+    "operatorName": "นาย ไชยเสน พิศาลวาเลิศ",
+    "licenseNo": "ชม 1/2555",
+    "openHours": "08.00 - 21.00"
+  },
+  "checks": {
+    "shopOpen": true,
+    "didBuy": true,
+    "dutyAbsent": true
+  }
+}
