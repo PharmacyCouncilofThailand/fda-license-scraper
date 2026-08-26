@@ -31,6 +31,13 @@ for (const row of rows) {
   assert.ok(Array.isArray(row.notes), 'notes ต้องเป็นอาร์เรย์');
 }
 
+// Rows come back sorted by licence number, whatever order the council used.
+assert.deepStrictEqual(
+  rows.map((r) => Number(r.licenseNo)),
+  [...rows.map((r) => Number(r.licenseNo))].sort((a, b) => a - b),
+  'ผลลัพธ์ไม่ได้เรียงตามเลขใบอนุญาต'
+);
+
 // Every row of a surname search shares the surname.
 assert.strictEqual(
   new Set(rows.map((r) => r.lastName)).size,

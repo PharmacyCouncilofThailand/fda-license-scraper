@@ -115,7 +115,9 @@ function parseResultTable(html) {
       expiry: expiry === '-' ? '' : expiry,
     });
   }
-  return rows;
+  // The council returns rows in its own order; the panel reads better sorted by
+  // licence number, which is also roughly the order they were registered in.
+  return rows.sort((a, b) => Number(a.licenseNo) - Number(b.licenseNo));
 }
 
 /** Search modes the council's form understands. We never use 1 (licence no). */
