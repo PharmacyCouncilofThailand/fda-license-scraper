@@ -183,6 +183,10 @@
        */
       @media (min-width: 1160px) {
         body { padding-left: 324px; }
+        /* The sheet hugs the reserved strip instead of centring in what is
+           left of the window, so the panel sits beside it at any width rather
+           than drifting off into the margin on a wide screen. */
+        .sheet { margin-left: 0; margin-right: auto; }
         .lookup {
           position: fixed;
           /* Set from the toolbar's own height — it wraps to two rows on a

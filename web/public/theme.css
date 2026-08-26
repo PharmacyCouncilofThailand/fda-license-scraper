@@ -386,13 +386,19 @@ pharmacist-search { display: block; font-size: 0.92rem; }
 }
 .ps-output { margin-top: 8px; max-height: 46vh; overflow-y: auto; }
 .ps-group + .ps-group { margin-top: 6px; }
-.ps-summary { cursor: pointer; color: var(--muted-foreground); padding: 4px 0; }
+/* Sits directly on the host panel — olive in the sidebar, glass on the record
+   page — so it dims the inherited colour instead of naming a grey that only
+   works on white. Same for .ps-note below. */
+.ps-summary { cursor: pointer; color: inherit; opacity: 0.8; padding: 4px 0; }
+/* The card paints its own background, so it names its own text colour too —
+   the sidebar around it sets white text, which is invisible on white. */
 .ps-card {
   padding: 10px 12px;
   margin-top: 6px;
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   background: var(--card);
+  color: var(--card-foreground);
 }
 /* The name and the number lead; everything else on the card is context. */
 .ps-name { font-weight: 600; font-size: 1rem; line-height: 1.35; }
@@ -420,7 +426,9 @@ pharmacist-search { display: block; font-size: 0.92rem; }
 }
 .ps-source { margin-left: auto; }
 .ps-meta { color: var(--muted-foreground); font-size: 0.78rem; margin-top: 6px; }
-.ps-note { color: var(--muted-foreground); font-size: 0.85rem; margin: 6px 0 0; }
+.ps-note { color: inherit; opacity: 0.8; font-size: 0.85rem; margin: 6px 0 0; }
+/* Inside a card the panel colour no longer applies — grey reads as secondary. */
+.ps-card .ps-note { color: var(--muted-foreground); opacity: 1; }
 .ps-note-row {
   margin-top: 4px;
   padding: 2px 6px;
@@ -430,4 +438,11 @@ pharmacist-search { display: block; font-size: 0.92rem; }
   font-size: 0.8rem;
 }
 .ps-note-plain { margin-top: 4px; color: var(--muted-foreground); font-size: 0.75rem; }
-.ps-error { color: var(--destructive); }
+/* An error carries its own ground so it stays legible on any host panel. */
+.ps-error {
+  padding: 6px 8px;
+  border-radius: calc(var(--radius) - 6px);
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  opacity: 1;
+}
