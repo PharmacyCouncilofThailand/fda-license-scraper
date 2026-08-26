@@ -179,17 +179,19 @@
        * 210mm of sheet plus a 324px strip is 1142px, so dock the panel only
        * above that — and reserve the strip on the body rather than guessing a
        * gutter, so the sheet keeps centring in what is left and the two never
-       * overlap.
+       * overlap. It parks below the sticky toolbar, whose bottom edge is 74px.
        */
       @media (min-width: 1160px) {
-        body { padding-right: 324px; }
+        body { padding-left: 324px; }
         .lookup {
           position: fixed;
-          top: 84px;
-          right: 24px;
+          /* Set from the toolbar's own height — it wraps to two rows on a
+             narrower window, and a hard-coded offset slides underneath it. */
+          top: var(--lookup-top, 86px);
+          left: 24px;
           width: 276px;
           max-width: none;
-          max-height: calc(100vh - 108px);
+          max-height: calc(100vh - var(--lookup-top, 86px) - 24px);
           overflow-y: auto;
           margin: 0;
           z-index: 5;
@@ -199,7 +201,7 @@
       /* ---------- print ---------- */
       @page { size: A4; margin: 15mm 18mm; }
       @media print {
-        body { background: #fff; padding-right: 0; }
+        body { background: #fff; padding-left: 0; }
         .toolbar { display: none; }
         .lookup { display: none; }
         .sheet {
@@ -813,6 +815,26 @@
 
       const docxBtn = document.getElementById('downloadDocx');
       docxBtn.addEventListener('click', () => download(docxBtn, 'docx', 'Word'));
+
+      /*
+       * The lookup panel docks below the toolbar, which is sticky and wraps to
+       * two rows on a narrower window — so the offset comes from its measured
+       * height rather than a constant that only holds at one width.
+       */
+      const toolbar = document.querySelector('.toolbar');
+      const lookupTop = () => {
+        const gap = 12; // the toolbar's own top offset, and the gap under it
+        document.documentElement.style.setProperty(
+          '--lookup-top',
+          `${Math.round(toolbar.offsetHeight) + gap * 2}px`
+        );
+      };
+      lookupTop();
+      // The first measure lands before Kanit arrives, when the toolbar is
+      // still laid out in the fallback font and a different height.
+      if (document.fonts) document.fonts.ready.then(lookupTop);
+      window.addEventListener('resize', lookupTop);
+      new ResizeObserver(lookupTop).observe(toolbar);
     </script>
     <script src="./pharmacist-search.js"></script>
   </body>
