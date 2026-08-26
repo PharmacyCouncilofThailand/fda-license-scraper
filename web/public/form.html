@@ -160,11 +160,19 @@
       .sign .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
       .officer { text-align: center; display: inline-block; width: 150pt; }
 
+      /* The ภ. licence lookup, app chrome like the toolbar above it. */
+      .lookup {
+        max-width: 420px;
+        margin: 12px auto 0;
+        padding: 12px 14px;
+      }
+
       /* ---------- print ---------- */
       @page { size: A4; margin: 15mm 18mm; }
       @media print {
         body { background: #fff; }
         .toolbar { display: none; }
+        .lookup { display: none; }
         .sheet {
           width: auto;
           min-height: 0;
@@ -197,6 +205,11 @@
       <a class="btn" href="./index.html">
         <span class="material-symbols-outlined sm">arrow_back</span>กลับไปค้นหา
       </a>
+    </div>
+
+    <!-- Licence lookup — screen only, see the print rules above. -->
+    <div class="lookup glass-panel">
+      <pharmacist-search></pharmacist-search>
     </div>
 
     <!-- ============================ PAGE 1 ============================ -->
@@ -772,5 +785,6 @@
       const docxBtn = document.getElementById('downloadDocx');
       docxBtn.addEventListener('click', () => download(docxBtn, 'docx', 'Word'));
     </script>
+    <script src="./pharmacist-search.js"></script>
   </body>
 </html>
