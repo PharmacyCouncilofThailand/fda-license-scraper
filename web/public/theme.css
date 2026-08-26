@@ -345,7 +345,9 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 pharmacist-search { display: block; font-size: 0.92rem; }
 .ps-title { display: block; font-weight: 500; margin-bottom: 6px; }
 .ps-form { display: flex; flex-direction: column; gap: 6px; }
-.ps-row { display: flex; gap: 6px; }
+/* Either field alone is a valid search, so neither gets to look primary. */
+.ps-fields { display: flex; gap: 6px; }
+.ps-actions { display: flex; gap: 6px; }
 .ps-input {
   flex: 1;
   min-width: 0;
@@ -358,11 +360,22 @@ pharmacist-search { display: block; font-size: 0.92rem; }
 }
 .ps-input:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
 .ps-submit {
+  flex: 1;
   padding: 6px 14px;
   border: 0;
   border-radius: calc(var(--radius) - 2px);
   background: var(--primary);
   color: var(--primary-foreground);
+  font: inherit;
+  cursor: pointer;
+}
+.ps-submit:disabled { opacity: 0.6; cursor: default; }
+.ps-clear {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--muted-foreground);
   font: inherit;
   cursor: pointer;
 }
@@ -378,7 +391,8 @@ pharmacist-search { display: block; font-size: 0.92rem; }
 }
 .ps-name { font-weight: 500; }
 .ps-licence { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
-.ps-copy {
+.ps-copy,
+.ps-source {
   padding: 2px 8px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -388,6 +402,7 @@ pharmacist-search { display: block; font-size: 0.92rem; }
   font-size: 0.8rem;
   cursor: pointer;
 }
+.ps-source { margin-left: auto; }
 .ps-meta { color: var(--muted-foreground); font-size: 0.85rem; }
 .ps-note { color: var(--muted-foreground); font-size: 0.85rem; margin: 6px 0 0; }
 .ps-note-row {

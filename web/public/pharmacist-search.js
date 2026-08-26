@@ -74,12 +74,22 @@
       this.last.placeholder = 'นามสกุล';
       this.last.autocomplete = 'off';
 
-      const submit = el('button', 'ps-submit', 'ค้นหา');
-      submit.type = 'submit';
+      // Either field alone is a valid search, so both sit on one line and the
+      // button below spans them — nothing suggests one is the required one.
+      const fields = el('div', 'ps-fields');
+      fields.append(this.first, this.last);
 
-      const row = el('div', 'ps-row');
-      row.append(this.last, submit);
-      form.append(el('span', 'ps-title', 'ค้นเลข ภ.'), this.first, row);
+      this.submit = el('button', 'ps-submit', 'ค้นหา');
+      this.submit.type = 'submit';
+      this.clear = el('button', 'ps-clear', 'ล้าง');
+      this.clear.type = 'button';
+      this.clear.hidden = true;
+      this.clear.addEventListener('click', () => this.reset());
+
+      const actions = el('div', 'ps-actions');
+      actions.append(this.submit, this.clear);
+
+      form.append(el('span', 'ps-title', 'ค้นเลข ภ.'), fields, actions);
       form.addEventListener('submit', (event) => {
         event.preventDefault();
         this.search();
@@ -87,6 +97,21 @@
 
       this.output = el('div', 'ps-output');
       this.append(form, this.output);
+    }
+
+    reset() {
+      if (this.controller) this.controller.abort();
+      this.first.value = '';
+      this.last.value = '';
+      this.output.innerHTML = '';
+      this.clear.hidden = true;
+      this.first.focus();
+    }
+
+    /** The button is the progress indicator, and locks while a search runs. */
+    busy(on) {
+      this.submit.disabled = on;
+      this.submit.textContent = on ? 'กำลังค้น…' : 'ค้นหา';
     }
 
     /** One line of status text, replacing whatever is in the panel. */
@@ -105,6 +130,8 @@
 
       if (this.controller) this.controller.abort();
       this.controller = new AbortController();
+      this.clear.hidden = false;
+      this.busy(true);
       this.say('กำลังค้นหา…');
 
       const query = new URLSearchParams({ firstName, lastName });
@@ -116,11 +143,42 @@
         if (!response.ok || !data.success) {
           throw new Error(data.message || 'ค้นหาไม่สำเร็จ');
         }
+        this.sourceUrl = data.sourceUrl;
         this.show(data);
       } catch (err) {
         if (err.name === 'AbortError') return;
         this.say(err.message, 'ps-error');
+      } finally {
+        this.busy(false);
       }
+    }
+
+    /**
+     * Open one pharmacist's record on the council's own site. Their register
+     * answers a POST and nothing else — a GET with the same parameters renders
+     * an empty result — so this submits a real form into a new tab rather than
+     * linking. Searching by licence number is the fuller view: it carries the
+     * contact address and the photo, which the name search does not return.
+     */
+    openSource(licenseNo) {
+      const form = el('form');
+      form.method = 'post';
+      form.action = this.sourceUrl;
+      form.target = '_blank';
+      form.hidden = true;
+      for (const [name, value] of [
+        ['txtfind_type', '1'],
+        ['txtfind_id', licenseNo],
+      ]) {
+        const field = document.createElement('input');
+        field.type = 'hidden';
+        field.name = name;
+        field.value = value;
+        form.append(field);
+      }
+      document.body.append(form);
+      form.submit();
+      form.remove();
     }
 
     show(data) {
@@ -134,6 +192,9 @@
       this.output.innerHTML = '';
       // One filled group means one search term: no point labelling it.
       const single = filled.length === 1 && !(data.query.firstName && data.query.lastName);
+      if (single) {
+        this.output.append(el('p', 'ps-note', `พบ ${data.counts[filled[0]]} รายชื่อ`));
+      }
       for (const name of filled) {
         this.output.append(
           this.group(name, data.groups[name], data.counts[name], single, name === 'both')
@@ -181,7 +242,12 @@
           button.textContent = 'คัดลอก';
         }, 1500);
       });
-      licence.append(button);
+      const source = el('button', 'ps-source', 'ดูต้นทาง');
+      source.type = 'button';
+      source.title = 'เปิดข้อมูลคนนี้บนเว็บสภาเภสัชกรรม';
+      source.addEventListener('click', () => this.openSource(row.licenseNo));
+
+      licence.append(button, source);
       card.append(licence);
 
       const meta = [row.status, row.expiry && `หมดอายุ ${row.expiry}`]

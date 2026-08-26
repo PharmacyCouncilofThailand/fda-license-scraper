@@ -160,17 +160,46 @@
       .sign .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
       .officer { text-align: center; display: inline-block; width: 150pt; }
 
-      /* The ภ. licence lookup, app chrome like the toolbar above it. */
+      /*
+       * The ภ. licence lookup, app chrome like the toolbar. It sits beside
+       * the sheet rather than above it: the number it finds is copied into a
+       * field on the sheet, so the two have to be readable at once.
+       *
+       * The sheet is a fixed 210mm and centred, so the panel parks in the
+       * gutter to its right. When the window is too narrow for a gutter it
+       * falls back to flowing above the sheet.
+       */
       .lookup {
         max-width: 420px;
         margin: 12px auto 0;
         padding: 12px 14px;
       }
 
+      /*
+       * 210mm of sheet plus a 324px strip is 1142px, so dock the panel only
+       * above that — and reserve the strip on the body rather than guessing a
+       * gutter, so the sheet keeps centring in what is left and the two never
+       * overlap.
+       */
+      @media (min-width: 1160px) {
+        body { padding-right: 324px; }
+        .lookup {
+          position: fixed;
+          top: 84px;
+          right: 24px;
+          width: 276px;
+          max-width: none;
+          max-height: calc(100vh - 108px);
+          overflow-y: auto;
+          margin: 0;
+          z-index: 5;
+        }
+      }
+
       /* ---------- print ---------- */
       @page { size: A4; margin: 15mm 18mm; }
       @media print {
-        body { background: #fff; }
+        body { background: #fff; padding-right: 0; }
         .toolbar { display: none; }
         .lookup { display: none; }
         .sheet {

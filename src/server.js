@@ -131,7 +131,9 @@ app.get('/api/pharmacist', async (req, res, next) => {
       firstName: req.query.firstName,
       lastName: req.query.lastName,
     });
-    res.json({ success: true, ...data });
+    // The page offers "open this record at the council" per row, and their
+    // search only answers a POST — so the UI needs the address to post to.
+    res.json({ success: true, sourceUrl: config.pharmacistSearchUrl, ...data });
   } catch (err) {
     next(err);
   }
