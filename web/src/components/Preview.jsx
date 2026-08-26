@@ -80,11 +80,6 @@ function MapPanel({ row, detail }) {
 }
 
 /**
- * ผู้มีหน้าที่ปฏิบัติการ — the licence can name several, each with working
- * hours of their own, and item 2 of the record is filled from this list
- * rather than from the shop's opening hours. Shown in the licence's order.
- */
-/**
  * Hands a pharmacist's name to the licence lookup in the sidebar. The FDA
  * names the person but not their ภ. number, which is the one thing the
  * inspection record needs — so this saves retyping the name to find it.
@@ -102,11 +97,16 @@ function FindLicenceButton({ name }) {
       }
     >
       <span className="material-symbols-outlined sm">badge</span>
-      ค้นเลข ภ.
+      ค้นหาเลข ภ.
     </button>
   );
 }
 
+/**
+ * ผู้มีหน้าที่ปฏิบัติการ — the licence can name several, each with working
+ * hours of their own, and item 2 of the record is filled from this list
+ * rather than from the shop's opening hours. Shown in the licence's order.
+ */
 function PharmacistList({ pharmacists }) {
   if (!pharmacists || pharmacists.length === 0) {
     return (
