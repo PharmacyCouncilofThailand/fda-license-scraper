@@ -254,6 +254,24 @@ const pxToMm = (px) => px / 96 * 25.4;
     );
 
     console.log('ok — ตราสภาฯ ตารางลงชื่อ และท้ายกระดาษตรงกับไฟล์ Word');
+
+    // --- page height ------------------------------------------------------
+    // fitSheet()/shrinkToFit() are gone; nothing may silently reintroduce a
+    // sheet taller than the page. Height comes from the template's own
+    // <w:pgSz w:h="16838"/> (297mm), not a hard-coded number.
+    const sheetHeightsPx = await page.evaluate(() =>
+      [...document.querySelectorAll('.sheet')].map((node) => node.getBoundingClientRect().height)
+    );
+    const sheetHeightsMm = sheetHeightsPx.map(pxToMm);
+
+    sheetHeightsMm.forEach((h, i) =>
+      assert.ok(
+        h <= template.page.heightMm,
+        `แผ่นที่ ${i + 1} สูงเกินหน้ากระดาษ: ${h.toFixed(2)}mm > ${template.page.heightMm.toFixed(2)}mm (เกิน ${(h - template.page.heightMm).toFixed(2)}mm)`
+      )
+    );
+
+    console.log(`ok — ทุกแผ่นสูงไม่เกิน ${template.page.heightMm.toFixed(2)}mm (${sheetHeightsMm.map((h) => h.toFixed(2)).join(', ')})`);
   } finally {
     await browser.close();
   }

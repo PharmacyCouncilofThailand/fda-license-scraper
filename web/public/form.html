@@ -115,16 +115,17 @@
         font-weight: 400;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, .12);
         font-size: 15pt;
-        /* Word's "single" line spacing is not 1em, or any invented figure —
-           it comes straight from the font's own OS/2 win metrics, which is
-           what Word (without USE_TYPO_METRICS) uses to lay out a line at
-           100% spacing: TH SarabunPSK reports winAscent 844 / winDescent 457
-           on a 1000 unitsPerEm, i.e. (844+457)/1000 = 1.301em per line. The
-           previous 1.15 wasn't measured from anything and, being tighter
-           than the template, was never the source of the overflow that
-           forced fitSheet()/shrinkToFit() into existence — the furniture
-           below (the signature table) was. */
-        line-height: 1.301;
+        /* TH SarabunPSK carries three vertical-metric sets, and the OS/2
+           win figures used here before (844/457 -> 1.301em) turned out to be
+           the WIDEST of the three, not the narrowest invented guess they
+           replaced -- hhea gives 1.331em, OS/2 typo gives 1.160em. The
+           template's own docProps/app.xml records <Pages>2</Pages>, and
+           1.301em reproduces that on neither sheet; 1.160em is the only
+           one of the three that does (315.60mm measured at 1.301em scales
+           to ~281mm at 1.160em: 315.60 * (1.160/1.301) ~= 281mm, under the
+           297mm page). single spacing = (typoAscender - typoDescender +
+           typoLineGap) / unitsPerEm = (850 + 250 + 60) / 1000 = 1.16em. */
+        line-height: 1.16;
       }
       /* word/footer1.xml — "หน้าที่ N จาก 2" is a genuine Word footer, a
          separate document part that lives in the page's own footer band
