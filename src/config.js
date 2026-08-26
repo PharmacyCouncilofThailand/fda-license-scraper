@@ -106,4 +106,10 @@ module.exports = {
   detailPageUrl:
     process.env.FDA_DETAIL_PAGE_URL ||
     'https://pertento.fda.moph.go.th/FDA_INFORMATION_DRUG/Home/Public_Inform_Location_Drug',
+
+  // The Pharmacy Council's own search form. It is a page POST, not an API —
+  // see src/pharmacist.js. In the environment so a move needs no code change.
+  pharmacistSearchUrl:
+    process.env.PHARMACIST_SEARCH_URL ||
+    'https://www.pharmacycouncil.org/index.php?option=com_pharmacist_list',
 };

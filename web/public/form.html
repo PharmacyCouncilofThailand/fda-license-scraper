@@ -160,11 +160,53 @@
       .sign .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
       .officer { text-align: center; display: inline-block; width: 150pt; }
 
+      /*
+       * The ภ. licence lookup, app chrome like the toolbar. It sits beside
+       * the sheet rather than above it: the number it finds is copied into a
+       * field on the sheet, so the two have to be readable at once.
+       *
+       * The sheet is a fixed 210mm and centred, so the panel parks in the
+       * gutter to its right. When the window is too narrow for a gutter it
+       * falls back to flowing above the sheet.
+       */
+      .lookup {
+        max-width: 420px;
+        margin: 12px auto 0;
+        padding: 12px 14px;
+      }
+
+      /*
+       * Docked, the panel rides in the sheet's left gutter: the sheet stays
+       * centred and the toolbar stays full width, so nothing on the page moves
+       * to make room. `left` tracks the sheet's own left edge — half the window
+       * less half of the 210mm sheet, less the panel and its gap.
+       *
+       * That gutter only holds a 276px panel and a 16px gap once the window
+       * passes 1400px, so below that the panel goes back to flowing above the
+       * sheet. It parks under the sticky toolbar, whose height it measures.
+       */
+      @media (min-width: 1400px) {
+        .lookup {
+          position: fixed;
+          /* Set from the toolbar's own height — a hard-coded offset slides
+             underneath it whenever the toolbar lays out taller. */
+          top: var(--lookup-top, 86px);
+          left: calc(50% - 105mm - 292px);
+          width: 276px;
+          max-width: none;
+          max-height: calc(100vh - var(--lookup-top, 86px) - 24px);
+          overflow-y: auto;
+          margin: 0;
+          z-index: 5;
+        }
+      }
+
       /* ---------- print ---------- */
       @page { size: A4; margin: 15mm 18mm; }
       @media print {
         body { background: #fff; }
         .toolbar { display: none; }
+        .lookup { display: none; }
         .sheet {
           width: auto;
           min-height: 0;
@@ -197,6 +239,11 @@
       <a class="btn" href="./index.html">
         <span class="material-symbols-outlined sm">arrow_back</span>กลับไปค้นหา
       </a>
+    </div>
+
+    <!-- Licence lookup — screen only, see the print rules above. -->
+    <div class="lookup glass-panel">
+      <pharmacist-search></pharmacist-search>
     </div>
 
     <!-- ============================ PAGE 1 ============================ -->
@@ -771,6 +818,27 @@
 
       const docxBtn = document.getElementById('downloadDocx');
       docxBtn.addEventListener('click', () => download(docxBtn, 'docx', 'Word'));
+
+      /*
+       * The lookup panel docks below the toolbar, which is sticky and wraps to
+       * two rows on a narrower window — so the offset comes from its measured
+       * height rather than a constant that only holds at one width.
+       */
+      const toolbar = document.querySelector('.toolbar');
+      const lookupTop = () => {
+        const gap = 12; // the toolbar's own top offset, and the gap under it
+        document.documentElement.style.setProperty(
+          '--lookup-top',
+          `${Math.round(toolbar.offsetHeight) + gap * 2}px`
+        );
+      };
+      lookupTop();
+      // The first measure lands before Kanit arrives, when the toolbar is
+      // still laid out in the fallback font and a different height.
+      if (document.fonts) document.fonts.ready.then(lookupTop);
+      window.addEventListener('resize', lookupTop);
+      new ResizeObserver(lookupTop).observe(toolbar);
     </script>
+    <script src="./pharmacist-search.js"></script>
   </body>
 </html>

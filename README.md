@@ -61,6 +61,7 @@ template lives.
 | `FDA_DETAIL_URL` | the live portal | detail API (`GET_DATA_LOCATION_DRUG`), asked by Newcode |
 | `FDA_DETAIL_PAGE_URL` | the live portal | the human-readable detail page, linked from each result |
 | `FDA_SEARCH_TYPE` | `สืบค้นสถานที่ยา` | which of the portal's search modes to ask for |
+| `PHARMACIST_SEARCH_URL` | the council's search form | pharmacist name → licence number lookup |
 | `FORM_TEMPLATE` | `templates/inspection-form.docx` | the tokenised Word file — see "Deploying" |
 | `CHROME_PATH` | auto | Chrome/Edge binary, when Puppeteer's own download is unavailable |
 | `USER_AGENT` | desktop Chrome | see "WAF" below |

@@ -26,6 +26,11 @@ export default function Sidebar() {
         </a>
       </nav>
       <hr />
+      {/* Carries its own heading, so no group-label here.
+          Defined in web/public/pharmacist-search.js — the same element the
+          record page uses, so there is one implementation of this search. */}
+      <pharmacist-search />
+      <hr />
       <div className="foot">
         ข้อมูลจากระบบตรวจสอบการอนุญาต อย.
         <br />
