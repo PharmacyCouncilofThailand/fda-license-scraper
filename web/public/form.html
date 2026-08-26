@@ -115,9 +115,34 @@
         font-weight: 400;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, .12);
         font-size: 15pt;
-        line-height: 1.15;
+        /* Word's "single" line spacing is not 1em, or any invented figure —
+           it comes straight from the font's own OS/2 win metrics, which is
+           what Word (without USE_TYPO_METRICS) uses to lay out a line at
+           100% spacing: TH SarabunPSK reports winAscent 844 / winDescent 457
+           on a 1000 unitsPerEm, i.e. (844+457)/1000 = 1.301em per line. The
+           previous 1.15 wasn't measured from anything and, being tighter
+           than the template, was never the source of the overflow that
+           forced fitSheet()/shrinkToFit() into existence — the furniture
+           below (the signature table) was. */
+        line-height: 1.301;
       }
-      .page-no { text-align: right; font-size: .95em; }
+      /* word/footer1.xml — "หน้าที่ N จาก 2" is a genuine Word footer, a
+         separate document part that lives in the page's own footer band
+         (w:footer="709" twips ~= 12.5mm off the bottom edge), not a
+         paragraph inside word/document.xml's body. It never took height
+         out of the page's 275mm body content area in Word, so it can't be
+         left sitting in-flow at the top of our own body content either —
+         that was borrowing space this page doesn't have. Anchored the same
+         way the seal already is (position: absolute off the sheet's own
+         padding box) so it prints in the corner without pushing anything
+         below it down the page. */
+      .page-no {
+        position: absolute;
+        right: 20mm;
+        bottom: 10mm;
+        text-align: right;
+        font-size: .95em;
+      }
 
       /* Anchored top-left of page 1 and riding 5.6mm above the top margin,
          exactly as the template places it. The template's own
@@ -158,8 +183,18 @@
         max-width: 100%;
         border: 0;
         border-bottom: 1px dotted #444;
+        /* The border itself is the one bit of real height a plain text run
+           doesn't have to spend — Word's dotted underline is a decoration
+           on the glyph, not a box, so it costs nothing extra. Pulling the
+           box back up by the border's own width keeps the line the exact
+           height the paragraph's line-height already budgets for. */
+        margin-bottom: -1px;
         background: transparent;
-        padding: 0 3pt 1pt;
+        padding: 0 3pt;
+        line-height: inherit;
+        vertical-align: baseline;
+        -webkit-appearance: none;
+        appearance: none;
       }
       input.blank.filled { background: var(--fill); }
       input.blank { color: #000; }
@@ -175,13 +210,29 @@
          only the {{chk:...}} token removed — never a box glyph). */
       .check {
         font: inherit;
+        line-height: inherit;
         border: 0;
         background: transparent;
         padding: 0 2pt 0 0;
         cursor: pointer;
         white-space: nowrap;
+        /* A <button>'s UA form-control sizing keeps a minimum height taller
+           than the text line it sits in even with border/padding zeroed —
+           on a paragraph with several of these, that miminum stacked up
+           into real extra millimetres nothing in the template accounts
+           for. Word's own ☐ is a plain character in the run, no control
+           chrome around it, so the button has to give up its native
+           appearance to match the line it inherits. */
+        -webkit-appearance: none;
+        appearance: none;
       }
-      .check::before { content: "☐ "; font-size: 1.05em; }
+      /* font-size here used to run 1.05em to make the glyph read clearer,
+         but that's exactly what pushed this element's own line box past
+         the paragraph's line-height (1.05 x 1.301 > 1.301) and forced the
+         whole line taller than the template's — the glyph is legible
+         enough at 1em, and 1em keeps its line box the same height as
+         the text around it, same as Word's own ☐ character does. */
+      .check::before { content: "☐ "; }
       .check[aria-pressed="true"]::before { content: "☑ "; }
       .check[aria-pressed="true"] { font-weight: 700; }
       .check { color: #000; }
@@ -198,9 +249,18 @@
          itself. 4814 twips (the template's own <w:gridCol>) / 1440 * 25.4
          = 84.91mm; no `width` here so the table sizes to its columns
          exactly rather than being stretched to fill the sheet. */
-      .signatures { table-layout: fixed; border-collapse: collapse; margin-top: 10pt; }
+      /* sz/szCs 28 on every run in the table = 14pt, the same size as the
+         numbered items (.para.sm) — not the sheet's 15pt body size, which
+         is what this rule was missing before. */
+      .signatures { table-layout: fixed; border-collapse: collapse; margin-top: 10pt; font-size: 14pt; }
       .signatures col { width: 84.91mm; }
-      .signatures td { border: 0; padding: 0 0 6pt 0; vertical-align: bottom; line-height: 1.7; }
+      /* No padding and no bespoke line-height here: the template gives each
+         cell zero paragraph spacing and Word's own single-spacing (the
+         .sheet line-height above, which every cell inherits) — the padding
+         and 1.7 line-height this rule used to carry were invented, not
+         measured, and that's what inflated the table to 146.8mm against
+         the template's own ~96mm (5 rows x 3 lines x 14pt x 1.301). */
+      .signatures td { border: 0; padding: 0; vertical-align: bottom; }
       .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
       .officer { text-align: center; display: inline-block; width: 150pt; }
 
@@ -386,24 +446,32 @@
            the template (signDutyName, signLicenseeName) get an <input>; the
            five officers' names are baked into the template as plain text,
            same as elsewhere in the record (see the officers1/2 comment on
-           page 1) so they render as static text with no blank at all. -->
+           page 1) so they render as static text with no blank at all.
+
+           Each populated cell closes with a trailing <br/> because the
+           template's own <w:tc> holds a third, empty paragraph after the
+           name line (dumped straight from document.xml: every cell here is
+           3 paragraphs except row 1's officer cell, which is only 2) — that
+           empty line is real row height in the template, not spacing we
+           get to invent, and dropping it is what undercounted the table's
+           own height before. -->
       <table class="signatures">
         <colgroup><col /><col /></colgroup>
         <tbody>
           <tr>
             <td>
               ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" /> )
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" /> )<br />
             </td>
             <td>
               ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายศิริพงษ์ เจือโร่ง</span> )
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายศิริพงษ์ เจือโร่ง</span> )<br />
             </td>
           </tr>
           <tr>
             <td>
               ลงชื่อ <span class="rule"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" /> )
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" /> )<br />
             </td>
             <td>
               ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
@@ -414,21 +482,21 @@
             <td></td>
             <td>
               ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวอชิดา บุญเพียร</span> )
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวอชิดา บุญเพียร</span> )<br />
             </td>
           </tr>
           <tr>
             <td></td>
             <td>
               ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวศศิธร เจือโร่ง</span> )
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวศศิธร เจือโร่ง</span> )<br />
             </td>
           </tr>
           <tr>
             <td></td>
             <td>
               ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเจษฎา จันทรประเสริฐ</span> )
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเจษฎา จันทรประเสริฐ</span> )<br />
             </td>
           </tr>
         </tbody>
