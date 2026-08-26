@@ -636,8 +636,9 @@ async function renderFormPdf(data) {
       waitUntil: 'domcontentloaded',
       timeout: config.navTimeoutMs,
     });
-    // The sheet's fit pass measures text, so it has to run against the real
-    // typeface: domcontentloaded fires before the embedded font is decoded.
+    // domcontentloaded fires before the embedded font is decoded, and every
+    // line of the record is laid out against that face — waiting for it is
+    // what keeps the printed sheet the same shape as the measured one.
     await page.evaluate(() => document.fonts.ready);
     await page.evaluate((filled) => {
       window.applyData(filled);

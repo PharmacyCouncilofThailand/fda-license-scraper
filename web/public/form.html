@@ -136,11 +136,23 @@
          that was borrowing space this page doesn't have. Anchored the same
          way the seal already is (position: absolute off the sheet's own
          padding box) so it prints in the corner without pushing anything
-         below it down the page. */
+         below it down the page.
+
+         Anchored to the *page*, not to the sheet's content box: .sheet has no
+         min-height any more (that is what keeps the page-height assertion in
+         test-form-parity.js able to fail), so `bottom: 10mm` measured from a
+         285mm-tall box put the footer at 275.5mm on sheet 1 and 252.4mm on
+         sheet 2. A `top` on an absolutely positioned child is measured from
+         the containing block's padding-box top, which for a sheet *is* the
+         top of the printed page — so a top offset is a page offset.
+         297mm (w:pgSz w:h="16838") - 10mm (w:pgMar w:bottom="567") = 287mm:
+         the template's bottom margin line, inside the footer band w:footer
+         ="709" opens 12.5mm above the paper's edge. Less this line's own
+         height so its bottom, not its top, lands on 287mm. */
       .page-no {
         position: absolute;
         right: 20mm;
-        bottom: 10mm;
+        top: calc(297mm - 10mm - 1lh);
         text-align: right;
         font-size: .95em;
       }
@@ -157,18 +169,66 @@
         width: 18.58mm;
         height: 27mm;
       }
+      /* The template floats the seal with <wp:wrapNone/> and allowOverlap=
+         "1", so nothing in the flow knows it is there; in Word the three
+         paragraphs above item 3 simply come out tall enough that the text
+         starts below it. At this record's line height they do not — item 3's
+         first line measured 29.4mm against the seal's bottom edge at 33.4mm,
+         which put "อาศัยอำนาจตาม" underneath the seal.
+         The seal must not move, so the flow is given something to clear
+         instead: a zero-width float as tall as the seal's reach below the
+         top margin. Zero width means it shortens no line box — the centred
+         title still lays out exactly as before, and it never touched the
+         seal anyway — but a following block with `clear: left` starts under
+         it. Height = the seal's bottom edge, 12mm (w:pgMar w:top="680")
+         - 5.6mm (wp:posOffset -201769 EMU) + 27mm (wp:extent cy="972000"),
+         less the 12mm top margin the float itself starts at = 21.4mm,
+         plus 0.6mm: the sheet's 1.16em line is shorter than the face's own
+         (hhea 1.331em), so a line's glyphs overhang their line box by
+         (1.331 - 1.16) / 2 = 0.086em each side, and Thai tone marks sit
+         above the ascender on top of that — measured 0.53mm of ink still
+         over the seal with the block itself cleared. */
+      .sheet:has(.seal)::before {
+        content: "";
+        float: left;
+        width: 0;
+        height: calc(27mm - 5.6mm + 0.6mm);
+      }
+      .para.seal-clear { clear: left; }
+
+      /* On screen a sheet is a picture of a page, so it is drawn a page tall
+         and the footer sits inside the white. Screen only: in print .sheet
+         must stay content-height, or the page-height check in
+         test-form-parity.js would pass on any record however long. */
+      @media screen { .sheet { min-height: 297mm; } }
 
       /* One <p class="para"> per Word paragraph, in template order — see
          test-form-parity.js, which measures these directly against the
          template's own paragraph text and szCs. */
-      .para { margin: 0; text-align: justify; text-justify: inter-word; }
+      /* 58 of the template's 65 paragraphs are <w:jc w:val="thaiDistribute"/>,
+         which spreads a line's slack across its characters. `inter-word` put
+         all of it into the handful of ASCII spaces a Thai line has instead —
+         which is what pulled items (2) and (10) edge to edge with holes in
+         them. Chromium resolves both `distribute` and `inter-character` to
+         inter-character, and that is thaiDistribute's own rule: the slack
+         goes between characters, so a Thai run with no spaces in it justifies
+         at all (with `inter-word` it simply could not) and one with a few
+         spaces no longer pays for the whole line at those spaces.
+         `text-align-last: justify` was the other candidate and is a different
+         thing: it justifies the *last* line, it does not change where the
+         slack goes on any of the others. */
+      .para { margin: 0; text-align: justify; text-justify: inter-character; }
       .para.sm { font-size: 14pt; }
       .para.title { font-size: 18pt; font-weight: 700; text-align: center; }
       .para.centre { text-align: center; }
       .para.right { text-align: right; }
       .para.left { text-align: left; }
       .para.gap { margin-top: 6pt; }   /* Word's spacing w:before="120" */
-      .para.blank-line { min-height: 1em; }
+      /* An empty <p> has no line box and so no height at all; Word's empty
+         paragraph still costs one line. `1em` was the text's own size, not
+         the line the sheet allocates for it — `1lh` is that line, whatever
+         the sheet's line-height is set to. */
+      .para.blank-line { min-height: 1lh; }
 
       /* A blank in the Word original is dotted-underlined text sitting inside
          the paragraph, not a box: it takes only the room its value needs and
@@ -176,7 +236,7 @@
          the input grow with its content the same way; max-width keeps a long
          value from pushing past the paragraph's own edge, so it wraps to the
          next line instead of overflowing the sheet's right margin. */
-      input.blank {
+      input.blank, textarea.blank {
         field-sizing: content;
         font: inherit;
         color: inherit;
@@ -184,6 +244,9 @@
         max-width: 100%;
         border: 0;
         border-bottom: 1px dotted #444;
+        /* a <textarea> keeps the UA's 2px radius even with the border
+           zeroed, which curls the ends of the rule up off the line */
+        border-radius: 0;
         /* The border itself is the one bit of real height a plain text run
            doesn't have to spend — Word's dotted underline is a decoration
            on the glyph, not a box, so it costs nothing extra. Pulling the
@@ -197,12 +260,58 @@
         -webkit-appearance: none;
         appearance: none;
       }
-      input.blank.filled { background: var(--fill); }
-      input.blank { color: #000; }
-      input.blank:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
-      input.blank.w-s  { min-width: 70pt; }
-      input.blank.w-m  { min-width: 120pt; }
-      input.blank.w-l  { min-width: 180pt; }
+      .blank.filled { background: var(--fill); }
+      input.blank, textarea.blank { color: #000; }
+      .blank:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
+      .blank.w-s  { min-width: 70pt; }
+      .blank.w-m  { min-width: 120pt; }
+      .blank.w-l  { min-width: 180pt; }
+
+      /* A blank that cannot show all of its value. `field-sizing: content`
+         grows the box until max-width stops it at the paragraph's own edge;
+         past that the value is still there, still posted, still in the DOCX —
+         just not on the paper. That is two downloads of one record
+         disagreeing, so the record says so instead of hiding it: a solid rule
+         where the dotted one was, the whole value in the title, and a line in
+         the toolbar before either download leaves. It survives
+         prepareForPrint() on purpose — the printed sheet is the copy that is
+         short, so the printed sheet is where the mark is worth most. */
+      .blank.over { border-bottom: 1.5px solid #b00020; }
+
+      /* The blanks the template rules *across the page*: a dotted tab leader
+         long enough to cover a whole line of default tab stops on its own
+         (w:defaultTabStop 720 twips = 12.7mm, into a 9638-twip = 170mm text
+         column, so 13 stops is one full line). Only two of the template's
+         paragraphs carry one — {{leaveProofNote}} runs 30 tab stops and
+         {{behaviour1}} 20 plus a second group of 64 — and those spare stops
+         are the ruled lines an inspector writes on by hand, which this record
+         renders as the continuation paragraphs below them. They are the whole
+         line, so they get the whole line; the inline blanks keep sizing to
+         their content. */
+      .blank.full { width: 100%; }
+
+      /* The four free-text blanks with no continuation line under them. A
+         single-line input silently clips: at 15pt `placeName` showed 80 Thai
+         characters and clipped at 100 (scrollWidth 780 against clientWidth
+         643) while collect() still posted the whole value, so the PDF and the
+         Word copy of one record disagreed and nothing said so. A textarea
+         wraps instead — the value stays whole and stays visible, and
+         field-sizing grows the box to hold it, the same way the template's
+         leader carries on to the next line. */
+      textarea.blank {
+        resize: none;
+        overflow: hidden;
+        white-space: pre-wrap;
+        word-break: break-word;
+        /* Chromium gives a <textarea> no text baseline — it reports its
+           bottom margin edge — so on `vertical-align: baseline` the whole
+           box sits above the line's baseline and the line grows by a full
+           descent (measured: the paragraph went 5.73mm -> 7.76mm). Aligning
+           the box's bottom to the bottom of the surrounding text instead
+           puts its dotted edge where an <input>'s is and costs the line
+           nothing. */
+        vertical-align: text-bottom;
+      }
 
       /* the ☐ / ☑ boxes — CSS content, not a text node: the box is UI chrome
          for ticking the item, not part of the record's own wording, so it
@@ -227,12 +336,10 @@
         -webkit-appearance: none;
         appearance: none;
       }
-      /* font-size here used to run 1.05em to make the glyph read clearer,
-         but that's exactly what pushed this element's own line box past
-         the paragraph's line-height (1.05 x 1.301 > 1.301) and forced the
-         whole line taller than the template's — the glyph is legible
-         enough at 1em, and 1em keeps its line box the same height as
-         the text around it, same as Word's own ☐ character does. */
+      /* No font-size of its own on purpose. Word's ☐ is an ordinary
+         character in the run, the same size as the text beside it; anything
+         over 1em here makes this element's line box taller than the
+         paragraph's line-height and drags the whole line with it. */
       .check::before { content: "☐ "; }
       .check[aria-pressed="true"]::before { content: "☑ "; }
       .check[aria-pressed="true"] { font-weight: 700; }
@@ -240,10 +347,12 @@
       .check:focus-visible { outline: 2px solid var(--ring); }
 
       /* The council's signature block, straight off the template's own
-         table: 4814-twip (81.6mm) columns, every border none. The "ลงชื่อ"
-         line is a rule to be hand-signed, not a blank — same as the
-         page-1 signature line above (see .rule.blank there) — so it stays
-         a plain .rule with no `blank` class and does not enter the count. */
+         table: 4814-twip (84.91mm) columns, every border none. The seven
+         "ลงชื่อ" lines in it are rules to be hand-signed, not blanks, so
+         they carry no `blank` class and do not enter the count. The page-1
+         signature line above is the one exception and does carry it
+         (class="rule blank"): the template rules that one as a dotted run of
+         its own — paragraph 28's leader — so the count has to see it. */
       /* table-layout: fixed makes the browser honour <col> widths at all —
          under the default `auto` layout they're only a hint the layout
          algorithm is free to ignore once a `width` is set on the table
@@ -255,15 +364,31 @@
          is what this rule was missing before. */
       .signatures { table-layout: fixed; border-collapse: collapse; margin-top: 10pt; font-size: 14pt; }
       .signatures col { width: 84.91mm; }
-      /* No padding and no bespoke line-height here: the template gives each
-         cell zero paragraph spacing and Word's own single-spacing (the
-         .sheet line-height above, which every cell inherits) — the padding
-         and 1.7 line-height this rule used to carry were invented, not
-         measured, and that's what inflated the table to 146.8mm against
-         the template's own ~96mm (5 rows x 3 lines x 14pt x 1.301). */
-      .signatures td { border: 0; padding: 0; vertical-align: bottom; }
+      /* No vertical padding and no bespoke line-height here: the template
+         gives each cell zero paragraph spacing and Word's own single-spacing
+         (the .sheet line-height above, which every cell inherits) — the
+         padding and 1.7 line-height this rule used to carry were invented,
+         not measured, and that's what inflated the table to 146.8mm against
+         the template's own ~96mm (5 rows x 3 lines x 14pt x 1.301).
+         The horizontal padding is measured: styles.xml's <w:tblCellMar> is
+         108 twips (1.9mm) each side, and with the rules elastic the label now
+         reaches the column's edge — without it the left cell's
+         "/ เภสัชกร" ran straight into the right cell's "ลงชื่อ". The
+         <w:gridCol> width counts the margins in, so the cell is still
+         84.91mm wide. */
+      .signatures td { border: 0; padding: 0 1.9mm; vertical-align: bottom; }
       .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
       .officer { text-align: center; display: inline-block; width: 150pt; }
+      /* One "ลงชื่อ ......... label" line. The rule in the template is a tab
+         leader: it takes whatever the column has left after the label, it is
+         not a width of its own. A fixed 150pt one inside an 84.91mm (~240pt)
+         column left too little for the label and broke every one of the seven
+         cells mid-phrase ("ผู้มีหน้าที่ปฏิบัติ / การ / เภสัชกร", "พนักงานเจ้า /
+         หน้าที่"). Laying the line out as a flex row and letting the rule take
+         the free space puts each label back on one line; the rule keeps a
+         floor so it stays signable if a label ever grows. */
+      .sig { display: flex; align-items: baseline; gap: 3pt; }
+      .sig .rule { flex: 1 1 auto; width: auto; min-width: 36pt; }
 
       /*
        * The ภ. licence lookup, app chrome like the toolbar. It sits beside
@@ -324,8 +449,8 @@
           box-shadow: none;
         }
         .sheet + .sheet { page-break-before: always; }
-        input.blank { border-bottom: 1px dotted #444; }
-        input.blank.filled { background: transparent; }
+        input.blank, textarea.blank { border-bottom: 1px dotted #444; }
+        .blank.filled { background: transparent; }
       }
     </style>
   </head>
@@ -366,11 +491,15 @@
       <p class="para blank-line centre"><!-- 2 --></p>
 
       <!-- 3: the officers' names are baked into the template as plain text,
-           not a {{token}} — same as the six "officer" signature lines below.
-           The two blanks stay, hidden, only so their `name`s keep working if
-           anything downstream still reads them; the visible wording matches
-           the Word file's own literal names. -->
-      <p class="para">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ<input class="blank" name="officers1" value="นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง" hidden /><input class="blank" name="officers2" value="นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ" hidden /></p>
+           not a {{token}} — same as the six "officer" signature lines below —
+           so they render here as literal text and nothing fills them in.
+           The template still *rules* that text: it is one dotted run, and the
+           parity test counts dotted runs. The two hidden blanks are what that
+           count sees. Nothing reads them, nothing writes them; they exist to
+           hold the record's blank count level with the template's. Deleting
+           them means teaching the test to tell a ruled run of literal text
+           from a fillable one, which the template gives no way to do. -->
+      <p class="para seal-clear">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ<input class="blank" name="officers1" value="นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง" hidden /><input class="blank" name="officers2" value="นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ" hidden /></p>
 
       <p class="para"><!-- 4 -->ได้ทำการตรวจสถานที่ทำการของผู้ประกอบวิชาชีพเภสัชกรรมชื่อ<input class="blank" name="pharmacistName" /></p>
       <p class="para"><!-- 5 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-m" name="pharmacistLicenseNo" /> หมดอายุวันที่ <input class="blank w-m" name="pharmacistLicenseExpiry" /></p>
@@ -392,20 +521,20 @@
       <p class="para sm"><!-- 18 -->ทำหน้าที่ <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="roleLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="roleAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่ ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด</p>
 
       <p class="para sm"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" /> ได้จ่ายยา <input class="blank" name="drugDispensed" /> ให้จำนวน<input class="blank w-s" name="drugQuantity" /> ในราคา<input class="blank w-s" name="drugPrice" /> บาท ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" /> Lot<input class="blank w-s" name="lot" /> ผลิต<input class="blank w-s" name="mfgDate" /> ยาสิ้นอายุ<input class="blank w-s" name="expDate" /> ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น</p>
-      <p class="para sm"><!-- 20 --><button type="button" class="check" data-name="notDispensed" aria-pressed="false">ไม่ได้จ่ายยา เนื่องจาก</button> <input class="blank" name="notDispensedReason" /></p>
+      <p class="para sm"><!-- 20 --><button type="button" class="check" data-name="notDispensed" aria-pressed="false">ไม่ได้จ่ายยา เนื่องจาก</button> <textarea class="blank" name="notDispensedReason" rows="1"></textarea></p>
 
       <p class="para sm"><!-- 21 -->(3) <input class="blank" name="admitPerson" />ได้ยอมรับว่า <button type="button" class="check" data-name="admitSold" aria-pressed="false">ได้ขายยาตาม (2) ให้กับพนักงานเจ้าหน้าที่</button>ในขณะที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่จริง</p>
 
-      <p class="para sm"><!-- 22 -->(4) พนักงานเจ้าหน้าที่ได้แจ้งวัตถุประสงค์ในการตรวจครั้งนี้ว่าเป็นการตรวจสอบภายใต้กฎหมายวิชาชีพเภสัชกรรมตาม <button type="button" class="check" data-name="sourceTip" aria-pressed="false">มีการแจ้งเบาะแสมายังสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourcePlan" aria-pressed="false">แผนการเฝ้าระวังตามมติที่ประชุมคณะกรรมการสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourceComplaint" aria-pressed="false">มีผู้ร้องเรียน</button> แจ้งว่า<input class="blank" name="complaintDetail" /> ซึ่ง<input class="blank w-l" name="acknowledgedBy" /> รับทราบวัตถุประสงค์ในการตรวจของพนักงานเจ้าหน้าที่และยินดีให้ตรวจสอบและตรวจค้นภายในสถานที่ประกอบการ</p>
+      <p class="para sm"><!-- 22 -->(4) พนักงานเจ้าหน้าที่ได้แจ้งวัตถุประสงค์ในการตรวจครั้งนี้ว่าเป็นการตรวจสอบภายใต้กฎหมายวิชาชีพเภสัชกรรมตาม <button type="button" class="check" data-name="sourceTip" aria-pressed="false">มีการแจ้งเบาะแสมายังสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourcePlan" aria-pressed="false">แผนการเฝ้าระวังตามมติที่ประชุมคณะกรรมการสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourceComplaint" aria-pressed="false">มีผู้ร้องเรียน</button> แจ้งว่า<textarea class="blank" name="complaintDetail" rows="1"></textarea> ซึ่ง<input class="blank w-l" name="acknowledgedBy" /> รับทราบวัตถุประสงค์ในการตรวจของพนักงานเจ้าหน้าที่และยินดีให้ตรวจสอบและตรวจค้นภายในสถานที่ประกอบการ</p>
 
       <p class="para sm"><!-- 23 -->(5) ทางสถานที่ทำการ <button type="button" class="check" data-name="licenceShown" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="licenceNotShown" aria-pressed="false">ไม่พบ</button> การแสดงใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรมของผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="licenceOriginal" aria-pressed="false">ฉบับจริง</button> <button type="button" class="check" data-name="licenceCopy" aria-pressed="false">ฉบับสำเนา</button></p>
 
-      <p class="para sm"><!-- 24 -->(6) ขณะตรวจสอบ <button type="button" class="check" data-name="dutyPresent" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false">ไม่พบ</button> ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่<input class="blank" name="dutyNote" /></p>
+      <p class="para sm"><!-- 24 -->(6) ขณะตรวจสอบ <button type="button" class="check" data-name="dutyPresent" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false">ไม่พบ</button> ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่<textarea class="blank" name="dutyNote" rows="1"></textarea></p>
 
       <p class="para sm"><!-- 25 -->(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false">มี</button> <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false">ไม่มี</button> <input class="blank" name="leaveProofNote" /></p>
-      <p class="para sm"><input class="blank" name="leaveProofNote2" /></p>
+      <p class="para sm"><input class="blank full" name="leaveProofNote2" /></p>
 
-      <p class="para sm"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <input class="blank" name="curtainNote" /></p>
+      <p class="para sm"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <textarea class="blank" name="curtainNote" rows="1"></textarea></p>
 
       <p class="para sm blank-line"><!-- 27 --></p>
       <p class="para sm left"><!-- 28 -->ลงชื่อ <span class="rule blank"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
@@ -418,17 +547,18 @@
 
       <!-- 30: "ต่อจากหน้าที่ 1" is literal in the template, like the officers'
            names above — the record is always two pages, never re-numbered.
-           The blank stays, hidden, for the same reason as officers1/2. -->
+           The blank is hidden and holds the parity count, for the same
+           reason as officers1/2 above. -->
       <p class="para sm right">ต่อจากหน้าที่ 1<input class="blank w-s" name="continuedFrom" value="1" hidden /></p>
 
       <p class="para sm"><!-- 31 -->3. สรุปผลการตรวจสอบพบ (ต่อ)</p>
 
       <p class="para sm gap"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" /></p>
-      <p class="para sm"><input class="blank" name="behaviour2" /></p>
-      <p class="para sm"><input class="blank" name="behaviour3" /></p>
-      <p class="para sm"><input class="blank" name="behaviour4" /></p>
-      <p class="para sm"><input class="blank" name="behaviour5" /></p>
-      <p class="para sm"><input class="blank" name="behaviour6" /></p>
+      <p class="para sm"><input class="blank full" name="behaviour2" /></p>
+      <p class="para sm"><input class="blank full" name="behaviour3" /></p>
+      <p class="para sm"><input class="blank full" name="behaviour4" /></p>
+      <p class="para sm"><input class="blank full" name="behaviour5" /></p>
+      <p class="para sm"><input class="blank full" name="behaviour6" /></p>
 
       <p class="para sm gap"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<input class="blank w-m" name="seizedItems" value="-" /> จำนวน <input class="blank w-s" name="seizedCount" value="-" /> รายการ อายัด <input class="blank w-m" name="heldItems" value="-" /> จำนวน <input class="blank w-s" name="heldCount" value="-" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
 
@@ -449,55 +579,69 @@
            same as elsewhere in the record (see the officers1/2 comment on
            page 1) so they render as static text with no blank at all.
 
-           Each populated cell closes with a trailing <br/> because the
-           template's own <w:tc> holds a third, empty paragraph after the
-           name line (dumped straight from document.xml: every cell here is
-           3 paragraphs except row 1's officer cell, which is only 2) — that
-           empty line is real row height in the template, not spacing we
-           get to invent, and dropping it is what undercounted the table's
-           own height before. -->
+           One <div> per Word paragraph, so a cell is as many line boxes as
+           the template's own <w:tc> has paragraphs (dumped straight from
+           document.xml: every cell here is 3 paragraphs except row 1's
+           officer cell, which is only 2). The third one is empty and holds a
+           &nbsp; — a trailing <br/> draws no line box in Chromium, so the
+           empty line the template pays real row height for was only there by
+           accident before, made up of the ลงชื่อ label wrapping onto a
+           second line. See .sig, which stops it wrapping. -->
       <table class="signatures">
         <colgroup><col /><col /></colgroup>
         <tbody>
           <tr>
             <td>
-              ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" /> )<br />
+
+              <div class="sig">ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" /> )</div>
+              <div>&nbsp;</div>
             </td>
             <td>
-              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายศิริพงษ์ เจือโร่ง</span> )<br />
-            </td>
-          </tr>
-          <tr>
-            <td>
-              ลงชื่อ <span class="rule"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" /> )<br />
-            </td>
-            <td>
-              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเทอดภูมิ พัชรสุนทรชัย</span> )
+
+              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายศิริพงษ์ เจือโร่ง</span> )</div>
+              <div>&nbsp;</div>
             </td>
           </tr>
           <tr>
-            <td></td>
             <td>
-              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวอชิดา บุญเพียร</span> )<br />
+
+              <div class="sig">ลงชื่อ <span class="rule"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" /> )</div>
+              <div>&nbsp;</div>
             </td>
-          </tr>
-          <tr>
-            <td></td>
             <td>
-              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวศศิธร เจือโร่ง</span> )<br />
+
+              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเทอดภูมิ พัชรสุนทรชัย</span> )</div>
             </td>
           </tr>
           <tr>
             <td></td>
             <td>
-              ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเจษฎา จันทรประเสริฐ</span> )<br />
+
+              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวอชิดา บุญเพียร</span> )</div>
+              <div>&nbsp;</div>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>
+
+              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวศศิธร เจือโร่ง</span> )</div>
+              <div>&nbsp;</div>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>
+
+              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเจษฎา จันทรประเสริฐ</span> )</div>
+              <div>&nbsp;</div>
             </td>
           </tr>
         </tbody>
@@ -530,9 +674,27 @@
       }
 
       /* ---------------- read / write the whole form ---------------- */
+
+      const blanks = () => document.querySelectorAll('input.blank, textarea.blank');
+
+      /**
+       * Flag a blank whose value does not fit the room the record gives it.
+       * The value is kept whole — it is what collect() posts and what the
+       * DOCX gets — so without this the paper copy would be quietly shorter
+       * than the Word one. The four free-text blanks are textareas and wrap,
+       * so they never trip this; the rest are one line and can.
+       */
+      function markOverflow(field) {
+        const over = field.scrollWidth > field.clientWidth + 1;
+        field.classList.toggle('over', over);
+        field.title = over ? `ยาวเกินช่องบนกระดาษ — ไฟล์ Word ได้ครบ: ${field.value}` : '';
+        return over;
+      }
+      for (const field of blanks()) field.addEventListener('input', () => markOverflow(field));
+
       function collect() {
         const values = {};
-        for (const input of document.querySelectorAll('input.blank')) {
+        for (const input of document.querySelectorAll('input.blank, textarea.blank')) {
           values[input.name] = input.value;
         }
         const checks = {};
@@ -549,10 +711,11 @@
       window.applyData = function applyData(data) {
         const values = (data && data.values) || {};
         const checks = (data && data.checks) || {};
-        for (const input of document.querySelectorAll('input.blank')) {
+        for (const input of document.querySelectorAll('input.blank, textarea.blank')) {
           if (values[input.name] === undefined) continue;
           input.value = values[input.name];
           input.classList.toggle('filled', Boolean(values[input.name]));
+          markOverflow(input);
         }
         for (const button of document.querySelectorAll('.check')) {
           setCheck(button, Boolean(checks[button.dataset.name]));
@@ -563,7 +726,7 @@
       window.prepareForPrint = function prepareForPrint() {
         const toolbar = document.querySelector('.toolbar');
         if (toolbar) toolbar.remove();
-        for (const input of document.querySelectorAll('input.blank')) {
+        for (const input of document.querySelectorAll('input.blank, textarea.blank')) {
           input.classList.remove('filled');
         }
       };
@@ -646,9 +809,10 @@
       document.getElementById('print').addEventListener('click', () => window.print());
 
       document.getElementById('clear').addEventListener('click', () => {
-        for (const input of document.querySelectorAll('input.blank')) {
+        for (const input of document.querySelectorAll('input.blank, textarea.blank')) {
           input.value = '';
-          input.classList.remove('filled');
+          input.classList.remove('filled', 'over');
+          input.title = '';
         }
         for (const button of document.querySelectorAll('.check')) setCheck(button, false);
         statusEl.textContent = 'ล้างฟอร์มแล้ว';
@@ -668,6 +832,10 @@
         button.disabled = true;
         statusEl.className = 'note';
         statusEl.textContent = `กำลังสร้าง ${label}...`;
+        // Say it before the file leaves, not after: these values reach the
+        // DOCX whole and the PDF short, and only the officer can decide
+        // whether that matters.
+        const over = [...blanks()].filter((field) => field.classList.contains('over'));
         try {
           const response = await fetch(`${API_BASE}/api/form/${format}`, {
             method: 'POST',
@@ -688,7 +856,10 @@
           link.click();
           link.remove();
           setTimeout(() => URL.revokeObjectURL(url), 10000);
-          statusEl.textContent = `ดาวน์โหลด ${label} แล้ว`;
+          statusEl.textContent = over.length
+            ? `ดาวน์โหลด ${label} แล้ว — ${over.length} ช่องยาวเกินกระดาษ (${over.map((f) => f.name).join(', ')}) แสดงไม่ครบใน PDF`
+            : `ดาวน์โหลด ${label} แล้ว`;
+          if (over.length) statusEl.className = 'err';
         } catch (err) {
           statusEl.className = 'err';
           statusEl.textContent = `${err.message} — ใช้ปุ่ม “พิมพ์ / บันทึกเอง” แทนได้`;
