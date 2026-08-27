@@ -88,12 +88,13 @@ at the toolbar.
 
 ## Deploying
 
-Two files are deliberately **not** in this repository, because the Word
-template carries the inspecting officers' names:
+Three files are deliberately **not** in this repository, because the Word
+files carry the inspecting officers' names:
 
 | File | What it is | Without it |
 | --- | --- | --- |
 | `templates/inspection-form.docx` | the tokenised Word template | `POST /api/form/docx` fails with a clear message; PDF still works |
+| `templates/inspection-form-filled.docx` | a record the office filled in and corrected, the expectation for `npm run test:docx` | that test skips |
 | `scripts/logo-source.jpg` | the raw seal artwork | nothing — `web/public/logo.png` is already built and committed |
 
 Put the template on the machine at `templates/inspection-form.docx`, or
@@ -362,6 +363,42 @@ that the Word copy comes out with every placeholder replaced.
 wording and size, the number of blanks, the seal, the signature table and the
 footer. It skips when the template is not present, so it is a check for a
 developer's machine rather than for the deployment.
+
+The record on screen and in the PDF is ruled off the same grid. Every blank
+carries `data-tabs`, the number of dotted `<w:tab/>` runs the template gives
+it, and `layoutBlanks()` in `web/public/form.html` sets each rule's width to
+where those tabs land on Word's 12.7mm stop grid. A rule is therefore as wide
+as the form says, not as wide as what is typed on it: lines end where the
+template ends them, the address block reaches the margin, and justification
+has nothing left to stretch. A value too long for its rule widens it, the way
+it pushes the line on in Word. Empty `<span class="tab">` elements carry the
+same attribute where the template rules a gap between two pieces of its own
+wording rather than opening a blank to write in.
+
+`src/docx-layout.js` decides where a filled value sits inside its blank in the
+Word download. A blank there is a `{{token}}` run followed by a row of dotted
+`<w:tab/>` runs, and a tab does not add a fixed width — it jumps to the next
+stop on the grid. So a value dropped in with all its tabs left behind it pushes
+the line that many stops past itself and the line wraps onto the next one,
+while a value with too few leaves the rule stopping short of the margin. The
+module lays each paragraph out twice — once with every blank empty, which is
+the office's own form, and once with the values in — and gives each blank
+exactly the tabs it takes to end where it ended before. The value is centred in
+what room it has and never sits closer than two spaces to the label in front of
+it, which is how the office fills the form by hand.
+
+The character widths behind that are the font's own, generated into
+`src/th-sarabun-widths.js` by `node scripts/build-font-widths.js` — rerun it
+after replacing the font. `EM_ADJUST` in `src/docx-layout.js` is the knob if a
+filled record comes out consistently long or short.
+
+`npm run test:docx` renders `test/fixtures/fixform-values.json` and compares it
+against `templates/inspection-form-filled.docx` — a record the office filled in
+and corrected themselves, which is the expectation for spacing and for how far
+each rule runs. The comparison allows a few spaces either way, since the
+office's own lines disagree with each other by that much, but no blank may
+carry more tabs than theirs or than the blank form's. Both Word files stay out
+of the repository, so it skips with a message when they are absent.
 
 ## Endpoint
 

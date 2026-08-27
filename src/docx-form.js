@@ -23,6 +23,7 @@ const fs = require('fs');
 const path = require('path');
 const zip = require('./zip');
 const config = require('./config');
+const layout = require('./docx-layout');
 
 /**
  * Where the template comes from. A deployment has no writable disk and the
@@ -124,9 +125,15 @@ async function renderFormDocx(data) {
   const document = entries.find((e) => e.name === 'word/document.xml');
   if (!document) throw new Error('template is missing word/document.xml');
 
-  const xml = document.data
-    .toString('utf8')
-    .replace(/\{\{chk:([A-Za-z0-9_]+)\}\}/g, (_, name) => (checks[name] ? '☑' : '☐'))
+  const xml = layout
+    .fillDocumentXml(
+      document.data
+        .toString('utf8')
+        .replace(/\{\{chk:([A-Za-z0-9_]+)\}\}/g, (_, name) => (checks[name] ? '☑' : '☐')),
+      values
+    )
+    // Any token the office adds mid-sentence, sharing its run with other text,
+    // still gets filled — just without the padding or the tab arithmetic.
     .replace(/\{\{([A-Za-z0-9_]+)\}\}/g, (_, name) => escapeXml(values[name]));
 
   document.data = Buffer.from(xml, 'utf8');

@@ -219,6 +219,15 @@
          slack goes on any of the others. */
       .para { margin: 0; text-align: justify; text-justify: inter-character; }
       .para.sm { font-size: 14pt; }
+      /* A blank in Word is a row of tabs, and a tab runs to the next stop on a
+         12.7mm grid — so the rule is as wide as its tabs say, whatever is
+         typed on it, and the line always reads the same. `layoutBlanks()`
+         below measures that out and sets each rule's width; justification has
+         nothing left to stretch on those lines, so they are set flush left
+         the way the tabs leave them. Paragraphs of running text keep the
+         template's thaiDistribute. */
+      .para:has(.blank) { text-align: left; }
+
       .para.title { font-size: 18pt; font-weight: 700; text-align: center; }
       .para.centre { text-align: center; }
       .para.right { text-align: right; }
@@ -238,6 +247,11 @@
          next line instead of overflowing the sheet's right margin. */
       input.blank, textarea.blank {
         field-sizing: content;
+        /* layoutBlanks() sets the width the tab grid asks for, which is the
+           whole rule — its padding and its dotted border included. On the
+           default content box those three would add up past the stop and the
+           blank would wrap onto the next line. */
+        box-sizing: border-box;
         font: inherit;
         color: inherit;
         min-width: 60pt;
@@ -254,6 +268,14 @@
            height the paragraph's line-height already budgets for. */
         margin-bottom: -1px;
         background: transparent;
+        /* A value shorter than the blank's min-width leaves slack in the box.
+           Left-aligned that slack all falls on the right, which butts the
+           value up against the label in front of it and leaves a bare rule
+           trailing off; centring splits the slack evenly so the value sits in
+           the middle of its rule, the way it is written on the paper form.
+           Blanks sized to their content have no slack, so this is a no-op
+           for them. */
+        text-align: center;
         padding: 0 3pt;
         line-height: inherit;
         vertical-align: baseline;
@@ -266,6 +288,21 @@
       .blank.w-s  { min-width: 70pt; }
       .blank.w-m  { min-width: 120pt; }
       .blank.w-l  { min-width: 180pt; }
+      /* A blank the tab grid measures has no use for a hand-picked minimum:
+         the grid decides how wide the rule is, and a floor of its own only
+         made the rule too wide for its line and wrapped it onto the next. */
+      .blank[data-tabs]:not([data-tabs="0"]) { min-width: 0; }
+
+      /* A tab that rules a gap between two pieces of the form's own wording,
+         rather than opening a blank to write in: the template underlines those
+         runs the same dotted way, so the page does too. Its width comes off
+         the same grid as the blanks. */
+      .tab {
+        display: inline-block;
+        border-bottom: 1px dotted #444;
+        margin-bottom: -1px;
+        vertical-align: baseline;
+      }
 
       /* A blank that cannot show all of its value. `field-sizing: content`
          grows the box until max-width stops it at the paragraph's own edge;
@@ -288,7 +325,10 @@
          renders as the continuation paragraphs below them. They are the whole
          line, so they get the whole line; the inline blanks keep sizing to
          their content. */
-      .blank.full { width: 100%; }
+      /* Whole-line blanks are written on the way any other line is written —
+         from the left margin on — so they keep the ordinary alignment rather
+         than the centring the short inline blanks get. */
+      .blank.full { width: 100%; text-align: left; }
 
       /* The four free-text blanks with no continuation line under them. A
          single-line input silently clips: at 15pt `placeName` showed 80 Thai
@@ -299,6 +339,9 @@
          field-sizing grows the box to hold it, the same way the template's
          leader carries on to the next line. */
       textarea.blank {
+        /* Wrapped free text reads as a block, and centring every line of a
+           block ragged on both edges is not how the paper form is filled. */
+        text-align: left;
         resize: none;
         overflow: hidden;
         white-space: pre-wrap;
@@ -501,40 +544,40 @@
            from a fillable one, which the template gives no way to do. -->
       <p class="para seal-clear">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ<input class="blank" name="officers1" value="นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง" hidden /><input class="blank" name="officers2" value="นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ" hidden /></p>
 
-      <p class="para"><!-- 4 -->ได้ทำการตรวจสถานที่ทำการของผู้ประกอบวิชาชีพเภสัชกรรมชื่อ<input class="blank" name="pharmacistName" /></p>
-      <p class="para"><!-- 5 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-m" name="pharmacistLicenseNo" /> หมดอายุวันที่ <input class="blank w-m" name="pharmacistLicenseExpiry" /></p>
-      <p class="para"><!-- 6 -->สถานที่ทำการประเภทขายยาแผนปัจจุบันชื่อ<input class="blank" name="placeName" /></p>
-      <p class="para"><!-- 7 -->ตั้งอยู่เลขที่<input class="blank w-m" name="houseNo" /> หมู่บ้าน/อาคาร<input class="blank" name="village" /></p>
-      <p class="para"><!-- 8 -->หมู่ที่<input class="blank w-s" name="moo" /> ตรอก/ซอย<input class="blank" name="soi" /> ถนน<input class="blank" name="road" /></p>
-      <p class="para"><!-- 9 -->แขวง/ตำบล<input class="blank" name="subdistrict" /> เขต/อำเภอ<input class="blank" name="district" /> จังหวัด<input class="blank" name="province" /></p>
-      <p class="para"><!-- 10 -->เบอร์โทรศัพท์ติดต่อ<input class="blank" name="phone" /> เขตสถานีตำรวจ<input class="blank" name="policeStation" /></p>
-      <p class="para"><!-- 11 -->เมื่อวันที่<input class="blank w-m" name="inspectDate" /> เวลา<input class="blank w-s" name="inspectTime" /> น. ปรากฏผลดังนี้</p>
+      <p class="para"><!-- 4 -->ได้ทำการตรวจสถานที่ทำการของผู้ประกอบวิชาชีพเภสัชกรรมชื่อ<input class="blank" name="pharmacistName" data-tabs="7" /></p>
+      <p class="para"><!-- 5 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-m" name="pharmacistLicenseNo" data-tabs="3" /> หมดอายุวันที่ <input class="blank w-m" name="pharmacistLicenseExpiry" data-tabs="4" /></p>
+      <p class="para"><!-- 6 -->สถานที่ทำการประเภท<span class="tab" data-tabs="1"></span>ขายยาแผนปัจจุบัน<span class="tab" data-tabs="1"></span>ชื่อ<input class="blank" name="placeName" data-tabs="7" /></p>
+      <p class="para"><!-- 7 -->ตั้งอยู่เลขที่<input class="blank w-m" name="houseNo" data-tabs="5" /> หมู่บ้าน/อาคาร<input class="blank" name="village" data-tabs="6" /></p>
+      <p class="para"><!-- 8 -->หมู่ที่<input class="blank w-s" name="moo" data-tabs="3" /> ตรอก/ซอย<input class="blank" name="soi" data-tabs="4" /> ถนน<input class="blank" name="road" data-tabs="5" /></p>
+      <p class="para"><!-- 9 -->แขวง/ตำบล<input class="blank" name="subdistrict" data-tabs="4" /> เขต/อำเภอ<input class="blank" name="district" data-tabs="3" /> จังหวัด<input class="blank" name="province" data-tabs="4" /></p>
+      <p class="para"><!-- 10 -->เบอร์โทรศัพท์ติดต่อ<input class="blank" name="phone" data-tabs="5" /> เขตสถานีตำรวจ<input class="blank" name="policeStation" data-tabs="5" /></p>
+      <p class="para"><!-- 11 -->เมื่อวันที่<input class="blank w-m" name="inspectDate" data-tabs="6" /> เวลา<input class="blank w-s" name="inspectTime" data-tabs="4" /> น. ปรากฏผลดังนี้</p>
 
-      <p class="para sm"><!-- 12 -->1. ชื่อผู้รับอนุญาตของสถานที่ทำการ<input class="blank" name="licenseeName" /></p>
-      <p class="para"><!-- 13 -->ชื่อผู้ดำเนินการกิจการ<input class="blank" name="operatorName" /> ใบอนุญาตขายยาแผนปัจจุบันเลขที่<input class="blank w-m" name="licenseNo" /></p>
-      <p class="para sm"><!-- 14 -->2. ชื่อผู้มีหน้าที่ปฏิบัติการ<input class="blank" name="dutyPharmacist" /></p>
-      <p class="para sm"><!-- 15 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-s" name="dutyLicenseNo" /> หมดอายุวันที่ <input class="blank w-s" name="dutyLicenseExpiry" /> เวลาทำการ <input class="blank w-m" name="openHours" /> น.</p>
+      <p class="para sm"><!-- 12 -->1. ชื่อผู้รับอนุญาตของสถานที่ทำการ<input class="blank" name="licenseeName" data-tabs="9" /></p>
+      <p class="para"><!-- 13 -->ชื่อผู้ดำเนินการกิจการ<input class="blank" name="operatorName" data-tabs="5" /> ใบอนุญาตขายยาแผนปัจจุบันเลขที่<input class="blank w-m" name="licenseNo" data-tabs="3" /></p>
+      <p class="para sm"><!-- 14 -->2. ชื่อผู้มีหน้าที่ปฏิบัติการ<input class="blank" name="dutyPharmacist" data-tabs="10" /></p>
+      <p class="para sm"><!-- 15 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-s" name="dutyLicenseNo" data-tabs="2" /> หมดอายุวันที่ <input class="blank w-s" name="dutyLicenseExpiry" data-tabs="2" /> เวลาทำการ <input class="blank w-m" name="openHours" data-tabs="3" /> น.</p>
 
       <p class="para">3. สรุปผลการตรวจสอบพบ ดังนี้<!-- 16 --></p>
 
-      <p class="para sm"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> พบ<input class="blank" name="personFound" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" /></p>
+      <p class="para sm"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" data-tabs="2" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" data-tabs="4" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> พบ<input class="blank" name="personFound" data-tabs="5" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" data-tabs="6" /></p>
       <p class="para sm"><!-- 18 -->ทำหน้าที่ <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="roleLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="roleAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่ ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด</p>
 
-      <p class="para sm"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" /> ได้จ่ายยา <input class="blank" name="drugDispensed" /> ให้จำนวน<input class="blank w-s" name="drugQuantity" /> ในราคา<input class="blank w-s" name="drugPrice" /> บาท ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" /> Lot<input class="blank w-s" name="lot" /> ผลิต<input class="blank w-s" name="mfgDate" /> ยาสิ้นอายุ<input class="blank w-s" name="expDate" /> ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น</p>
-      <p class="para sm"><!-- 20 --><button type="button" class="check" data-name="notDispensed" aria-pressed="false">ไม่ได้จ่ายยา เนื่องจาก</button> <textarea class="blank" name="notDispensedReason" rows="1"></textarea></p>
+      <p class="para sm"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" data-tabs="2" /> ได้จ่ายยา <input class="blank" name="drugDispensed" data-tabs="3" /> ให้จำนวน<input class="blank w-s" name="drugQuantity" data-tabs="4" /> ในราคา<input class="blank w-s" name="drugPrice" data-tabs="2" /> บาท ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" data-tabs="3" /> Lot<input class="blank w-s" name="lot" data-tabs="2" /> ผลิต<input class="blank w-s" name="mfgDate" data-tabs="2" /> ยาสิ้นอายุ<input class="blank w-s" name="expDate" data-tabs="3" /> ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น</p>
+      <p class="para sm"><!-- 20 --><button type="button" class="check" data-name="notDispensed" aria-pressed="false">ไม่ได้จ่ายยา เนื่องจาก</button> <textarea class="blank" name="notDispensedReason" data-tabs="9" rows="1"></textarea></p>
 
-      <p class="para sm"><!-- 21 -->(3) <input class="blank" name="admitPerson" />ได้ยอมรับว่า <button type="button" class="check" data-name="admitSold" aria-pressed="false">ได้ขายยาตาม (2) ให้กับพนักงานเจ้าหน้าที่</button>ในขณะที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่จริง</p>
+      <p class="para sm"><!-- 21 -->(3) <input class="blank" name="admitPerson" data-tabs="6" />ได้ยอมรับว่า <button type="button" class="check" data-name="admitSold" aria-pressed="false">ได้ขายยาตาม (2) ให้กับพนักงานเจ้าหน้าที่</button>ในขณะที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่จริง</p>
 
-      <p class="para sm"><!-- 22 -->(4) พนักงานเจ้าหน้าที่ได้แจ้งวัตถุประสงค์ในการตรวจครั้งนี้ว่าเป็นการตรวจสอบภายใต้กฎหมายวิชาชีพเภสัชกรรมตาม <button type="button" class="check" data-name="sourceTip" aria-pressed="false">มีการแจ้งเบาะแสมายังสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourcePlan" aria-pressed="false">แผนการเฝ้าระวังตามมติที่ประชุมคณะกรรมการสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourceComplaint" aria-pressed="false">มีผู้ร้องเรียน</button> แจ้งว่า<textarea class="blank" name="complaintDetail" rows="1"></textarea> ซึ่ง<input class="blank w-l" name="acknowledgedBy" /> รับทราบวัตถุประสงค์ในการตรวจของพนักงานเจ้าหน้าที่และยินดีให้ตรวจสอบและตรวจค้นภายในสถานที่ประกอบการ</p>
+      <p class="para sm"><!-- 22 -->(4) พนักงานเจ้าหน้าที่ได้แจ้งวัตถุประสงค์ในการตรวจครั้งนี้ว่าเป็นการตรวจสอบภายใต้กฎหมายวิชาชีพเภสัชกรรมตาม <button type="button" class="check" data-name="sourceTip" aria-pressed="false">มีการแจ้งเบาะแสมายังสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourcePlan" aria-pressed="false">แผนการเฝ้าระวังตามมติที่ประชุมคณะกรรมการสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourceComplaint" aria-pressed="false">มีผู้ร้องเรียน</button> แจ้งว่า<textarea class="blank" name="complaintDetail" data-tabs="4" rows="1"></textarea> ซึ่ง<input class="blank w-l" name="acknowledgedBy" data-tabs="6" /> รับทราบวัตถุประสงค์ในการตรวจของพนักงานเจ้าหน้าที่และยินดีให้ตรวจสอบและตรวจค้นภายในสถานที่ประกอบการ</p>
 
       <p class="para sm"><!-- 23 -->(5) ทางสถานที่ทำการ <button type="button" class="check" data-name="licenceShown" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="licenceNotShown" aria-pressed="false">ไม่พบ</button> การแสดงใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรมของผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="licenceOriginal" aria-pressed="false">ฉบับจริง</button> <button type="button" class="check" data-name="licenceCopy" aria-pressed="false">ฉบับสำเนา</button></p>
 
-      <p class="para sm"><!-- 24 -->(6) ขณะตรวจสอบ <button type="button" class="check" data-name="dutyPresent" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false">ไม่พบ</button> ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่<textarea class="blank" name="dutyNote" rows="1"></textarea></p>
+      <p class="para sm"><!-- 24 -->(6) ขณะตรวจสอบ <button type="button" class="check" data-name="dutyPresent" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false">ไม่พบ</button> ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่<textarea class="blank" name="dutyNote" data-tabs="13" rows="1"></textarea></p>
 
-      <p class="para sm"><!-- 25 -->(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false">มี</button> <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false">ไม่มี</button> <input class="blank" name="leaveProofNote" /></p>
+      <p class="para sm"><!-- 25 -->(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false">มี</button> <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false">ไม่มี</button> <input class="blank" name="leaveProofNote" data-tabs="30" /></p>
       <p class="para sm"><input class="blank full" name="leaveProofNote2" /></p>
 
-      <p class="para sm"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <textarea class="blank" name="curtainNote" rows="1"></textarea></p>
+      <p class="para sm"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <textarea class="blank" name="curtainNote" data-tabs="15" rows="1"></textarea></p>
 
       <p class="para sm blank-line"><!-- 27 --></p>
       <p class="para sm left"><!-- 28 -->ลงชื่อ <span class="rule blank"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
@@ -553,18 +596,18 @@
 
       <p class="para sm"><!-- 31 -->3. สรุปผลการตรวจสอบพบ (ต่อ)</p>
 
-      <p class="para sm gap"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" /></p>
+      <p class="para sm gap"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" data-tabs="20" /></p>
       <p class="para sm"><input class="blank full" name="behaviour2" /></p>
       <p class="para sm"><input class="blank full" name="behaviour3" /></p>
       <p class="para sm"><input class="blank full" name="behaviour4" /></p>
       <p class="para sm"><input class="blank full" name="behaviour5" /></p>
       <p class="para sm"><input class="blank full" name="behaviour6" /></p>
 
-      <p class="para sm gap"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<input class="blank w-m" name="seizedItems" value="-" /> จำนวน <input class="blank w-s" name="seizedCount" value="-" /> รายการ อายัด <input class="blank w-m" name="heldItems" value="-" /> จำนวน <input class="blank w-s" name="heldCount" value="-" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
+      <p class="para sm gap"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<span class="tab" data-tabs="1"></span><input class="blank w-m" name="seizedItems" data-tabs="1" value="-" /> จำนวน <input class="blank w-s" name="seizedCount" data-tabs="1" value="-" /> รายการ อายัด <span class="tab" data-tabs="1"></span><input class="blank w-m" name="heldItems" data-tabs="1" value="-" /> จำนวน <input class="blank w-s" name="heldCount" data-tabs="1" value="-" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
 
       <p class="para sm gap"><!-- 34 -->(11) พนักงานเจ้าหน้าที่ได้แจ้งข้อมูลให้ทราบว่า กรณีที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่ปฏิบัติหน้าที่ ให้ร้านปฏิบัติตามกฎหมายว่าด้วยยา และห้ามมิให้มีการจำหน่าย จ่าย แจก หรือส่งมอบ ยาประเภทยาอันตราย ยาควบคุมพิเศษ วัตถุที่ออกฤทธิ์ต่อจิตและประสาท หรือยาเสพติดให้โทษ โดยบุคคลที่ไม่ได้เป็นผู้ประกอบวิชาชีพเภสัชกรรม หากมีการฝ่าฝืนจะเป็นความผิดตามพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 โดย <button type="button" class="check" data-name="informPharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="informLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="informAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> เข้าใจและรับทราบข้อมูลตามที่แจ้ง</p>
 
-      <p class="para sm gap"><!-- 35 -->(12) สิ้นสุดการตรวจเวลา<input class="blank w-m" name="endTime" /> น.</p>
+      <p class="para sm gap"><!-- 35 -->(12) สิ้นสุดการตรวจเวลา<input class="blank w-m" name="endTime" data-tabs="2" /> น.</p>
 
       <p class="para sm gap"><!-- 36 -->พนักงานเจ้าหน้าที่ที่มาทำการตรวจครั้งนี้ ได้กระทำไปตามอำนาจหน้าที่ มิได้เรียกรับหรือยอมจะรับทรัพย์สินของผู้หนึ่งผู้ใดมาเป็นของตนหรือบุคคลอื่น มิได้บังคับขู่เข็ญหรือทำร้ายร่างกายหรือได้ทำให้ทรัพย์สินของผู้ใดที่อยู่ในที่นี้สูญหายหรือเสียหายหรือยึดเอามาเป็นส่วนตัวแต่อย่างใด อ่านให้ฟังโดยตลอดและได้อ่านเองแล้ว รับรองว่าถูกต้อง จึงลงลายมือชื่อไว้เป็นสำคัญ</p>
 
@@ -594,7 +637,7 @@
             <td>
 
               <div class="sig">ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร</div>
-              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" /> )</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" data-tabs="0" /> )</div>
               <div>&nbsp;</div>
             </td>
             <td>
@@ -608,7 +651,7 @@
             <td>
 
               <div class="sig">ลงชื่อ <span class="rule"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</div>
-              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" /> )</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" data-tabs="0" /> )</div>
               <div>&nbsp;</div>
             </td>
             <td>
@@ -692,6 +735,53 @@
       }
       for (const field of blanks()) field.addEventListener('input', () => markOverflow(field));
 
+      /*
+       * Put every rule back on Word's tab grid.
+       *
+       * A blank in the template is a row of dotted <w:tab/> runs, and a tab
+       * runs to the next stop on a 12.7mm grid (w:defaultTabStop 720 twips).
+       * So the rule's width is decided by the grid and by how many tabs the
+       * blank has — `data-tabs`, read off the template — and not at all by
+       * what is typed on it. Sizing the rules to their content instead is what
+       * made the record look unlike the form: rules stopping mid-line, lines
+       * left short of the margin, and justification stretching the words on
+       * the lines either side to fill the gap that left behind.
+       *
+       * A value too long for its rule widens it, as it pushes the line on in
+       * Word, and the rule never runs past the right margin.
+       */
+      const TAB_STOP_PX = (12.7 / 25.4) * 96; // w:defaultTabStop 720 twips
+      window.layoutBlanks = function layoutBlanks() {
+        const sheet = document.querySelector('.sheet');
+        if (!sheet) return;
+        const box = sheet.getBoundingClientRect();
+        const style = getComputedStyle(sheet);
+        // Tab stops are measured from the left margin, which is where the
+        // sheet's own content box begins.
+        const origin = box.left + parseFloat(style.paddingLeft);
+        const margin = box.right - parseFloat(style.paddingRight);
+
+        for (const field of document.querySelectorAll('.blank[data-tabs], .tab[data-tabs]')) {
+          const tabs = Number(field.dataset.tabs);
+          if (!tabs || field.hidden || field.classList.contains('full')) continue;
+          // Let it fall back to its content width first, so a value too long
+          // for the grid still gets the room it needs.
+          field.style.width = '';
+          const start = field.getBoundingClientRect().left;
+          let x = start;
+          for (let i = 0; i < tabs; i += 1) {
+            x = Math.min(origin + (Math.floor((x - origin) / TAB_STOP_PX) + 1) * TAB_STOP_PX, margin);
+          }
+          const ruled = x - start;
+          if (field.classList.contains('tab')) {
+            field.style.width = `${ruled}px`;
+            continue;
+          }
+          if (ruled > field.getBoundingClientRect().width) field.style.width = `${ruled}px`;
+          markOverflow(field);
+        }
+      };
+
       function collect() {
         const values = {};
         for (const input of document.querySelectorAll('input.blank, textarea.blank')) {
@@ -720,7 +810,14 @@
         for (const button of document.querySelectorAll('.check')) {
           setCheck(button, Boolean(checks[button.dataset.name]));
         }
+        window.layoutBlanks();
       };
+
+      // The rules are measured, so they have to be measured again whenever the
+      // measurement could have changed: once the record's own face has loaded,
+      // and after anything is typed into a blank.
+      document.fonts.ready.then(() => window.layoutBlanks());
+      for (const field of blanks()) field.addEventListener('input', () => window.layoutBlanks());
 
       /** Hides the toolbar and the on-screen fill highlight before page.pdf(). */
       window.prepareForPrint = function prepareForPrint() {
