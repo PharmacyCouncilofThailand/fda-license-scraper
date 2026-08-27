@@ -291,6 +291,14 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
   .app-sidebar hr, .app-sidebar .group-label, .app-sidebar .foot { display: none; }
   .app-sidebar nav { grid-auto-flow: column; margin-left: auto; }
   .app-sidebar nav a .dot { display: none; }
+  /* The bar is a row, so the search drops onto a second line of it — closed,
+     until the officer opens it (see the <details> in pharmacist-search.js). */
+  .app-sidebar { flex-wrap: wrap; overflow: visible; }
+  .app-sidebar pharmacist-search { width: 100%; }
+}
+@media (max-width: 420px) {
+  /* Two labels and a seal will not fit across a small phone. */
+  .app-sidebar nav a { padding: 9px 10px; font-size: 13px; }
 }
 
 /* ---------------- icons ---------------- */
@@ -343,7 +351,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
    tokens above so it looks the same in both.
    ------------------------------------------------------------------ */
 pharmacist-search { display: block; font-size: 0.92rem; }
-.ps-title { display: block; font-weight: 500; margin-bottom: 6px; }
+.ps-title { display: block; font-weight: 500; margin-bottom: 6px; cursor: pointer; }
+.ps-box[open] .ps-title { margin-bottom: 8px; }
 .ps-form { display: flex; flex-direction: column; gap: 6px; }
 /*
  * Either field alone is a valid search, so the two are stacked at equal width

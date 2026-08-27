@@ -123,6 +123,7 @@
       if (!firstName && !lastName) return;
       this.first.value = firstName;
       this.last.value = lastName;
+      this.box.open = true;
       this.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       this.search();
     }
@@ -154,14 +155,23 @@
       const actions = el('div', 'ps-actions');
       actions.append(this.submit, this.clear);
 
-      form.append(el('span', 'ps-title', 'ค้นเลข ภ.'), fields, actions);
+      form.append(fields, actions);
       form.addEventListener('submit', (event) => {
         event.preventDefault();
         this.search();
       });
 
       this.output = el('div', 'ps-output');
-      this.append(form, this.output);
+      /*
+       * A <details>, because on a phone the sidebar is a bar across the top of
+       * the window and a search that is always open pushes the page down. Open
+       * to start with wherever there is room for it — the sidebar is a column
+       * again from 900px, and the record page gives the panel a whole gutter.
+       */
+      this.box = el('details', 'ps-box');
+      this.box.open = window.innerWidth >= 900;
+      this.box.append(el('summary', 'ps-title', 'ค้นเลข ภ.'), form, this.output);
+      this.append(this.box);
     }
 
     reset() {

@@ -202,6 +202,13 @@
          test-form-parity.js would pass on any record however long. */
       @media screen { .sheet { min-height: 297mm; } }
 
+      /* A sheet is 210mm wide because the page it stands for is. On a screen
+         narrower than that the whole sheet is zoomed down rather than reflowed:
+         the record has to look like the page it prints as, and the tab grid
+         that rules its blanks only lines up at one width. fitSheets() below
+         sets the factor; zoom scales layout, so nothing else has to move. */
+      @media screen { .sheet { zoom: var(--sheet-zoom, 1); } }
+
       /* One <p class="para"> per Word paragraph, in template order — see
          test-form-parity.js, which measures these directly against the
          template's own paragraph text and szCs. */
@@ -443,7 +450,9 @@
        * falls back to flowing above the sheet.
        */
       .lookup {
-        max-width: 420px;
+        /* Clear of the window edge on a phone, where the sheet's own margin is
+           all that is left of the gutter this panel usually sits in. */
+        max-width: min(420px, 100% - 32px);
         margin: 12px auto 0;
         padding: 12px 14px;
       }
@@ -756,10 +765,17 @@
         if (!sheet) return;
         const box = sheet.getBoundingClientRect();
         const style = getComputedStyle(sheet);
+        /* On a narrow screen the sheet is zoomed (see --sheet-zoom above).
+           Zoom scales what getBoundingClientRect() reports but not computed
+           padding or a width set in px, so every measured edge is divided back
+           out and the grid stays in the sheet's own 210mm space. The factor is
+           read off the sheet rather than measured, so a sub-pixel rounding in
+           the rect cannot pass for a zoom and drag the grid off true. */
+        const scale = parseFloat(style.zoom) || 1;
         // Tab stops are measured from the left margin, which is where the
         // sheet's own content box begins.
-        const origin = box.left + parseFloat(style.paddingLeft);
-        const margin = box.right - parseFloat(style.paddingRight);
+        const origin = box.left / scale + parseFloat(style.paddingLeft);
+        const margin = box.right / scale - parseFloat(style.paddingRight);
 
         for (const field of document.querySelectorAll('.blank[data-tabs], .tab[data-tabs]')) {
           const tabs = Number(field.dataset.tabs);
@@ -767,7 +783,7 @@
           // Let it fall back to its content width first, so a value too long
           // for the grid still gets the room it needs.
           field.style.width = '';
-          const start = field.getBoundingClientRect().left;
+          const start = field.getBoundingClientRect().left / scale;
           let x = start;
           for (let i = 0; i < tabs; i += 1) {
             x = Math.min(origin + (Math.floor((x - origin) / TAB_STOP_PX) + 1) * TAB_STOP_PX, margin);
@@ -777,7 +793,7 @@
             field.style.width = `${ruled}px`;
             continue;
           }
-          if (ruled > field.getBoundingClientRect().width) field.style.width = `${ruled}px`;
+          if (ruled > field.getBoundingClientRect().width / scale) field.style.width = `${ruled}px`;
           markOverflow(field);
         }
       };
@@ -813,11 +829,31 @@
         window.layoutBlanks();
       };
 
+      /**
+       * Shrink the sheet to whatever width the window has, up to its own 210mm.
+       * Only ever down: a wide window shows the page at size, and printing is
+       * untouched because the zoom is inside `@media screen`.
+       */
+      const SHEET_PX = (210 / 25.4) * 96;
+      function fitSheets() {
+        const room = document.documentElement.clientWidth - 16; // the sheet's own margin
+        document.documentElement.style.setProperty(
+          '--sheet-zoom',
+          Math.min(1, room / SHEET_PX).toFixed(4)
+        );
+      }
+      fitSheets();
+
       // The rules are measured, so they have to be measured again whenever the
       // measurement could have changed: once the record's own face has loaded,
-      // and after anything is typed into a blank.
+      // after anything is typed into a blank, and when the window resizes and
+      // the sheet is zoomed to a new factor.
       document.fonts.ready.then(() => window.layoutBlanks());
       for (const field of blanks()) field.addEventListener('input', () => window.layoutBlanks());
+      window.addEventListener('resize', () => {
+        fitSheets();
+        window.layoutBlanks();
+      });
 
       /** Hides the toolbar and the on-screen fill highlight before page.pdf(). */
       window.prepareForPrint = function prepareForPrint() {
