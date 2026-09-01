@@ -54,10 +54,10 @@ const FIELD_AT_TAB = {
   184: 'acknowledgedBy',
   190: 'dutyNote',
   203: 'leaveProofNote',
-  233: 'curtainNote',
-  249: 'signPage1Name',
-  252: 'behaviour1',
-  338: 'endTime',
+  220: 'curtainNote',
+  236: 'signPage1Name',
+  238: 'behaviour1',
+  259: 'endTime',
 };
 
 /* The ☐ glyphs, in document order. */
@@ -129,6 +129,43 @@ if (seizedParagraphs !== 1 || dashes !== SEIZED.length) {
   throw new Error(`item (10): ${seizedParagraphs} paragraphs, ${dashes} blanks`);
 }
 
+/*
+ * The inspecting officers' names in the opening paragraph. The original has
+ * them as twenty-odd dotted runs, because Word split every name where it was
+ * edited, so the record could not fill them and whoever the file named was
+ * who the record said went. Collapsed into one {{officers1}} run with the
+ * same formatting: no <w:tab/> moves, so FIELD_AT_TAB above still counts
+ * true, and the dotted run stays one group to the parity test.
+ */
+{
+  let done = 0;
+  const hits = inParagraph(
+    (text) => text.includes('อาศัยอำนาจตามความในมาตรา 47'),
+    (para) => {
+      const runs = para.match(/<w:r[ >][\s\S]*?<\/w:r>/g) || [];
+      const textOf = (run) => (run.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/) || [])[1] || '';
+      const from = runs.findIndex((r) => textOf(r).includes('ประกอบด้วย')) + 1;
+      const to = runs.findIndex((r) => textOf(r).includes('นทรประเสริฐ'));
+      if (from < 1 || to < from) return para;
+      // By offset rather than by joining the runs back up: Word leaves
+      // proofing marks and bookmarks between them, so they are not one
+      // contiguous string in the file and a join matches nothing at all.
+      const start = para.indexOf(runs[from]);
+      const end = para.indexOf(runs[to]) + runs[to].length;
+      const rPr = (runs[to].match(/<w:rPr>[\s\S]*?<\/w:rPr>/) || [''])[0];
+      done = to - from + 1;
+      return (
+        para.slice(0, start) +
+        `<w:r>${rPr}<w:t xml:space="preserve">{{officers1}}</w:t></w:r>` +
+        para.slice(end)
+      );
+    }
+  );
+  if (hits !== 1 || done < 10 || !xml.includes('{{officers1}}')) {
+    throw new Error(`officers: ${hits} paragraphs, ${done} runs replaced`);
+  }
+}
+
 /* The two page-2 signature names: put the token just inside the "(". */
 for (const [label, field] of [
   ['( ) เภสัชกร', 'signDutyName'],
@@ -143,6 +180,38 @@ for (const [label, field] of [
       )
   );
   if (hits !== 1) throw new Error(`signature "${label}": ${hits} paragraphs`);
+}
+
+/*
+ * The five officers who sign page 2. Their names are literal text in the
+ * signature table, one "( name )" paragraph each, split into three or four
+ * runs apiece. Each becomes a {{signOfficerN}} between that paragraph's own
+ * "(" and ")" runs, in document order, so the picker on the record can put
+ * whoever actually went here. These runs carry no tab and no dotted
+ * underline, so neither the tab grid above nor the blank count sees a change.
+ */
+{
+  let n = 0;
+  inParagraph(
+    // Page 1's own '( {{signPage1Name}} )' matches this shape too, and is
+    // already a blank by the time this runs — a paragraph with a token in
+    // it has been dealt with.
+    (text) => /^\(\s*\S[\s\S]*\)$/.test(text) && !text.includes('{{'),
+    (para) => {
+      const runs = para.match(/<w:r[ >][\s\S]*?<\/w:r>/g) || [];
+      if (runs.length < 3) return para;
+      const start = para.indexOf(runs[1]);
+      const end = para.indexOf(runs[runs.length - 1]);
+      const rPr = (runs[1].match(/<w:rPr>[\s\S]*?<\/w:rPr>/) || [''])[0];
+      n += 1;
+      return (
+        para.slice(0, start) +
+        `<w:r>${rPr}<w:t xml:space="preserve">{{signOfficer${n}}}</w:t></w:r>` +
+        para.slice(end)
+      );
+    }
+  );
+  if (n !== 5) throw new Error(`signature officers: ${n} paragraphs`);
 }
 
 /* ---- 2. name every checkbox ---- */
@@ -163,6 +232,6 @@ fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, zip.write(entries));
 const tokens = (xml.match(/\{\{(?!chk:)/g) || []).length;
 console.log(
-  `ok — ${tokens} blanks (${inserted} tab, ${dashes + 2} literal), ` +
+  `ok — ${tokens} blanks (${inserted} tab, ${dashes + 8} literal), ` +
     `${checkIndex} checkboxes, ${fs.statSync(OUT).size} bytes`
 );

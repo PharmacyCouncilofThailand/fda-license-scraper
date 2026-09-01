@@ -66,10 +66,30 @@ function readTemplate() {
         .replace(/\s+/g, ' ')
         .trim();
       const sizeMatch = block.match(/<w:szCs w:val="(\d+)"/);
+      /*
+       * Where the paragraph's first line starts. Word gets there two ways and
+       * they compose: <w:ind w:left/w:firstLine> in twips, and leading
+       * <w:tab/> runs, which are not an indent at all but land in the same
+       * place — a tab advances to the next stop on the 12.7mm default grid
+       * (w:defaultTabStop 720), so one at the head of a 992-twip first line
+       * indents to 25.4mm, not to 30.2mm.
+       */
+      const pPr = (block.match(/<w:pPr>[\s\S]*?<\/w:pPr>/) || [''])[0];
+      const num = (re) => Number((pPr.match(re) || [])[1] || 0);
+      let lead = 0;
+      for (const run of block.matchAll(/<w:tab\/>|<w:t[^>]*>([\s\S]*?)<\/w:t>/g)) {
+        if (run[0] === '<w:tab/>') lead += 1;
+        else if (run[1].trim() !== '') break;
+      }
+      let firstLineMm = twipsToMm(num(/w:firstLine="(\d+)"/));
+      for (let i = 0; i < lead; i += 1) {
+        firstLineMm = (Math.floor(firstLineMm / 12.7) + 1) * 12.7;
+      }
       return {
         type: 'paragraph',
         text,
         pt: sizeMatch ? Number(sizeMatch[1]) / 2 : null,
+        indentMm: twipsToMm(num(/<w:ind[^>]*w:left="(\d+)"/)) + firstLineMm,
         block,
       };
     });
@@ -198,6 +218,7 @@ const pxToMm = (px) => px / 96 * 25.4;
       .map((b) => ({
         text: b.text.replace(/\{\{[^}]*\}\}/g, ' ').replace(/\s+/g, ' ').trim(),
         pt: b.pt,
+        indentMm: b.indentMm,
       }))
       .filter((b) => b.text !== '');
 
@@ -205,6 +226,11 @@ const pxToMm = (px) => px / 96 * 25.4;
       [...document.querySelectorAll('.sheet .para')].map((node) => ({
         text: node.textContent.replace(/\s+/g, ' ').trim(),
         pt: Math.round(parseFloat(getComputedStyle(node).fontSize) / 96 * 72 * 2) / 2,
+        indentMm:
+          (parseFloat(getComputedStyle(node).marginLeft) +
+            parseFloat(getComputedStyle(node).textIndent)) /
+          96 *
+          25.4,
       })).filter((p) => p.text !== '')
     );
 
@@ -223,6 +249,13 @@ const pxToMm = (px) => px / 96 * 25.4;
         actual[i].pt,
         want.pt,
         `ขนาดตัวอักษรย่อหน้าที่ ${i}: หน้าเว็บ ${actual[i].pt}pt Word ${want.pt}pt`
+      );
+      // The indent is what tells the numbered items apart from the running
+      // text; without it the record reads as one undifferentiated block.
+      assert.ok(
+        Math.abs(actual[i].indentMm - want.indentMm) <= 0.5,
+        `ย่อหน้าที่ ${i} ย่อหน้าไม่ตรง: หน้าเว็บ ${actual[i].indentMm.toFixed(2)}mm ` +
+          `Word ${want.indentMm.toFixed(2)}mm — ${want.text.slice(0, 40)}`
       );
     });
 
@@ -405,6 +438,35 @@ const pxToMm = (px) => px / 96 * 25.4;
     assert.deepStrictEqual(silent, [], `ช่องกรอกที่ตัดข้อความทิ้งเงียบ ๆ: ${silent.join(' / ')}`);
 
     console.log('ok — ตราไม่ทับข้อความ ช่องลงชื่อไม่ตกบรรทัด ท้ายกระดาษอยู่ขอบล่าง และไม่มีช่องใดตัดข้อความ');
+
+    // --- nothing on the page may move while a blank is typed into ---------
+    // The rules are on Word's tab grid, so what is typed on one cannot decide
+    // how wide it is. When it did, every keystroke re-measured the grid and
+    // the rules after it on the line — and the paragraph's own wrapping —
+    // shifted under the cursor. Type into every single-line blank in turn and
+    // check that every rule on the sheet is exactly where it was.
+    const moved = await page.evaluate(() => {
+      const rules = () =>
+        Array.from(document.querySelectorAll('.blank, .tab')).map((el) => {
+          const box = el.getBoundingClientRect();
+          return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+        });
+      const before = rules();
+      const shifted = [];
+      for (const field of document.querySelectorAll('input.blank')) {
+        const was = field.value;
+        field.value = 'ก'.repeat(120);
+        field.dispatchEvent(new Event('input'));
+        const after = rules();
+        if (after.join('|') !== before.join('|')) shifted.push(field.name);
+        field.value = was;
+        field.dispatchEvent(new Event('input'));
+      }
+      return shifted;
+    });
+    assert.deepStrictEqual(moved, [], `พิมพ์แล้วบรรทัดขยับ: ${moved.join(', ')}`);
+
+    console.log('ok — พิมพ์ลงช่องกรอกแล้วไม่มีบรรทัดใดขยับ');
 
     // --- page height ------------------------------------------------------
     // fitSheet()/shrinkToFit() are gone; nothing may silently reintroduce a

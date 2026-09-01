@@ -50,9 +50,28 @@
       :root { --fill: color-mix(in srgb, var(--primary) 9%, transparent); }
 
       /* ---------- toolbar (screen only) ---------- */
+      /* Fixed, not sticky, and the page is padded out from under it. Sticky
+         keeps the bar on screen by letting the document slide *underneath*
+         it — 110mm of toolbar over a record whose lines are 5mm apart hid
+         five or six lines of the form at every scroll position, and a
+         paragraph you cannot see has gone missing as far as the officer
+         reading it is concerned. Word does not put its ribbon over the page
+         either. --lookup-top is the bar's measured height plus its gaps, set
+         below and already used to dock the lookup panel under it. */
+      /* The record scrolls in its own box below the bar, the way a document
+         scrolls below Word's ribbon. Sticky and fixed both keep the bar on
+         screen by letting the page slide *underneath* it, and 112px of
+         toolbar over a record whose lines are 5mm apart hid five or six
+         lines of the form at every scroll position — a paragraph you cannot
+         see has gone missing as far as the officer reading it is concerned.
+         Screen only: print has one long flow and no toolbar at all. */
+      @media screen {
+        html, body { height: 100%; }
+        body { display: flex; flex-direction: column; overflow: hidden; }
+        .doc { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; }
+      }
       .toolbar {
-        position: sticky;
-        top: 12px;
+        flex: 0 0 auto;
         z-index: 10;
         display: flex;
         flex-wrap: wrap;
@@ -235,6 +254,30 @@
          template's thaiDistribute. */
       .para:has(.blank) { text-align: left; }
 
+      /* ---- the template's own indents ----
+         Word indents these paragraphs two ways and the record was doing
+         neither, so every item sat flush against the left margin and the
+         form read as one undifferentiated block. Both are named in twips
+         (1440 to the inch), straight off word/document.xml:
+
+         - <w:ind w:firstLine="N"/> on the numbered items;
+         - a leading <w:tab/> run, which is not an indent at all but lands in
+           the same place: a tab advances to the next stop on the 12.7mm
+           default grid, so one at the head of a line indents it 12.7mm, and
+           one after a 992-twip first line indents to 25.4mm rather than to
+           30.2mm — the stop, not the sum.
+
+         w:right shortens the line at the other end; it is what keeps (2)
+         through (6) clear of the right margin. */
+      .para.ind-tab1  { text-indent: 12.7mm; }   /* one leading <w:tab/> */
+      .para.ind-tab2  { text-indent: 25.4mm; }   /* two, or firstLine + one */
+      .para.ind-993   { text-indent: 17.52mm; }
+      .para.ind-992   { text-indent: 17.50mm; }
+      .para.ind-851   { text-indent: 15.01mm; }
+      .para.ind-left2268 { margin-left: 40.01mm; }
+      .para.r142 { padding-right: 2.51mm; }
+      .para.r140 { padding-right: 2.47mm; }
+
       .para.title { font-size: 18pt; font-weight: 700; text-align: center; }
       .para.centre { text-align: center; }
       .para.right { text-align: right; }
@@ -253,7 +296,6 @@
          value from pushing past the paragraph's own edge, so it wraps to the
          next line instead of overflowing the sheet's right margin. */
       input.blank, textarea.blank {
-        field-sizing: content;
         /* layoutBlanks() sets the width the tab grid asks for, which is the
            whole rule — its padding and its dotted border included. On the
            default content box those three would add up past the stop and the
@@ -292,9 +334,19 @@
       .blank.filled { background: var(--fill); }
       input.blank, textarea.blank { color: #000; }
       .blank:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
-      .blank.w-s  { min-width: 70pt; }
-      .blank.w-m  { min-width: 120pt; }
-      .blank.w-l  { min-width: 180pt; }
+      input.blank { width: 100pt; }
+      /* Item (10)'s four blanks. Word rules each of them with a single tab,
+         and a tab runs to the next stop on the 12.7mm grid — so where each one
+         happens to start decides how long its rule is, and they came out 14px,
+         39px, 14px, 39px with two stray leader stubs between them. Four
+         blanks that mean the same kind of thing, ruled four different
+         lengths, read as a mistake. One width for all four instead, off the
+         grid rather than on it: the line is the template's, the rules are
+         even. */
+      .blank.w-eq { min-width: 48pt; width: 48pt; }
+      .blank.w-s  { min-width: 70pt; width: 70pt; }
+      .blank.w-m  { min-width: 120pt; width: 120pt; }
+      .blank.w-l  { min-width: 180pt; width: 180pt; }
       /* A blank the tab grid measures has no use for a hand-picked minimum:
          the grid decides how wide the rule is, and a floor of its own only
          made the rule too wide for its line and wrapped it onto the next. */
@@ -337,6 +389,15 @@
          than the centring the short inline blanks get. */
       .blank.full { width: 100%; text-align: left; }
 
+      /* A wrapping blank whose value needs more than its line has left. A
+         box four lines tall wedged into the end of a line drags the whole
+         line up around it; given the next line to itself it is two lines and
+         reads straight through. That is what the template's own spare tab
+         stops are for — the ruled lines under an item, written on when the
+         first one runs out. Set by layoutBlanks(), which is not called while
+         anything is being typed, so no line moves under the cursor. */
+      .blank.full-row { display: block; width: 100%; text-align: left; }
+
       /* The four free-text blanks with no continuation line under them. A
          single-line input silently clips: at 15pt `placeName` showed 80 Thai
          characters and clipped at 100 (scrollWidth 780 against clientWidth
@@ -346,6 +407,12 @@
          field-sizing grows the box to hold it, the same way the template's
          leader carries on to the next line. */
       textarea.blank {
+        /* No `field-sizing: content` here: the width comes off the tab grid
+           and is set in pixels, and on a px width Chromium's content-sizing
+           left the box a pixel or two short of the text it was holding — a
+           silent clip at the bottom of the box. fitHeight() sets the height
+           off scrollHeight instead, which cannot be short by construction. */
+        height: 1lh;
         /* Wrapped free text reads as a block, and centring every line of a
            block ragged on both edges is not how the paper form is filled. */
         text-align: left;
@@ -362,6 +429,46 @@
            nothing. */
         vertical-align: text-bottom;
       }
+
+      /* The ▾ that opens the officer picker. Its glyph is CSS content for the
+         same reason the checkboxes' is: the parity test compares each
+         paragraph's textContent against the template, and a button with text
+         in it would be text the Word file does not have. Screen only — it is
+         a control, not part of the record. */
+      .pick {
+        font: inherit;
+        line-height: inherit;
+        border: 0;
+        background: transparent;
+        padding: 0 0 0 2pt;
+        cursor: pointer;
+        color: #666;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .pick::before { content: "▾"; }
+      .pick:hover { color: #000; }
+      .pick:focus-visible { outline: 2px solid var(--ring); }
+      @media print { .pick { display: none; } }
+
+      /* The picker itself. A <dialog>, so Escape, the backdrop and the focus
+         trap come from the browser rather than from us. */
+      .picker { border: 1px solid var(--border); border-radius: 1rem; padding: 18px 20px; max-width: 380px; }
+      .picker::backdrop { background: rgba(0, 0, 0, .35); }
+      .picker h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+      .picker label { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; cursor: pointer; }
+      .picker .extra { display: block; margin-top: 12px; font-size: 13px; color: var(--muted-foreground); }
+      .picker textarea {
+        width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit;
+        border: 1px solid var(--border); border-radius: .75rem; background: var(--card);
+        color: var(--foreground); resize: vertical; min-height: 60px;
+      }
+      .picker .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+      .picker button {
+        padding: 8px 16px; border-radius: 1rem; border: 1px solid var(--border);
+        background: var(--card); color: var(--foreground); cursor: pointer; font: inherit;
+      }
+      .picker button.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
 
       /* the ☐ / ☑ boxes — CSS content, not a text node: the box is UI chrome
          for ticking the item, not part of the record's own wording, so it
@@ -428,7 +535,25 @@
          84.91mm wide. */
       .signatures td { border: 0; padding: 0 1.9mm; vertical-align: bottom; }
       .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
-      .officer { text-align: center; display: inline-block; width: 150pt; }
+      /* The officers who sign page 2. Fillable — the picker writes whoever was
+         chosen here — but not a `blank`: the template prints these names as
+         plain text, with no dotted rule under them and nothing for the tab
+         grid to measure, and the record's blank count is against the
+         template's dotted runs. */
+      .officer {
+        text-align: center;
+        display: inline-block;
+        width: 150pt;
+        font: inherit;
+        line-height: inherit;
+        color: #000;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .officer:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
       /* One "ลงชื่อ ......... label" line. The rule in the template is a tab
          leader: it takes whatever the column has left after the label, it is
          not a width of its own. A fixed 150pt one inside an 84.91mm (~240pt)
@@ -528,6 +653,8 @@
     </div>
 
     <!-- Licence lookup — screen only, see the print rules above. -->
+    <!-- Everything below the bar scrolls inside this, not behind it. -->
+    <div class="doc">
     <div class="lookup glass-panel">
       <pharmacist-search></pharmacist-search>
     </div>
@@ -542,16 +669,15 @@
       <p class="para title">บันทึกการตรวจสอบการประกอบวิชาชีพของผู้ประกอบวิชาชีพเภสัชกรรม</p>
       <p class="para blank-line centre"><!-- 2 --></p>
 
-      <!-- 3: the officers' names are baked into the template as plain text,
-           not a {{token}} — same as the six "officer" signature lines below —
-           so they render here as literal text and nothing fills them in.
-           The template still *rules* that text: it is one dotted run, and the
-           parity test counts dotted runs. The two hidden blanks are what that
-           count sees. Nothing reads them, nothing writes them; they exist to
-           hold the record's blank count level with the template's. Deleting
-           them means teaching the test to tell a ruled run of literal text
-           from a fillable one, which the template gives no way to do. -->
-      <p class="para seal-clear">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ<input class="blank" name="officers1" value="นายเทอดภูมิ พัชรสุนทรชัย นางสาวอชิดา บุญเพียร นางสาวศศิธร เจือโร่ง นายศิริพงษ์ เจือโร่ง" hidden /><input class="blank" name="officers2" value="นายณภัทร ไกยวงค์ และนายเจษฎา จันทรประเสริฐ" hidden /></p>
+      <!-- 3: who actually went. The names are a {{officers1}} run in the
+           template now (scripts/build-docx-template.js collapses the
+           twenty-odd runs Word had split them into), so the record fills
+           them like any other blank — the ▾ opens the picker below, and the
+           blank stays typeable for a name the list does not have.
+           officers2 is hidden and empty: it holds the record's blank count
+           level with the template's, whose dotted run this paragraph rules
+           as one. -->
+      <p class="para seal-clear ind-tab2">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย<button type="button" class="pick" id="pickOfficers" aria-label="เลือกพนักงานเจ้าหน้าที่" title="เลือกพนักงานเจ้าหน้าที่"></button><textarea class="blank" name="officers1" data-tabs="8" rows="1"></textarea><input class="blank" name="officers2" hidden /></p>
 
       <p class="para"><!-- 4 -->ได้ทำการตรวจสถานที่ทำการของผู้ประกอบวิชาชีพเภสัชกรรมชื่อ<input class="blank" name="pharmacistName" data-tabs="7" /></p>
       <p class="para"><!-- 5 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-m" name="pharmacistLicenseNo" data-tabs="3" /> หมดอายุวันที่ <input class="blank w-m" name="pharmacistLicenseExpiry" data-tabs="4" /></p>
@@ -562,63 +688,53 @@
       <p class="para"><!-- 10 -->เบอร์โทรศัพท์ติดต่อ<input class="blank" name="phone" data-tabs="5" /> เขตสถานีตำรวจ<input class="blank" name="policeStation" data-tabs="5" /></p>
       <p class="para"><!-- 11 -->เมื่อวันที่<input class="blank w-m" name="inspectDate" data-tabs="6" /> เวลา<input class="blank w-s" name="inspectTime" data-tabs="4" /> น. ปรากฏผลดังนี้</p>
 
-      <p class="para sm"><!-- 12 -->1. ชื่อผู้รับอนุญาตของสถานที่ทำการ<input class="blank" name="licenseeName" data-tabs="9" /></p>
+      <p class="para sm ind-tab1"><!-- 12 -->1. ชื่อผู้รับอนุญาตของสถานที่ทำการ<input class="blank" name="licenseeName" data-tabs="9" /></p>
       <p class="para"><!-- 13 -->ชื่อผู้ดำเนินการกิจการ<input class="blank" name="operatorName" data-tabs="5" /> ใบอนุญาตขายยาแผนปัจจุบันเลขที่<input class="blank w-m" name="licenseNo" data-tabs="3" /></p>
-      <p class="para sm"><!-- 14 -->2. ชื่อผู้มีหน้าที่ปฏิบัติการ<input class="blank" name="dutyPharmacist" data-tabs="10" /></p>
-      <p class="para sm"><!-- 15 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-s" name="dutyLicenseNo" data-tabs="2" /> หมดอายุวันที่ <input class="blank w-s" name="dutyLicenseExpiry" data-tabs="2" /> เวลาทำการ <input class="blank w-m" name="openHours" data-tabs="3" /> น.</p>
+      <p class="para sm ind-tab1"><!-- 14 -->2. ชื่อผู้มีหน้าที่ปฏิบัติการ<input class="blank" name="dutyPharmacist" data-tabs="10" /></p>
+      <p class="para sm"><!-- 15 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-s" name="dutyLicenseNo" data-tabs="2" /> หมดอายุวันที่ <input class="blank w-s" name="dutyLicenseExpiry" data-tabs="2" /> เวลาทำการ น. <textarea class="blank w-m" name="openHours" data-tabs="3" rows="1"></textarea></p>
 
-      <p class="para">3. สรุปผลการตรวจสอบพบ ดังนี้<!-- 16 --></p>
+      <p class="para ind-tab1">3. สรุปผลการตรวจสอบพบ ดังนี้<!-- 16 --></p>
 
-      <p class="para sm"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" data-tabs="2" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" data-tabs="4" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> พบ<input class="blank" name="personFound" data-tabs="5" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" data-tabs="6" /></p>
-      <p class="para sm"><!-- 18 -->ทำหน้าที่ <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="roleLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="roleAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่ ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด</p>
+      <p class="para sm ind-993"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" data-tabs="2" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" data-tabs="4" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> พบ<input class="blank" name="personFound" data-tabs="5" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" data-tabs="6" /></p>
+      <p class="para sm"><!-- 18 -->ทำหน้าที่ <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="roleLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="roleAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่ ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด<input class="blank" name="ruled1" hidden /><input class="blank" name="ruled2" hidden /><input class="blank" name="ruled3" hidden /></p>
 
-      <p class="para sm"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" data-tabs="2" /> ได้จ่ายยา <input class="blank" name="drugDispensed" data-tabs="3" /> ให้จำนวน<input class="blank w-s" name="drugQuantity" data-tabs="4" /> ในราคา<input class="blank w-s" name="drugPrice" data-tabs="2" /> บาท ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" data-tabs="3" /> Lot<input class="blank w-s" name="lot" data-tabs="2" /> ผลิต<input class="blank w-s" name="mfgDate" data-tabs="2" /> ยาสิ้นอายุ<input class="blank w-s" name="expDate" data-tabs="3" /> ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น</p>
-      <p class="para sm"><!-- 20 --><button type="button" class="check" data-name="notDispensed" aria-pressed="false">ไม่ได้จ่ายยา เนื่องจาก</button> <textarea class="blank" name="notDispensedReason" data-tabs="9" rows="1"></textarea></p>
+      <p class="para sm ind-992 r142"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" data-tabs="2" /> ได้จ่ายยา <input class="blank" name="drugDispensed" data-tabs="3" /> ให้จำนวน<input class="blank w-s" name="drugQuantity" data-tabs="4" /> ในราคา<input class="blank w-s" name="drugPrice" data-tabs="2" /> บาท ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" data-tabs="3" /> Lot<input class="blank w-s" name="lot" data-tabs="2" /> ผลิต<input class="blank w-s" name="mfgDate" data-tabs="2" /> ยาสิ้นอายุ<input class="blank w-s" name="expDate" data-tabs="3" /> ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น<input class="blank" name="ruled4" hidden /></p>
+      <p class="para sm ind-tab2 r142"><!-- 20 --><button type="button" class="check" data-name="notDispensed" aria-pressed="false">ไม่ได้จ่ายยา เนื่องจาก</button> <textarea class="blank" name="notDispensedReason" data-tabs="9" rows="1"></textarea></p>
 
-      <p class="para sm"><!-- 21 -->(3) <input class="blank" name="admitPerson" data-tabs="6" />ได้ยอมรับว่า <button type="button" class="check" data-name="admitSold" aria-pressed="false">ได้ขายยาตาม (2) ให้กับพนักงานเจ้าหน้าที่</button>ในขณะที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่จริง</p>
+      <p class="para sm ind-992 r142"><!-- 21 -->(3) <input class="blank" name="admitPerson" data-tabs="6" />ได้ยอมรับว่า <button type="button" class="check" data-name="admitSold" aria-pressed="false">ได้ขายยาตาม (2) ให้กับพนักงานเจ้าหน้าที่</button>ในขณะที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่จริง</p>
 
-      <p class="para sm"><!-- 22 -->(4) พนักงานเจ้าหน้าที่ได้แจ้งวัตถุประสงค์ในการตรวจครั้งนี้ว่าเป็นการตรวจสอบภายใต้กฎหมายวิชาชีพเภสัชกรรมตาม <button type="button" class="check" data-name="sourceTip" aria-pressed="false">มีการแจ้งเบาะแสมายังสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourcePlan" aria-pressed="false">แผนการเฝ้าระวังตามมติที่ประชุมคณะกรรมการสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourceComplaint" aria-pressed="false">มีผู้ร้องเรียน</button> แจ้งว่า<textarea class="blank" name="complaintDetail" data-tabs="4" rows="1"></textarea> ซึ่ง<input class="blank w-l" name="acknowledgedBy" data-tabs="6" /> รับทราบวัตถุประสงค์ในการตรวจของพนักงานเจ้าหน้าที่และยินดีให้ตรวจสอบและตรวจค้นภายในสถานที่ประกอบการ</p>
+      <p class="para sm ind-992 r142"><!-- 22 -->(4) พนักงานเจ้าหน้าที่ได้แจ้งวัตถุประสงค์ในการตรวจครั้งนี้ว่าเป็นการตรวจสอบภายใต้กฎหมายวิชาชีพเภสัชกรรมตาม <button type="button" class="check" data-name="sourceTip" aria-pressed="false">มีการแจ้งเบาะแสมายังสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourcePlan" aria-pressed="false">แผนการเฝ้าระวังตามมติที่ประชุมคณะกรรมการสภาเภสัชกรรม</button> <button type="button" class="check" data-name="sourceComplaint" aria-pressed="false">มีผู้ร้องเรียน</button> แจ้งว่า<textarea class="blank" name="complaintDetail" data-tabs="4" rows="1"></textarea> ซึ่ง<input class="blank w-l" name="acknowledgedBy" data-tabs="6" /> รับทราบวัตถุประสงค์ในการตรวจของพนักงานเจ้าหน้าที่และยินดีให้ตรวจสอบและตรวจค้นภายในสถานที่ประกอบการ</p>
 
-      <p class="para sm"><!-- 23 -->(5) ทางสถานที่ทำการ <button type="button" class="check" data-name="licenceShown" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="licenceNotShown" aria-pressed="false">ไม่พบ</button> การแสดงใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรมของผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="licenceOriginal" aria-pressed="false">ฉบับจริง</button> <button type="button" class="check" data-name="licenceCopy" aria-pressed="false">ฉบับสำเนา</button></p>
+      <p class="para sm ind-992 r142"><!-- 23 -->(5) ทางสถานที่ทำการ <button type="button" class="check" data-name="licenceShown" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="licenceNotShown" aria-pressed="false">ไม่พบ</button> การแสดงใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรมของผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="licenceOriginal" aria-pressed="false">ฉบับจริง</button> <button type="button" class="check" data-name="licenceCopy" aria-pressed="false">ฉบับสำเนา</button></p>
 
-      <p class="para sm"><!-- 24 -->(6) ขณะตรวจสอบ <button type="button" class="check" data-name="dutyPresent" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false">ไม่พบ</button> ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่<textarea class="blank" name="dutyNote" data-tabs="13" rows="1"></textarea></p>
+      <p class="para sm ind-992 r140"><!-- 24 -->(6) ขณะตรวจสอบ <button type="button" class="check" data-name="dutyPresent" aria-pressed="false">พบ</button> <button type="button" class="check" data-name="dutyAbsent" aria-pressed="false">ไม่พบ</button> ผู้มีหน้าที่ปฏิบัติการตามที่ระบุในใบอนุญาตขายยาแผนปัจจุบันอยู่ปฏิบัติหน้าที่<textarea class="blank" name="dutyNote" data-tabs="13" rows="1"></textarea></p>
 
-      <p class="para sm"><!-- 25 -->(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false">มี</button> <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false">ไม่มี</button> <input class="blank" name="leaveProofNote" data-tabs="30" /></p>
+      <p class="para sm ind-992"><!-- 25 -->(7) หลักฐานแสดงการลางานของเภสัชกรผู้มีหน้าที่ปฏิบัติการ <button type="button" class="check" data-name="leaveProofYes" aria-pressed="false">มี</button> <button type="button" class="check" data-name="leaveProofNo" aria-pressed="false">ไม่มี</button> <input class="blank" name="leaveProofNote" data-tabs="17" /></p>
       <p class="para sm"><input class="blank full" name="leaveProofNote2" /></p>
 
-      <p class="para sm"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <textarea class="blank" name="curtainNote" data-tabs="15" rows="1"></textarea></p>
+      <p class="para sm ind-992"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <textarea class="blank" name="curtainNote" data-tabs="15" rows="1"></textarea></p>
 
-      <p class="para sm blank-line"><!-- 27 --></p>
-      <p class="para sm left"><!-- 28 -->ลงชื่อ <span class="rule blank"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
-      <p class="para sm left"><!-- 29 -->( <input class="blank w-l" name="signPage1Name" /> )</p>
+      <p class="para sm blank-line ind-left2268"><!-- 27 --></p>
+      <p class="para sm left ind-left2268"><!-- 28 -->ลงชื่อ <span class="rule blank"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
+      <p class="para sm left ind-left2268"><!-- 29 -->( <input class="blank w-l" name="signPage1Name" /> )</p>
     </div>
 
     <!-- ============================ PAGE 2 ============================ -->
     <div class="sheet">
       <div class="page-no">หน้าที่ 2 จาก 2</div>
 
-      <!-- 30: "ต่อจากหน้าที่ 1" is literal in the template, like the officers'
-           names above — the record is always two pages, never re-numbered.
-           The blank is hidden and holds the parity count, for the same
-           reason as officers1/2 above. -->
-      <p class="para sm right">ต่อจากหน้าที่ 1<input class="blank w-s" name="continuedFrom" value="1" hidden /></p>
+      <p class="para sm ind-tab1"><!-- 31 -->3. สรุปผลการตรวจสอบพบ (ต่อ)</p>
 
-      <p class="para sm"><!-- 31 -->3. สรุปผลการตรวจสอบพบ (ต่อ)</p>
-
-      <p class="para sm gap"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" data-tabs="20" /></p>
+      <p class="para sm gap ind-992"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" data-tabs="19" /></p>
       <p class="para sm"><input class="blank full" name="behaviour2" /></p>
-      <p class="para sm"><input class="blank full" name="behaviour3" /></p>
-      <p class="para sm"><input class="blank full" name="behaviour4" /></p>
-      <p class="para sm"><input class="blank full" name="behaviour5" /></p>
-      <p class="para sm"><input class="blank full" name="behaviour6" /></p>
 
-      <p class="para sm gap"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<span class="tab" data-tabs="1"></span><input class="blank w-m" name="seizedItems" data-tabs="1" value="-" /> จำนวน <input class="blank w-s" name="seizedCount" data-tabs="1" value="-" /> รายการ อายัด <span class="tab" data-tabs="1"></span><input class="blank w-m" name="heldItems" data-tabs="1" value="-" /> จำนวน <input class="blank w-s" name="heldCount" data-tabs="1" value="-" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
+      <p class="para sm gap ind-851"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<input class="blank w-eq" name="seizedItems" data-tabs="0" value="-" /> จำนวน <input class="blank w-eq" name="seizedCount" data-tabs="0" value="-" /> รายการ อายัด <input class="blank w-eq" name="heldItems" data-tabs="0" value="-" /> จำนวน <input class="blank w-eq" name="heldCount" data-tabs="0" value="-" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
 
-      <p class="para sm gap"><!-- 34 -->(11) พนักงานเจ้าหน้าที่ได้แจ้งข้อมูลให้ทราบว่า กรณีที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่ปฏิบัติหน้าที่ ให้ร้านปฏิบัติตามกฎหมายว่าด้วยยา และห้ามมิให้มีการจำหน่าย จ่าย แจก หรือส่งมอบ ยาประเภทยาอันตราย ยาควบคุมพิเศษ วัตถุที่ออกฤทธิ์ต่อจิตและประสาท หรือยาเสพติดให้โทษ โดยบุคคลที่ไม่ได้เป็นผู้ประกอบวิชาชีพเภสัชกรรม หากมีการฝ่าฝืนจะเป็นความผิดตามพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 โดย <button type="button" class="check" data-name="informPharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="informLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="informAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> เข้าใจและรับทราบข้อมูลตามที่แจ้ง</p>
+      <p class="para sm gap ind-851"><!-- 34 -->(11) พนักงานเจ้าหน้าที่ได้แจ้งข้อมูลให้ทราบว่า กรณีที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่ปฏิบัติหน้าที่ ให้ร้านปฏิบัติตามกฎหมายว่าด้วยยา และห้ามมิให้มีการจำหน่าย จ่าย แจก หรือส่งมอบ ยาประเภทยาอันตราย ยาควบคุมพิเศษ วัตถุที่ออกฤทธิ์ต่อจิตและประสาท หรือยาเสพติดให้โทษ โดยบุคคลที่ไม่ได้เป็นผู้ประกอบวิชาชีพเภสัชกรรม หากมีการฝ่าฝืนจะเป็นความผิดตามพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 โดย <button type="button" class="check" data-name="informPharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="informLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="informAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> เข้าใจและรับทราบข้อมูลตามที่แจ้ง</p>
 
-      <p class="para sm gap"><!-- 35 -->(12) สิ้นสุดการตรวจเวลา<input class="blank w-m" name="endTime" data-tabs="2" /> น.</p>
+      <p class="para sm gap ind-851"><!-- 35 -->(12) สิ้นสุดการตรวจเวลา<input class="blank w-m" name="endTime" data-tabs="2" /> น.</p>
 
-      <p class="para sm gap"><!-- 36 -->พนักงานเจ้าหน้าที่ที่มาทำการตรวจครั้งนี้ ได้กระทำไปตามอำนาจหน้าที่ มิได้เรียกรับหรือยอมจะรับทรัพย์สินของผู้หนึ่งผู้ใดมาเป็นของตนหรือบุคคลอื่น มิได้บังคับขู่เข็ญหรือทำร้ายร่างกายหรือได้ทำให้ทรัพย์สินของผู้ใดที่อยู่ในที่นี้สูญหายหรือเสียหายหรือยึดเอามาเป็นส่วนตัวแต่อย่างใด อ่านให้ฟังโดยตลอดและได้อ่านเองแล้ว รับรองว่าถูกต้อง จึงลงลายมือชื่อไว้เป็นสำคัญ</p>
+      <p class="para sm gap ind-tab1"><!-- 36 -->พนักงานเจ้าหน้าที่ที่มาทำการตรวจครั้งนี้ ได้กระทำไปตามอำนาจหน้าที่ มิได้เรียกรับหรือยอมจะรับทรัพย์สินของผู้หนึ่งผู้ใดมาเป็นของตนหรือบุคคลอื่น มิได้บังคับขู่เข็ญหรือทำร้ายร่างกายหรือได้ทำให้ทรัพย์สินของผู้ใดที่อยู่ในที่นี้สูญหายหรือเสียหายหรือยึดเอามาเป็นส่วนตัวแต่อย่างใด อ่านให้ฟังโดยตลอดและได้อ่านเองแล้ว รับรองว่าถูกต้อง จึงลงลายมือชื่อไว้เป็นสำคัญ</p>
 
       <p class="para blank-line"><!-- 37 --></p>
       <p class="para blank-line"><!-- 38 --></p>
@@ -652,7 +768,7 @@
             <td>
 
               <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
-              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายศิริพงษ์ เจือโร่ง</span> )</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer1" /> )</div>
               <div>&nbsp;</div>
             </td>
           </tr>
@@ -666,7 +782,7 @@
             <td>
 
               <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
-              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเทอดภูมิ พัชรสุนทรชัย</span> )</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer2" /> )</div>
             </td>
           </tr>
           <tr>
@@ -674,7 +790,7 @@
             <td>
 
               <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
-              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวอชิดา บุญเพียร</span> )</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer3" /> )</div>
               <div>&nbsp;</div>
             </td>
           </tr>
@@ -683,7 +799,7 @@
             <td>
 
               <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
-              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นางสาวศศิธร เจือโร่ง</span> )</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer4" /> )</div>
               <div>&nbsp;</div>
             </td>
           </tr>
@@ -692,15 +808,28 @@
             <td>
 
               <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
-              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="officer">นายเจษฎา จันทรประเสริฐ</span> )</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer5" /> )</div>
               <div>&nbsp;</div>
             </td>
           </tr>
         </tbody>
       </table>
-      <p class="para blank-line"><!-- 40 --></p>
-      <p class="para sm blank-line"><!-- 41 --></p>
-      <p class="para sm blank-line"><!-- 42 --></p>
+    </div>
+
+    <dialog class="picker glass-panel" id="officersPicker">
+      <form method="dialog">
+        <h2>พนักงานเจ้าหน้าที่ที่ออกปฏิบัติ</h2>
+        <div id="officerList"></div>
+        <label class="extra">
+          ชื่ออื่น (บรรทัดละหนึ่งชื่อ)
+          <textarea id="officerExtra" rows="2"></textarea>
+        </label>
+        <div class="row">
+          <button value="cancel">ยกเลิก</button>
+          <button class="primary" value="ok" id="officersOk">ตกลง</button>
+        </div>
+      </form>
+    </dialog>
     </div>
 
     <script>
@@ -725,6 +854,96 @@
         button.setAttribute('aria-pressed', on ? 'true' : 'false');
       }
 
+      /* ---------------- who went ---------------- */
+
+      /*
+       * The office's own list. The record names them in one run — the form
+       * has no row per officer — so the picker writes the chosen names back
+       * into that one blank, in the template's own wording: separated by
+       * spaces, the last one after "และ". A name the list has not got is
+       * typed into the picker's own box, or straight onto the blank.
+       */
+      const OFFICERS = [
+        'นายเทอดภูมิ พัชรสุนทรชัย',
+        'นางสาวอชิดา บุญเพียร',
+        'นางสาวศศิธร เจือโร่ง',
+        'นายศิริพงษ์ เจือโร่ง',
+        'นายณภัทร ไกยวงค์',
+        'นายเจษฎา จันทรประเสริฐ',
+      ];
+
+      function joinOfficers(names) {
+        if (names.length < 2) return names.join('');
+        return `${names.slice(0, -1).join(' ')} และ${names[names.length - 1]}`;
+      }
+
+      const officersField = document.querySelector('[name="officers1"]');
+
+      const picker = document.getElementById('officersPicker');
+      const officerList = document.getElementById('officerList');
+      const officerExtra = document.getElementById('officerExtra');
+
+      for (const name of OFFICERS) {
+        const label = document.createElement('label');
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.value = name;
+        label.append(box, document.createTextNode(name));
+        officerList.append(label);
+      }
+
+      document.getElementById('pickOfficers').addEventListener('click', () => {
+        // Read the blank back, so a name typed straight onto it survives the
+        // trip through the picker instead of being thrown away.
+        let rest = officersField.value;
+        for (const box of officerList.querySelectorAll('input')) {
+          box.checked = rest.includes(box.value);
+          if (box.checked) rest = rest.replace(box.value, ' ');
+        }
+        officerExtra.value = rest
+          .replace(/และ/g, ' ')
+          .split(/\s{2,}/)
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .join('\n');
+        picker.showModal();
+      });
+
+      /*
+       * Page 2 is signed by the officers who went, so the signature block
+       * follows the picker. The form has five of those lines and the office
+       * has six names, so a sixth pick simply has nowhere to sign; a line
+       * with nobody left for it is cleared rather than left naming someone
+       * who was not there.
+       *
+       * Both this and the opening paragraph's list start empty — the record
+       * names whoever the picker is told went, and a name nobody chose is a
+       * name on an official document that should not be there.
+       */
+      const signLines = [...document.querySelectorAll('.officer')];
+      function signAs(names) {
+        signLines.forEach((line, i) => {
+          line.value = names[i] || '';
+          line.classList.toggle('filled', Boolean(line.value));
+        });
+      }
+
+      picker.addEventListener('close', () => {
+        if (picker.returnValue !== 'ok') return;
+        const chosen = [...officerList.querySelectorAll('input')]
+          .filter((box) => box.checked)
+          .map((box) => box.value);
+        const extra = officerExtra.value
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean);
+        const picked = [...chosen, ...extra];
+        officersField.value = joinOfficers(picked);
+        officersField.classList.toggle('filled', Boolean(officersField.value));
+        signAs(picked);
+        window.layoutBlanks();
+      });
+
       /* ---------------- read / write the whole form ---------------- */
 
       const blanks = () => document.querySelectorAll('input.blank, textarea.blank');
@@ -737,12 +956,24 @@
        * so they never trip this; the rest are one line and can.
        */
       function markOverflow(field) {
-        const over = field.scrollWidth > field.clientWidth + 1;
+        const over =
+          field.scrollWidth > field.clientWidth + 1 ||
+          field.scrollHeight > field.clientHeight + 1;
         field.classList.toggle('over', over);
         field.title = over ? `ยาวเกินช่องบนกระดาษ — ไฟล์ Word ได้ครบ: ${field.value}` : '';
         return over;
       }
-      for (const field of blanks()) field.addEventListener('input', () => markOverflow(field));
+      for (const field of blanks()) {
+        field.addEventListener('input', () => {
+          /* A textarea grows downwards as it fills, the way the template's
+             leader carries on onto the next line — nothing beside it moves,
+             so it may follow the cursor. Its width, and every single-line
+             blank, is left alone: re-measuring the grid under the cursor is
+             what made the lines jump. */
+          fitHeight(field);
+          markOverflow(field);
+        });
+      }
 
       /*
        * Put every rule back on Word's tab grid.
@@ -756,9 +987,39 @@
        * left short of the margin, and justification stretching the words on
        * the lines either side to fill the gap that left behind.
        *
-       * A value too long for its rule widens it, as it pushes the line on in
-       * Word, and the rule never runs past the right margin.
+       * The width comes off the grid and off nothing else — not off what is
+       * typed. Letting a long value widen its rule was what made the lines
+       * jump under the cursor: every keystroke re-measured the grid, every
+       * rule after it on the line moved, and the paragraph re-wrapped. A value
+       * that outgrows its rule is shrunk to fit it instead, by
+       * prepareForPrint() before either download leaves and by the red rule
+       * markOverflow() puts under it on screen.
        */
+      /* How wide the value is, off a canvas rather than off the box it sits
+         in: the box only reports its content width with `field-sizing` on,
+         and that is exactly the tie between what is typed and how wide the
+         rule is that made the lines jump. Measured here, the rule is laid out
+         when a record is loaded and then left alone. */
+      const gauge = document.createElement('canvas').getContext('2d');
+      function textWidth(field) {
+        const css = getComputedStyle(field);
+        gauge.font = `${css.fontWeight} ${css.fontSize} ${css.fontFamily}`;
+        return (
+          gauge.measureText(field.value).width +
+          parseFloat(css.paddingLeft) +
+          parseFloat(css.paddingRight) +
+          2
+        );
+      }
+
+      /* A textarea is as tall as what it holds. Called whenever its width or
+         its value changes; it grows downwards, so nothing beside it moves. */
+      function fitHeight(field) {
+        if (field.tagName !== 'TEXTAREA') return;
+        field.style.height = 'auto';
+        field.style.height = `${field.scrollHeight}px`;
+      }
+
       const TAB_STOP_PX = (12.7 / 25.4) * 96; // w:defaultTabStop 720 twips
       window.layoutBlanks = function layoutBlanks() {
         const sheet = document.querySelector('.sheet');
@@ -772,18 +1033,33 @@
            read off the sheet rather than measured, so a sub-pixel rounding in
            the rect cannot pass for a zoom and drag the grid off true. */
         const scale = parseFloat(style.zoom) || 1;
-        // Tab stops are measured from the left margin, which is where the
-        // sheet's own content box begins.
-        const origin = box.left / scale + parseFloat(style.paddingLeft);
-        const margin = box.right / scale - parseFloat(style.paddingRight);
+        /* Every edge below is measured from the sheet's own left edge, not
+           from the viewport's. A rect is in viewport pixels, and only the
+           *offsets inside* the zoomed sheet carry the zoom — where the sheet
+           itself sits on the screen does not. Dividing a viewport x by the
+           zoom mixed those two and put the grid's origin tens of pixels off
+           true, which is how a four-tab blank came out narrower than one
+           stop. Taking the difference first leaves only the part the zoom
+           scaled. */
+        const origin = parseFloat(style.paddingLeft);
+        const margin = box.width / scale - parseFloat(style.paddingRight);
 
         for (const field of document.querySelectorAll('.blank[data-tabs], .tab[data-tabs]')) {
           const tabs = Number(field.dataset.tabs);
           if (!tabs || field.hidden || field.classList.contains('full')) continue;
-          // Let it fall back to its content width first, so a value too long
-          // for the grid still gets the room it needs.
-          field.style.width = '';
-          const start = field.getBoundingClientRect().left / scale;
+          // Measured from where the blank starts, which is where the text in
+          // front of it ends — that text never changes, so neither does this.
+          // A textarea is the one blank that may end up wider than the grid
+          // says: it wraps, so its rule carries on down the lines the way the
+          // template's leader does, and the value stays whole and visible.
+          // Nothing is typed to its right on that line, so growing it moves
+          // nothing. The single-line inputs take the grid width exactly, and
+          // are collapsed first so a long value cannot wrap them onto the next
+          // line and have the grid measured from the wrong left edge.
+          const wraps = field.tagName === 'TEXTAREA';
+          field.classList.remove('full-row');
+          field.style.width = '0px';
+          const start = (field.getBoundingClientRect().left - box.left) / scale;
           let x = start;
           for (let i = 0; i < tabs; i += 1) {
             x = Math.min(origin + (Math.floor((x - origin) / TAB_STOP_PX) + 1) * TAB_STOP_PX, margin);
@@ -793,14 +1069,32 @@
             field.style.width = `${ruled}px`;
             continue;
           }
-          if (ruled > field.getBoundingClientRect().width / scale) field.style.width = `${ruled}px`;
+          /* What the value itself needs, measured rather than grown into:
+             `field-sizing` would have to be on for the box to report it, and
+             that is what tied the width to the keystroke. The rest of the
+             line is the ceiling — a rule never runs past the right margin. */
+          /* A whole pixel short of the margin, and floored below. A rule
+             sized to the exact room left on its line lands a rounding error
+             past the edge as often as not, and an inline box that does not
+             fit wraps — which is how a blank ended up on the line under the
+             wording it belongs to, leaving the paragraph looking as though
+             its blank had gone missing. */
+          const rest = Math.max(0, Math.floor(margin - start) - 1);
+          const need = field.value ? textWidth(field) : 0;
+          if (wraps && need > rest) {
+            field.classList.add('full-row');
+            field.style.width = '';
+          } else {
+            field.style.width = `${Math.floor(Math.min(Math.max(ruled, need), rest))}px`;
+          }
+          fitHeight(field);
           markOverflow(field);
         }
       };
 
       function collect() {
         const values = {};
-        for (const input of document.querySelectorAll('input.blank, textarea.blank')) {
+        for (const input of document.querySelectorAll('input.blank, textarea.blank, .officer')) {
           values[input.name] = input.value;
         }
         const checks = {};
@@ -817,7 +1111,7 @@
       window.applyData = function applyData(data) {
         const values = (data && data.values) || {};
         const checks = (data && data.checks) || {};
-        for (const input of document.querySelectorAll('input.blank, textarea.blank')) {
+        for (const input of document.querySelectorAll('input.blank, textarea.blank, .officer')) {
           if (values[input.name] === undefined) continue;
           input.value = values[input.name];
           input.classList.toggle('filled', Boolean(values[input.name]));
@@ -849,18 +1143,35 @@
       // after anything is typed into a blank, and when the window resizes and
       // the sheet is zoomed to a new factor.
       document.fonts.ready.then(() => window.layoutBlanks());
-      for (const field of blanks()) field.addEventListener('input', () => window.layoutBlanks());
       window.addEventListener('resize', () => {
         fitSheets();
         window.layoutBlanks();
       });
 
-      /** Hides the toolbar and the on-screen fill highlight before page.pdf(). */
+      /**
+       * Hides the toolbar and the on-screen fill highlight before page.pdf().
+       *
+       * Also fits every over-long value inside the rule it belongs to. The
+       * rules are on Word's grid and stay there, so the only room a long value
+       * can be given is its own type size — which costs the line nothing and
+       * moves no other rule. Down to 8pt, below which it would not be a
+       * document any more; what still does not fit keeps its red rule, and the
+       * DOCX has the value whole either way.
+       */
       window.prepareForPrint = function prepareForPrint() {
+        // Hidden, not removed: window.print() runs this too and wants the
+        // toolbar back when the dialog closes. page.pdf() cannot tell.
         const toolbar = document.querySelector('.toolbar');
-        if (toolbar) toolbar.remove();
+        if (toolbar) toolbar.style.display = 'none';
         for (const input of document.querySelectorAll('input.blank, textarea.blank')) {
           input.classList.remove('filled');
+          if (!input.classList.contains('over')) continue;
+          let size = parseFloat(getComputedStyle(input).fontSize) * 0.75; // px -> pt
+          while (input.scrollWidth > input.clientWidth + 1 && size > 8) {
+            size -= 0.5;
+            input.style.fontSize = `${size}pt`;
+          }
+          markOverflow(input);
         }
       };
 
@@ -878,9 +1189,16 @@
       function dutyFromPharmacists(pharmacists) {
         const list = Array.isArray(pharmacists) ? pharmacists.filter((p) => p && p.name) : [];
         if (list.length === 0) return { name: '', hours: '' };
+        /* อย. writes the unit into the value itself — "17.00-20.00 น." — and
+           the form prints its own "น." after the blank, so the licence's is
+           dropped rather than doubled. Only the bare unit goes: a "น." that
+           is part of a word is left alone. */
+        const dropUnit = (text) =>
+          text.replace(/(^|\s)น\.(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
         const hours = [];
         for (const person of list) {
-          if (person.openHours && !hours.includes(person.openHours)) hours.push(person.openHours);
+          const hour = dropUnit(person.openHours || '');
+          if (hour && !hours.includes(hour)) hours.push(hour);
         }
         return {
           name: list.map((p) => p.name).join(' / '),
@@ -940,6 +1258,20 @@
 
       /* ---------------- actions ---------------- */
       document.getElementById('print').addEventListener('click', () => window.print());
+
+      /* The browser's own print has to give the same paper as the PDF button,
+         so it runs the same pass — over-long values fitted, fill highlight off
+         — and puts the screen back the way it was afterwards. */
+      window.addEventListener('beforeprint', () => window.prepareForPrint());
+      window.addEventListener('afterprint', () => {
+        const toolbar = document.querySelector('.toolbar');
+        if (toolbar) toolbar.style.display = '';
+        for (const field of blanks()) {
+          field.style.fontSize = '';
+          field.classList.toggle('filled', Boolean(field.value));
+          markOverflow(field);
+        }
+      });
 
       document.getElementById('clear').addEventListener('click', () => {
         for (const input of document.querySelectorAll('input.blank, textarea.blank')) {
