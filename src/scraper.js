@@ -651,7 +651,18 @@ async function renderFormPdf(data) {
     // `@page { margin: 0 }` is (see that rule) — but it's left at 0 here
     // too so intent and behaviour agree if that ever changes upstream.
     return await page.pdf({
-      format: 'A4',
+      // The paper is the viewport, to the pixel. `format: 'A4'` lays the PDF
+      // out at 793.7 x 1122.5 CSS px while the viewport above is 794 x 1123,
+      // and drawRules() measures the viewport: three tenths of a pixel of
+      // extra width is enough to pull a blank back onto the line above, and
+      // its rule — measured before page.pdf() re-laid the page out — then ran
+      // straight through the wording of item (6). 794 x 1123px is 210.08 x
+      // 297.13mm, four hundredths of a millimetre over A4 in each direction.
+      width: '794px',
+      height: '1123px',
+      // The blanks' rules are drawn as SVG (see form.html), which is content
+      // and prints without this. Nothing else on the sheet has a background
+      // worth printing but the paper itself.
       printBackground: false,
       margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' },
     });
