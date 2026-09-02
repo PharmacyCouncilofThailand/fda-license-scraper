@@ -380,6 +380,13 @@
       .blank.filled { background-color: var(--fill); }
       input.blank, textarea.blank { color: #000; }
       .blank:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
+      /* A value the paper cannot hold. The rule under it turns red too, but
+         a red rule under a full line is easy to read past — the value itself
+         says it, and its title() says what to do. Screen only: the printed
+         record is black, and the officer has already been told.
+         (prepareForPrint() shrinks what it can; this is what would not fit
+         even at 8pt.) */
+      .blank.over { color: #b00020; }
       input.blank { width: 100pt; }
       /* Item (10)'s four blanks. Word rules each of them with a single tab,
          and a tab runs to the next stop on the 12.7mm grid — so where each one
@@ -668,7 +675,11 @@
          margin at 0, or it prints twice (this @page rule turns out to be
          the one Chromium actually honours for both window.print() and
          Puppeteer's page.pdf(), regardless of the JS `margin` option). */
-      @page { size: A4; margin: 0; }
+      /* The paper in millimetres rather than the keyword, so the rule says
+         which paper it means. Chromium quantises the page box it writes and
+         gives 210.23 x 297.01mm either way — a quarter of a millimetre, which
+         no printer will do anything about. */
+      @page { size: 210mm 297mm; margin: 0; }
       @media print {
         body { background: #fff; }
         .toolbar { display: none; }
@@ -681,6 +692,7 @@
         .sheet + .sheet { page-break-before: always; }
         input.blank, textarea.blank { border-bottom: var(--rule); }
         .blank.filled { background-color: transparent; }
+        .blank.over { color: #000; }
       }
     </style>
   </head>
@@ -1126,27 +1138,32 @@
       function baselineDrop(el, cache) {
         const key = `${el.tagName}|${getComputedStyle(el).fontSize}`;
         if (cache.has(key)) return cache.get(key);
-        // How far above a blank's bottom edge the baseline of its own text
-        // sits. An <input>, a <textarea> and a bare inline-block <span> each
-        // differ: the span's bottom is its baseline, eight pixels above where
-        // an input's box ends.
+        /* How far above a blank's bottom edge the baseline of its own text
+           sits. An <input>, a <textarea> and a bare inline-block <span> each
+           differ: the span's bottom is its baseline, eight pixels above where
+           an input's box ends.
+
+           Measured on a copy of the blank standing on a line of its own,
+           inside the blank's own paragraph so it inherits the same font and
+           line box. Probing the blank where it stands does not work: one that
+           has wrapped — onto its own row, or to the start of the next line
+           because the wording before it filled this one — leaves the probe on
+           the line above and reads a whole line too deep. That is what ruled
+           item (6)'s wording through the middle. A copy on an empty line
+           cannot wrap, so every blank gets a figure of its own and none has
+           to borrow one. */
+        const holder = document.createElement('div');
+        holder.style.cssText =
+          'position:absolute;left:-9999px;top:0;width:auto;white-space:nowrap;visibility:hidden';
+        const copy = el.cloneNode(false);
+        copy.removeAttribute('id');
+        copy.removeAttribute('name');
         const probe = document.createElement('span');
         probe.style.cssText = 'display:inline-block;width:0;height:0;overflow:hidden';
-        el.parentNode.insertBefore(probe, el);
-        const drop = el.getBoundingClientRect().bottom - probe.getBoundingClientRect().bottom;
-        probe.remove();
-        /* The probe is only worth anything when it landed on the same line
-           as the blank. One that has wrapped — onto its own row, or simply
-           to the start of the next line because the wording before it
-           filled this one — leaves its probe on the line above, and the
-           drop comes back a whole line too big. That is what ruled item
-           (6)'s wording through the middle: dutyNote wraps, its drop
-           measured 31.7px instead of 9, and the wrong figure was cached for
-           every other textarea on the sheet as well. A blank like that
-           takes the drop of one that did sit on its own line — same tag,
-           same size, same box. */
-        const line = parseFloat(getComputedStyle(el).lineHeight) || 0;
-        if (drop < 0 || drop > line) return cache.get(key);
+        holder.append(probe, copy);
+        el.parentNode.append(holder);
+        const drop = copy.getBoundingClientRect().bottom - probe.getBoundingClientRect().bottom;
+        holder.remove();
         cache.set(key, drop);
         return drop;
       }
@@ -1178,9 +1195,6 @@
             if (!only || only.has(host)) hosts.add(host);
           }
           if (!hosts.size) continue;
-          // Measure before drawing: a blank that wrapped cannot report its own
-          // drop, and document order does not promise an unwrapped one first.
-          for (const el of els) baselineDrop(el, RULE_DROPS);
           for (const host of hosts) {
             if (getComputedStyle(host).position === 'static') {
               host.style.position = 'relative';
@@ -1204,7 +1218,7 @@
                bars sits exactly that far below the line it belongs to. The
                stroke straddles its centre line, so it is set half its weight
                above where the bar's underside goes. */
-            const drop = (baselineDrop(el, RULE_DROPS) || 0) / scale;
+            const drop = baselineDrop(el, RULE_DROPS) / scale;
             const y =
               (r.bottom - box.top) / scale - drop + RULE_BELOW - RULE_THICK / 2;
             const line = document.createElementNS(SVG_NS, 'line');
@@ -1477,6 +1491,20 @@
        * still beats no record at the shop.
        */
       const printBtn = document.getElementById('print');
+      /* The tab is opened by the click itself, not after the PDF comes back:
+         a browser only counts the user's activation up to the first await, and
+         a cold start takes seconds to render. Claim the tab first, point it at
+         the sheet after. */
+      let pdfUrl = null;
+      const dropPdfUrl = () => {
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        pdfUrl = null;
+      };
+      /* Only this page can free the URL and the reader tab cannot say when it
+         is finished with it, so the sheet stays alive for as long as it might
+         be reloaded or reprinted — until the next one replaces it, or this
+         page goes away. */
+      addEventListener('pagehide', dropPdfUrl);
       printBtn.addEventListener('click', async () => {
         const icon = printBtn.querySelector('.material-symbols-outlined');
         const iconWas = icon.textContent;
@@ -1485,7 +1513,9 @@
         printBtn.disabled = true;
         statusEl.className = 'note';
         statusEl.textContent = 'กำลังเตรียมเอกสารสำหรับพิมพ์...';
-        let url = null;
+        // A tab of its own, so the sheet stays filled in behind it and the
+        // officer prints from the reader's own dialog.
+        const tab = window.open('', '_blank');
         try {
           const response = await fetch(`${API_BASE}/api/form/pdf`, {
             method: 'POST',
@@ -1493,15 +1523,14 @@
             body: JSON.stringify(collect()),
           });
           if (!response.ok) throw new Error('render failed');
-          url = URL.createObjectURL(await response.blob());
-          // A tab of its own, so the sheet stays filled in behind it and the
-          // officer prints from the reader's own dialog.
-          const tab = window.open(url, '_blank');
-          if (!tab) throw new Error('popup blocked');
+          const sheet = await response.blob();
+          if (!tab || tab.closed) throw new Error('popup blocked');
+          dropPdfUrl();
+          pdfUrl = URL.createObjectURL(sheet);
+          tab.location = pdfUrl;
           statusEl.textContent = 'เปิดเอกสารในแท็บใหม่แล้ว — สั่งพิมพ์จากตรงนั้น';
-          setTimeout(() => URL.revokeObjectURL(url), 60000);
         } catch {
-          if (url) URL.revokeObjectURL(url);
+          if (tab && !tab.closed) tab.close();
           statusEl.className = 'err';
           statusEl.textContent =
             'สร้างเอกสารไม่สำเร็จ — พิมพ์จากหน้าเว็บแทน เส้นประอาจไม่ตรงที่';

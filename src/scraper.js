@@ -651,15 +651,21 @@ async function renderFormPdf(data) {
     // `@page { margin: 0 }` is (see that rule) — but it's left at 0 here
     // too so intent and behaviour agree if that ever changes upstream.
     return await page.pdf({
-      // The paper is the viewport, to the pixel. `format: 'A4'` lays the PDF
-      // out at 793.7 x 1122.5 CSS px while the viewport above is 794 x 1123,
-      // and drawRules() measures the viewport: three tenths of a pixel of
-      // extra width is enough to pull a blank back onto the line above, and
-      // its rule — measured before page.pdf() re-laid the page out — then ran
-      // straight through the wording of item (6). 794 x 1123px is 210.08 x
-      // 297.13mm, four hundredths of a millimetre over A4 in each direction.
-      width: '794px',
-      height: '1123px',
+      // A4 in millimetres. It used to be the viewport in pixels — 794 x 1123,
+      // which is 210.08 x 297.13mm — because rules were measured against the
+      // sheet and half a pixel of drift in where the sheet sat accumulated
+      // down the page: the last rules on page 1 came out 3.4px off, one of
+      // them through the wording of item (6). Each rule is now pinned to its
+      // own paragraph inside a 210mm box, so nothing inside a paragraph moves
+      // with the page width at all — checked at 793 and 794px, where all 69
+      // blanks land in the same place to a twentieth of a pixel.
+      //
+      // Chromium quantises the page box it writes, so what comes out is
+      // 210.23 x 297.01mm whatever is asked for here (A4, 210mm and 794px all
+      // give the same box). A quarter of a millimetre is below what a printer
+      // notices; asking for the paper we mean is still the honest thing.
+      width: '210mm',
+      height: '297mm',
       // The blanks' rules are drawn as SVG (see form.html), which is content
       // and prints without this. Nothing else on the sheet has a background
       // worth printing but the paper itself.
