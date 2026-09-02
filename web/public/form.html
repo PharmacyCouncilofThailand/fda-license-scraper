@@ -295,6 +295,35 @@
          the input grow with its content the same way; max-width keeps a long
          value from pushing past the paragraph's own edge, so it wraps to the
          next line instead of overflowing the sheet's right margin. */
+      /* The rule under a blank. <w:u w:val="dotted"/> in the template, so a
+         dotted border here — the same style, drawn by the same kind of
+         renderer. A background gradient would give finer control over the
+         dots' pitch, but page.pdf() runs with printBackground: false, so a
+         rule painted as a background would come out of the PDF blank; a
+         border is drawn either way. One token, used by every rule on the
+         sheet — the inline blanks, the whole-line ones and the signature
+         lines — so they cannot drift apart. */
+      /* The rule under a blank. <w:u w:val="dotted"/> in the template, so a
+         dotted border here — the same style, drawn by the same kind of
+         renderer.
+
+         Not a background gradient, which would give real control over the
+         dots' pitch: page.pdf() runs with printBackground: false, so a rule
+         painted as a background comes out of the PDF blank. A border is
+         drawn either way.
+
+         Not thinner than a pixel either. Chromium snaps a dotted border to
+         one device pixel, and 0.5px renders identically to 1px — checked
+         side by side at three times scale. What is left to tune is the ink,
+         and a lighter one is what reads as the finer rule Word draws.
+
+         One token, used by every rule on the sheet — the inline blanks, the
+         whole-line ones and the signature lines — so they cannot drift
+         apart. --rule-width is what the boxes above pull themselves back up
+         by: a rule is a decoration on the glyph in Word and costs its line
+         no height, so it must cost this line none either. */
+      :root { --rule-width: 1px; --rule: var(--rule-width) dotted #666; }
+
       input.blank, textarea.blank {
         /* layoutBlanks() sets the width the tab grid asks for, which is the
            whole rule — its padding and its dotted border included. On the
@@ -306,7 +335,7 @@
         min-width: 60pt;
         max-width: 100%;
         border: 0;
-        border-bottom: 1px dotted #444;
+        border-bottom: var(--rule);
         /* a <textarea> keeps the UA's 2px radius even with the border
            zeroed, which curls the ends of the rule up off the line */
         border-radius: 0;
@@ -315,7 +344,7 @@
            on the glyph, not a box, so it costs nothing extra. Pulling the
            box back up by the border's own width keeps the line the exact
            height the paragraph's line-height already budgets for. */
-        margin-bottom: -1px;
+        margin-bottom: calc(-1 * var(--rule-width));
         background: transparent;
         /* A value shorter than the blank's min-width leaves slack in the box.
            Left-aligned that slack all falls on the right, which butts the
@@ -358,8 +387,8 @@
          the same grid as the blanks. */
       .tab {
         display: inline-block;
-        border-bottom: 1px dotted #444;
-        margin-bottom: -1px;
+        border-bottom: var(--rule);
+        margin-bottom: calc(-1 * var(--rule-width));
         vertical-align: baseline;
       }
 
@@ -368,11 +397,14 @@
          past that the value is still there, still posted, still in the DOCX —
          just not on the paper. That is two downloads of one record
          disagreeing, so the record says so instead of hiding it: a solid rule
-         where the dotted one was, the whole value in the title, and a line in
+         in red under it, the whole value in the title, and a line in
          the toolbar before either download leaves. It survives
          prepareForPrint() on purpose — the printed sheet is the copy that is
          short, so the printed sheet is where the mark is worth most. */
-      .blank.over { border-bottom: 1.5px solid #b00020; }
+      /* Colour only — never a different weight. A rule that grows when its
+         value outgrows it changes the height of its line, and the line moves
+         under the cursor: the very thing the grid above exists to stop. */
+      .blank.over { border-bottom-color: #b00020; }
 
       /* The blanks the template rules *across the page*: a dotted tab leader
          long enough to cover a whole line of default tab stops on its own
@@ -534,7 +566,7 @@
          <w:gridCol> width counts the margins in, so the cell is still
          84.91mm wide. */
       .signatures td { border: 0; padding: 0 1.9mm; vertical-align: bottom; }
-      .rule { border-bottom: 1px dotted #444; display: inline-block; width: 150pt; }
+      .rule { border-bottom: var(--rule); display: inline-block; width: 150pt; }
       /* The officers who sign page 2. Fillable — the picker writes whoever was
          chosen here — but not a `blank`: the template prints these names as
          plain text, with no dotted rule under them and nothing for the tab
@@ -626,7 +658,7 @@
           box-shadow: none;
         }
         .sheet + .sheet { page-break-before: always; }
-        input.blank, textarea.blank { border-bottom: 1px dotted #444; }
+        input.blank, textarea.blank { border-bottom: var(--rule); }
         .blank.filled { background: transparent; }
       }
     </style>
@@ -1017,7 +1049,12 @@
       function fitHeight(field) {
         if (field.tagName !== 'TEXTAREA') return;
         field.style.height = 'auto';
-        field.style.height = `${field.scrollHeight}px`;
+        // The box is border-box, so the height set here has to carry the rule
+        // under it as well as the text — without it a wrapped blank ends a
+        // pixel short of what it holds and marks itself as clipping text it
+        // is in fact showing.
+        const chrome = field.offsetHeight - field.clientHeight;
+        field.style.height = `${field.scrollHeight + chrome}px`;
       }
 
       const TAB_STOP_PX = (12.7 / 25.4) * 96; // w:defaultTabStop 720 twips
