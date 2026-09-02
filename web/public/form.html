@@ -452,6 +452,13 @@
          first one runs out. Set by layoutBlanks(), which is not called while
          anything is being typed, so no line moves under the cursor. */
       .blank.full-row { display: block; width: 100%; text-align: left; }
+      /* A blank filling the room left on its line and carrying on underneath
+         it: aligned to the top of that line, so the lines it adds go below —
+         left on the baseline, a two-line box hangs its first line over the
+         wording above. layoutBlanks() puts this on once the box is taller
+         than one line and takes it off again, so a blank of one line keeps
+         the baseline alignment the whole record is laid out on. */
+      .blank.tall { vertical-align: top; }
 
       /* The four free-text blanks with no continuation line under them. A
          single-line input silently clips: at 15pt `placeName` showed 80 Thai
@@ -485,31 +492,41 @@
         vertical-align: text-bottom;
       }
 
-      /* The ▾ that opens the officer picker. Its glyph is CSS content for the
-         same reason the checkboxes' is: the parity test compares each
-         paragraph's textContent against the template, and a button with text
-         in it would be text the Word file does not have. Screen only — it is
-         a control, not part of the record. */
+      /* The control that opens the officer picker: a labelled box standing in
+         the sheet's left margin, level with the line it fills in. A bare ▾
+         beside the wording was easy to miss.
+
+         Out of the record's flow in both media, so the line is laid out the
+         way Word lays it out and the screen matches the PDF — which is what
+         the rules are measured against. Its label is CSS content for the same
+         reason the checkboxes' box is: the parity test reads each paragraph's
+         textContent, and the Word file has no button in it. */
       .pick {
-        font: inherit;
-        line-height: inherit;
-        border: 0;
-        background: transparent;
-        padding: 0 0 0 2pt;
+        position: absolute;
+        right: 100%;
+        /* Level with the blank it fills, which is the paragraph's second line:
+           the sheet is a fixed 210mm, so that never moves. */
+        top: 1lh;
+        margin-right: 3pt;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 10px;
+        line-height: 1.5;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--muted-foreground);
+        padding: 1px 4px;
+        white-space: nowrap;
         cursor: pointer;
-        color: #666;
         -webkit-appearance: none;
         appearance: none;
       }
-      .pick::before { content: "▾"; }
-      .pick:hover { color: #000; }
+      .pick::before { content: "เลือกรายชื่อ ▾"; }
+      .pick:hover { color: #000; border-color: var(--muted-foreground); }
       .pick:focus-visible { outline: 2px solid var(--ring); }
-      /* Hidden, not removed. Taking the control out of the flow shifts the
-         blank beside it 20px left in print but not on screen, and the rules
-         are drawn once for both — a rule that has to be redrawn when the
-         medium changes is a rule the browser's own print preview gets wrong,
-         because that layout is not the one JS can measure. */
-      @media print { .pick { visibility: hidden; } }
+      /* Nothing of it in the record: out of flow already, so this moves no
+         line — unlike the visibility:hidden it needed when it sat in one. */
+      @media print { .pick { display: none; } }
 
       /* The picker itself. A <dialog>, so Escape, the backdrop and the focus
          trap come from the browser rather than from us. */
@@ -1158,6 +1175,11 @@
         const copy = el.cloneNode(false);
         copy.removeAttribute('id');
         copy.removeAttribute('name');
+        // Width and height are layoutBlanks()' and fitHeight()'s, and a copy
+        // two lines tall would report the drop of a box two lines tall — for
+        // a figure that is the same in either case, being the distance from a
+        // box's bottom to the baseline of its last line.
+        copy.removeAttribute('style');
         const probe = document.createElement('span');
         probe.style.cssText = 'display:inline-block;width:0;height:0;overflow:hidden';
         holder.append(probe, copy);
@@ -1295,13 +1317,24 @@
              its blank had gone missing. */
           const rest = Math.max(0, Math.floor(margin - start) - 1);
           const need = field.value ? textWidth(field) : 0;
-          if (wraps && need > rest) {
+          /* A value too long for the room left on its line either fills that
+             room and carries on underneath it, or takes a line of its own —
+             whichever leaves the record looking like the form. Six officers
+             named on a blank that starts a quarter of the way along its line
+             used to drop the lot onto the next line and leave that quarter
+             empty; a blank that starts near the right margin has no room
+             worth filling and is better off on its own line. Half the width
+             of the text block is the line between the two. */
+          const roomy = rest >= (margin - origin) / 2;
+          if (wraps && need > rest && !roomy) {
             field.classList.add('full-row');
             field.style.width = '';
           } else {
             field.style.width = `${Math.floor(Math.min(Math.max(ruled, need), rest))}px`;
           }
           fitHeight(field);
+          const line = parseFloat(getComputedStyle(field).lineHeight) || 0;
+          field.classList.toggle('tall', wraps && line > 0 && field.offsetHeight > line * 1.5);
           markOverflow(field);
         }
         // The boxes have just been re-measured, so drops taken against the
