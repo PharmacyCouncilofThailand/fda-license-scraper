@@ -773,7 +773,7 @@
       <p class="para sm ind-tab1"><!-- 12 -->1. ชื่อผู้รับอนุญาตของสถานที่ทำการ<input class="blank" name="licenseeName" data-tabs="9" /></p>
       <p class="para"><!-- 13 -->ชื่อผู้ดำเนินการกิจการ<input class="blank" name="operatorName" data-tabs="5" /> ใบอนุญาตขายยาแผนปัจจุบันเลขที่<input class="blank w-m" name="licenseNo" data-tabs="3" /></p>
       <p class="para sm ind-tab1"><!-- 14 -->2. ชื่อผู้มีหน้าที่ปฏิบัติการ<input class="blank" name="dutyPharmacist" data-tabs="10" /></p>
-      <p class="para sm"><!-- 15 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-s" name="dutyLicenseNo" data-tabs="2" /> หมดอายุวันที่ <input class="blank w-s" name="dutyLicenseExpiry" data-tabs="2" /> เวลาทำการ น. <textarea class="blank w-m" name="openHours" data-tabs="3" rows="1"></textarea></p>
+      <p class="para sm"><!-- 15 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-s" name="dutyLicenseNo" data-tabs="2" /> หมดอายุวันที่ <input class="blank w-s" name="dutyLicenseExpiry" data-tabs="2" /> เวลาทำการ <textarea class="blank w-m" name="openHours" data-tabs="3" rows="1"></textarea> น.</p>
 
       <p class="para ind-tab1">3. สรุปผลการตรวจสอบพบ ดังนี้<!-- 16 --></p>
 
@@ -1098,6 +1098,33 @@
         );
       }
 
+      /* What the wording after a blank still needs on that line. Item 2
+         reads "เวลาทำการ ____ น.", and a rule run all the way to the right
+         margin left its "น." to fall onto a line of its own — which is not
+         how Word sets it: there the tabs stop short of the margin and the
+         unit follows the hours. Measured off the paragraph, whose type the
+         wording is set in. */
+      function trailWidth(field) {
+        /* Only the wording that closes the paragraph — words in the middle
+           of a sentence wrap on their own. */
+        if (field.parentNode.lastElementChild !== field) return 0;
+        let text = "";
+        for (let node = field.nextSibling; node; node = node.nextSibling) {
+          if (node.nodeType === Node.TEXT_NODE) text += node.textContent;
+          else return 0;
+        }
+        text = text.trimEnd();
+        if (!text) return 0;
+        const css = getComputedStyle(field.parentNode);
+        gauge.font = `${css.fontWeight} ${css.fontSize} ${css.fontFamily}`;
+        /* And only a unit: one tab stop is as much of the line as a rule
+           gives up for what follows it. Item 2's "น." and (12)'s are that;
+           the sentence that closes (4) is not, and holding a line of room
+           for wording that is free to wrap shrank four blanks to eight
+           pixels wide. */
+        const width = gauge.measureText(text).width;
+        return width <= TAB_STOP_PX ? width : 0;
+      }
       /* A textarea is as tall as what it holds. Called whenever its width or
          its value changes; it grows downwards, so nothing beside it moves. */
       function fitHeight(field) {
@@ -1315,7 +1342,7 @@
              fit wraps — which is how a blank ended up on the line under the
              wording it belongs to, leaving the paragraph looking as though
              its blank had gone missing. */
-          const rest = Math.max(0, Math.floor(margin - start) - 1);
+          const rest = Math.max(0, Math.floor(margin - start - trailWidth(field)) - 1);
           const need = field.value ? textWidth(field) : 0;
           /* A value too long for the room left on its line either fills that
              room and carries on underneath it, or takes a line of its own —
@@ -1446,7 +1473,7 @@
            dropped rather than doubled. Only the bare unit goes: a "น." that
            is part of a word is left alone. */
         const dropUnit = (text) =>
-          text.replace(/(^|\s)น\.(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
+          text.replace(/(^|[\s\d])\s*น\.(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
         const hours = [];
         for (const person of list) {
           const hour = dropUnit(person.openHours || '');
