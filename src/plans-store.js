@@ -72,7 +72,73 @@ const file = {
   },
 };
 
-const backends = { file };
+/*
+ * Vercel's filesystem is read-only, so the deployment keeps plans in Blob.
+ * `access: 'private'` matches the record template: a plan names the shops the
+ * office is about to visit, which is not public information.
+ *
+ * The SDK is required lazily so a `file` deployment never loads it, and the
+ * token is checked per call rather than at startup so the module can be
+ * required (and tested) without one.
+ */
+const BLOB_PREFIX = 'plans/';
+
+function blobApi() {
+  if (!config.blobToken) {
+    const err = new Error('ต้องตั้งค่า BLOB_READ_WRITE_TOKEN ก่อนใช้ที่เก็บแบบ blob');
+    err.status = 500;
+    throw err;
+  }
+  return require('@vercel/blob');
+}
+
+const blob = {
+  name: 'blob',
+  async all() {
+    const { list: listBlobs } = blobApi();
+    const { blobs } = await listBlobs({ prefix: BLOB_PREFIX, token: config.blobToken });
+    const plans = [];
+    for (const entry of blobs) {
+      const response = await fetch(entry.downloadUrl, {
+        headers: { Authorization: `Bearer ${config.blobToken}` },
+      });
+      if (response.ok) plans.push(await response.json());
+    }
+    return plans;
+  },
+  async get(id) {
+    const { head } = blobApi();
+    let meta;
+    try {
+      meta = await head(`${BLOB_PREFIX}${id}.json`, { token: config.blobToken });
+    } catch {
+      return null; // The SDK throws BlobNotFoundError; a missing plan is not an error here.
+    }
+    const response = await fetch(meta.downloadUrl, {
+      headers: { Authorization: `Bearer ${config.blobToken}` },
+    });
+    return response.ok ? response.json() : null;
+  },
+  async put(plan) {
+    const { put } = blobApi();
+    await put(`${BLOB_PREFIX}${plan.id}.json`, JSON.stringify(plan, null, 2), {
+      access: 'private',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      token: config.blobToken,
+    });
+  },
+  async del(id) {
+    const { del } = blobApi();
+    const existing = await blob.get(id);
+    if (!existing) return false;
+    await del(`${BLOB_PREFIX}${id}.json`, { token: config.blobToken });
+    return true;
+  },
+};
+
+const backends = { file, blob };
 const backend = backends[config.plansStore] || file;
 
 async function list() {

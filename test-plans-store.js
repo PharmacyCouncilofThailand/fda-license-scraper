@@ -49,6 +49,16 @@ const store = require('./src/plans-store');
   assert.strictEqual(await store.remove('2569-09-01'), false);
   assert.strictEqual((await store.list()).length, 1);
 
+  // Selecting the blob backend must not need a token at require time — the
+  // token is only read when a call actually goes out.
+  delete require.cache[require.resolve('./src/config')];
+  delete require.cache[require.resolve('./src/plans-store')];
+  process.env.PLANS_STORE = 'blob';
+  const blobStore = require('./src/plans-store');
+  assert.strictEqual(blobStore.backendName(), 'blob');
+  await assert.rejects(() => blobStore.list(), /BLOB_READ_WRITE_TOKEN/);
+  process.env.PLANS_STORE = 'file';
+
   fs.rmSync(dir, { recursive: true, force: true });
   console.log('ok — ที่เก็บแผนแบบไฟล์ทำงานครบวงจร');
 })();
