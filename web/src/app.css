@@ -200,6 +200,20 @@ a.detail:hover { text-decoration: underline; }
   border-top: 1px dashed var(--border);
 }
 .pharmacists .hours { color: var(--muted-foreground); }
+/* More than one pharmacist, more than one shift: the hours drive item 2 of
+   the record, so a mismatch has to read as wrong at a glance. */
+.pharmacists .hours.differ { color: var(--danger-fg); font-weight: 600; }
+.pharmacists .hours-differ {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  font-size: 13px;
+}
 /* The name and its lookup button share a line, the button hugging the name. */
 .pharmacists .who {
   display: flex;

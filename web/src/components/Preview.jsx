@@ -117,11 +117,25 @@ function PharmacistList({ pharmacists }) {
     );
   }
 
+  /* Several pharmacists on one licence usually share the same shift. When
+     they do not, the record has to be filled per person, so flag it in red
+     rather than letting the difference pass unnoticed. */
+  const hours = new Set(
+    pharmacists.map((p) => (p.openHours || '').replace(/\s+/g, ' ').trim())
+  );
+  const mixed = pharmacists.length > 1 && hours.size > 1;
+
   return (
     <div className="pharmacists">
       <div className="head">
         ผู้มีหน้าที่ปฏิบัติการ <small>[List of pharmacist or qualified person]</small>
       </div>
+      {mixed && (
+        <div className="hours-differ">
+          <span className="material-symbols-outlined sm">warning</span>
+          เภสัชกรมีเวลาปฏิบัติการต่างกัน
+        </div>
+      )}
       {pharmacists.map((person, i) => (
         <div className="person" key={`${person.index}-${person.name}`}>
           <div className="who">
@@ -130,7 +144,7 @@ function PharmacistList({ pharmacists }) {
             </span>
             <FindLicenceButton name={person.name} />
           </div>
-          <div className="hours">
+          <div className={mixed ? 'hours differ' : 'hours'}>
             เวลาปฏิบัติการ :{' '}
             {person.openHours || <span className="empty">ไม่ระบุ</span>}
           </div>
