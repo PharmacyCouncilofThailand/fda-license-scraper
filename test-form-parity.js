@@ -376,10 +376,15 @@ const pxToMm = (px) => px / 96 * 25.4;
       template.cellParagraphs.length,
       `จำนวนแถวตารางลงชื่อไม่ตรง: หน้าเว็บ ${cellLines.length} Word ${template.cellParagraphs.length}`
     );
+    /* The office asked for the officers' signature blocks to sit an equal
+       distance apart. Word leaves row 1's officer cell a paragraph short of
+       the others, which bunches the second and third signatures together, so
+       that cell carries one line more than the template — deliberately. */
+    const EXTRA_LINE = { '1,1': 1 };
     cellLines.forEach((row, r) =>
       row.forEach((cell, c) =>
         assert.ok(
-          cell.lines <= template.cellParagraphs[r][c],
+          cell.lines <= template.cellParagraphs[r][c] + (EXTRA_LINE[`${r},${c}`] || 0),
           `ช่องลงชื่อ แถว ${r} คอลัมน์ ${c} ใช้ ${cell.lines} บรรทัด Word ให้ ${template.cellParagraphs[r][c]}: ${cell.text}`
         )
       )

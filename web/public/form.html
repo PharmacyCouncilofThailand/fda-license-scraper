@@ -253,6 +253,14 @@
          the way the tabs leave them. Paragraphs of running text keep the
          template's thaiDistribute. */
       .para:has(.blank) { text-align: left; }
+      /* Chromium breaks Thai at dictionary word boundaries, so a phrase can
+         come apart mid-word at the end of a line — item (11) closed with
+         "เข้าใจและรับ / ทราบข้อมูลตามที่แจ้ง". Held together here. */
+      .tie { white-space: nowrap; }
+      /* justify spreads every line but the last, which leaves a paragraph
+         of running text ending short of the right margin. These three wrap
+         and are asked to read edge to edge, stretch and all. */
+      .para.fill { text-align-last: justify; }
 
       /* ---- the template's own indents ----
          Word indents these paragraphs two ways and the record was doing
@@ -400,6 +408,13 @@
       .blank.w-s  { min-width: 70pt; width: 70pt; }
       .blank.w-m  { min-width: 120pt; width: 120pt; }
       .blank.w-l  { min-width: 180pt; width: 180pt; }
+      /* ผลิต and ยาสิ้นอายุ hold the same kind of date and are asked to look
+         alike; off the tab grid they came out 40px and 52px, because each
+         starts at a different point on it. Sized here instead. */
+      .blank.w-date { min-width: 34pt; width: 34pt; }
+      /* Three digits is all a quantity needs; on the grid this one landed
+         a hair past a tab stop and came out eight pixels wide. */
+      .blank.w-num  { min-width: 26pt; width: 26pt; }
       /* A blank the tab grid measures has no use for a hand-picked minimum:
          the grid decides how wide the rule is, and a floor of its own only
          made the rule too wide for its line and wrapped it onto the next. */
@@ -535,20 +550,24 @@
         top: 1lh;
         margin-right: 3pt;
         font-family: 'Inter', system-ui, sans-serif;
-        font-size: 10px;
+        /* Filled in the app's own accent rather than outlined in grey: at
+           10px in the margin it read as part of the paper and was missed. */
+        font-size: 12px;
+        font-weight: 500;
         line-height: 1.5;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        background: #fff;
-        color: var(--muted-foreground);
-        padding: 1px 4px;
+        border: 1px solid var(--primary);
+        border-radius: 999px;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+        padding: 3px 9px;
         white-space: nowrap;
         cursor: pointer;
         -webkit-appearance: none;
         appearance: none;
       }
       .pick::before { content: "เลือกรายชื่อ ▾"; }
-      .pick:hover { color: #000; border-color: var(--muted-foreground); }
+      .pick:hover { filter: brightness(1.08); }
       .pick:focus-visible { outline: 2px solid var(--ring); }
       /* Nothing of it in the record: out of flow already, so this moves no
          line — unlike the visibility:hidden it needed when it sat in one. */
@@ -806,7 +825,7 @@
       <p class="para sm ind-993"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" data-tabs="2" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" data-tabs="4" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> พบ<input class="blank" name="personFound" data-tabs="5" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" data-tabs="6" /></p>
       <p class="para sm"><!-- 18 -->ทำหน้าที่ <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="roleLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="roleAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่ ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด<input class="blank" name="ruled1" hidden /><input class="blank" name="ruled2" hidden /><input class="blank" name="ruled3" hidden /></p>
 
-      <p class="para sm ind-992 r142"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" data-tabs="2" /> ได้จ่ายยา <input class="blank" name="drugDispensed" data-tabs="3" /> ให้จำนวน<input class="blank w-s" name="drugQuantity" data-tabs="4" /> ในราคา<input class="blank w-s" name="drugPrice" data-tabs="2" /> บาท ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" data-tabs="3" /> Lot<input class="blank w-s" name="lot" data-tabs="2" /> ผลิต<input class="blank w-s" name="mfgDate" data-tabs="2" /> ยาสิ้นอายุ<input class="blank w-s" name="expDate" data-tabs="3" /> ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น<input class="blank" name="ruled4" hidden /></p>
+      <p class="para sm ind-992 r142"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" data-tabs="20" /> <br />ได้จ่ายยา <input class="blank" name="drugDispensed" data-tabs="20" /><br />ให้จำนวน<input class="blank w-num" name="drugQuantity" /> ในราคา<input class="blank w-s" name="drugPrice" data-tabs="2" /> บาท ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" data-tabs="3" /> Lot<input class="blank w-s" name="lot" data-tabs="2" /> ผลิต<input class="blank w-date" name="mfgDate" /> ยาสิ้นอายุ<input class="blank w-date" name="expDate" /> <br />ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น<input class="blank" name="ruled4" hidden /></p>
       <p class="para sm ind-tab2 r142"><!-- 20 --><button type="button" class="check" data-name="notDispensed" aria-pressed="false">ไม่ได้จ่ายยา เนื่องจาก</button> <textarea class="blank" name="notDispensedReason" data-tabs="9" rows="1"></textarea></p>
 
       <p class="para sm ind-992 r142"><!-- 21 -->(3) <input class="blank" name="admitPerson" data-tabs="6" />ได้ยอมรับว่า <button type="button" class="check" data-name="admitSold" aria-pressed="false">ได้ขายยาตาม (2) ให้กับพนักงานเจ้าหน้าที่</button>ในขณะที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่จริง</p>
@@ -836,9 +855,9 @@
       <p class="para sm gap ind-992"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" data-tabs="19" /></p>
       <p class="para sm"><input class="blank full" name="behaviour2" /></p>
 
-      <p class="para sm gap ind-851"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<input class="blank w-eq" name="seizedItems" data-tabs="0" value="-" /> จำนวน <input class="blank w-eq" name="seizedCount" data-tabs="0" value="-" /> รายการ อายัด <input class="blank w-eq" name="heldItems" data-tabs="0" value="-" /> จำนวน <input class="blank w-eq" name="heldCount" data-tabs="0" value="-" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
+      <p class="para sm gap ind-851"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<input class="blank w-eq" name="seizedItems" data-tabs="0" /> จำนวน <input class="blank w-eq" name="seizedCount" data-tabs="0" /> รายการ อายัด <input class="blank w-eq" name="heldItems" data-tabs="0" /> จำนวน <input class="blank w-eq" name="heldCount" data-tabs="0" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
 
-      <p class="para sm gap ind-851"><!-- 34 -->(11) พนักงานเจ้าหน้าที่ได้แจ้งข้อมูลให้ทราบว่า กรณีที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่ปฏิบัติหน้าที่ ให้ร้านปฏิบัติตามกฎหมายว่าด้วยยา และห้ามมิให้มีการจำหน่าย จ่าย แจก หรือส่งมอบ ยาประเภทยาอันตราย ยาควบคุมพิเศษ วัตถุที่ออกฤทธิ์ต่อจิตและประสาท หรือยาเสพติดให้โทษ โดยบุคคลที่ไม่ได้เป็นผู้ประกอบวิชาชีพเภสัชกรรม หากมีการฝ่าฝืนจะเป็นความผิดตามพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 โดย <button type="button" class="check" data-name="informPharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="informLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="informAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> เข้าใจและรับทราบข้อมูลตามที่แจ้ง</p>
+      <p class="para sm gap ind-851"><!-- 34 -->(11) พนักงานเจ้าหน้าที่ได้แจ้งข้อมูลให้ทราบว่า กรณีที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่ปฏิบัติหน้าที่ ให้ร้านปฏิบัติ<span class="tie">ตามกฎหมายว่าด้วยยา</span> และห้ามมิให้มีการจำหน่าย จ่าย แจก หรือส่งมอบ ยาประเภทยาอันตราย ยาควบคุมพิเศษ วัตถุที่ออกฤทธิ์<span class="tie">ต่อจิตและประสาท</span> หรือยาเสพติดให้โทษ โดยบุคคลที่ไม่ได้เป็นผู้ประกอบวิชาชีพเภสัชกรรม หากมีการฝ่าฝืนจะเป็นความผิดตาม<span class="tie">พระราชบัญญัติ</span>วิชาชีพเภสัชกรรม พ.ศ. 2537 โดย <button type="button" class="check" data-name="informPharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="informLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="informAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> <span class="tie">เข้าใจและรับทราบข้อมูลตามที่แจ้ง</span></p>
 
       <p class="para sm gap ind-851"><!-- 35 -->(12) สิ้นสุดการตรวจเวลา<input class="blank w-m" name="endTime" data-tabs="2" /> น.</p>
 
@@ -891,6 +910,7 @@
 
               <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer2" /> )</div>
+              <div>&nbsp;</div>
             </td>
           </tr>
           <tr>
@@ -980,6 +1000,7 @@
         'นายศิริพงษ์ เจือโร่ง',
         'นายณภัทร ไกยวงค์',
         'นายเจษฎา จันทรประเสริฐ',
+        'นางสาวอัญนิชา แก้วสม',
       ];
 
       /* Names are written into the blank tied together, so that a line
@@ -1365,6 +1386,31 @@
         }
       }
 
+      /* Justify spreads every line of a paragraph but the last, and a
+         paragraph of running text is asked to read edge to edge. Stretching a
+         line that is nearly full is what the record wants; stretching a short
+         closing phrase across the whole text block is not — item (11) ends on
+         "เข้าใจและรับทราบข้อมูลตามที่แจ้ง" alone, and spread over 170mm it
+         reads as one letter every few millimetres. So the last line is
+         justified only when it already fills most of its width. Paragraphs
+         holding a blank are set flush left by the tab grid and are left
+         alone. */
+      const FILL_LAST = 0.7;
+      function fillLastLines() {
+        for (const para of document.querySelectorAll('.sheet .para')) {
+          if (para.querySelector('.blank, .tab')) continue;
+          para.classList.remove('fill');
+          const range = document.createRange();
+          range.selectNodeContents(para);
+          const boxes = [...range.getClientRects()].filter((b) => b.width > 0);
+          if (boxes.length < 2) continue;
+          const last = boxes[boxes.length - 1];
+          const room = para.clientWidth -
+            parseFloat(getComputedStyle(para).paddingRight || 0);
+          if (room > 0 && last.width / room >= FILL_LAST) para.classList.add('fill');
+        }
+      }
+
       const TAB_STOP_PX = (12.7 / 25.4) * 96; // w:defaultTabStop 720 twips
       window.layoutBlanks = function layoutBlanks() {
         const sheet = document.querySelector('.sheet');
@@ -1451,7 +1497,13 @@
              fit wraps — which is how a blank ended up on the line under the
              wording it belongs to, leaving the paragraph looking as though
              its blank had gone missing. */
-          const rest = Math.max(0, Math.floor(margin - start - trailWidth(field)) - 1);
+          /* Some paragraphs are set narrower than the text block (.r142
+             carries the template's right indent), and a rule sized to the
+             sheet's margin rather than to its own paragraph's does not fit
+             on the line — it wraps, leaving the wording in front of it
+             alone on the line above. */
+          const inset = parseFloat(getComputedStyle(field.parentNode).paddingRight) || 0;
+          const rest = Math.max(0, Math.floor(margin - inset - start - trailWidth(field)) - 1);
           const need = field.value ? textWidth(field) : 0;
           /* A value too long for the room left on its line either fills that
              room and carries on underneath it, or takes a line of its own —
@@ -1473,6 +1525,7 @@
           field.classList.toggle('tall', wraps && line > 0 && field.offsetHeight > line * 1.5);
           markOverflow(field);
         }
+        fillLastLines();
         // The boxes have just been re-measured, so drops taken against the
         // old ones are no longer worth keeping.
         RULE_DROPS.clear();
