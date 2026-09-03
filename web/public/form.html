@@ -544,11 +544,13 @@
          textContent, and the Word file has no button in it. */
       .pick {
         position: absolute;
-        right: 100%;
-        /* Level with the blank it fills, which is the paragraph's second line:
-           the sheet is a fixed 210mm, so that never moves. */
+        /* On the blank it fills rather than out in the margin: at the right
+           end of the officers' rule, which is where that line has room —
+           the names run in from the left. Level with the blank, which is the
+           paragraph's second line; the sheet is a fixed 210mm, so that never
+           moves. */
+        right: 0;
         top: 1lh;
-        margin-right: 3pt;
         font-family: 'Inter', system-ui, sans-serif;
         /* Filled in the app's own accent rather than outlined in grey: at
            10px in the margin it read as part of the paper and was missed. */
