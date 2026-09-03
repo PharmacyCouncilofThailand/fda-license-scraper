@@ -452,6 +452,32 @@
          first one runs out. Set by layoutBlanks(), which is not called while
          anything is being typed, so no line moves under the cursor. */
       .blank.full-row { display: block; width: 100%; text-align: left; }
+      /* The officers’ names run on like the wording around them: they fill
+         what is left of the line they start on and carry on at the left
+         margin, which is where Word puts them. A box cannot be that shape,
+         so the box is a full-width block pulled up onto the line above by
+         its own height of one line, and its first line is indented past the
+         wording — layoutBlanks() measures how far. Nothing else on that
+         line, so nothing is covered.
+
+         keep-all so a name is never cut in half: Chromium breaks Thai
+         between dictionary words, which put "เจือ" at the end of one line
+         and "โร่ง" at the start of the next. joinOfficers() ties each name
+         together with a no-break space for the same reason. */
+      .blank.flow {
+        display: block;
+        width: 100%;
+        margin-top: -1lh;
+        /* Every blank pulls itself up by the width of the rule it carries as
+           a border (see --rule-width). As a block that margin is on the
+           outside of the paragraph and pulls the whole record up a pixel
+           instead, so this one gives it back. */
+        margin-bottom: 0;
+        text-align: left;
+        word-break: keep-all;
+      }
+      /* The fill would paint over the wording this box is pulled up beside. */
+      .blank.flow.filled { background-color: transparent; }
       /* A blank filling the room left on its line and carrying on underneath
          it: aligned to the top of that line, so the lines it adds go below —
          left on the baseline, a two-line box hangs its first line over the
@@ -759,7 +785,7 @@
            officers2 is hidden and empty: it holds the record's blank count
            level with the template's, whose dotted run this paragraph rules
            as one. -->
-      <p class="para seal-clear ind-tab2">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย<button type="button" class="pick" id="pickOfficers" aria-label="เลือกพนักงานเจ้าหน้าที่" title="เลือกพนักงานเจ้าหน้าที่"></button><textarea class="blank" name="officers1" data-tabs="8" rows="1"></textarea><input class="blank" name="officers2" hidden /></p>
+      <p class="para seal-clear ind-tab2">อาศัยอำนาจตามความในมาตรา 47 และมาตรา 49 แห่งพระราชบัญญัติวิชาชีพเภสัชกรรม พ.ศ. 2537 พนักงานเจ้าหน้าที่ประกอบด้วย<button type="button" class="pick" id="pickOfficers" aria-label="เลือกพนักงานเจ้าหน้าที่" title="เลือกพนักงานเจ้าหน้าที่"></button><textarea class="blank flow" name="officers1" data-tabs="8" rows="1"></textarea><input class="blank" name="officers2" hidden /></p>
 
       <p class="para"><!-- 4 -->ได้ทำการตรวจสถานที่ทำการของผู้ประกอบวิชาชีพเภสัชกรรมชื่อ<input class="blank" name="pharmacistName" data-tabs="7" /></p>
       <p class="para"><!-- 5 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-m" name="pharmacistLicenseNo" data-tabs="3" /> หมดอายุวันที่ <input class="blank w-m" name="pharmacistLicenseExpiry" data-tabs="4" /></p>
@@ -945,6 +971,8 @@
        * spaces, the last one after "และ". A name the list has not got is
        * typed into the picker's own box, or straight onto the blank.
        */
+      const NO_BREAK_SPACE = " ";
+      const WORD_JOINER = "⁠";
       const OFFICERS = [
         'นายเทอดภูมิ พัชรสุนทรชัย',
         'นางสาวอชิดา บุญเพียร',
@@ -954,10 +982,44 @@
         'นายเจษฎา จันทรประเสริฐ',
       ];
 
+      /* Names are written into the blank tied together, so that a line
+         break can only ever fall between one officer and the next:
+
+         - a no-break space between the parts of a name, so a surname is
+           never left on its own line;
+         - a word joiner between the letters of each part, because Chromium
+           breaks Thai wherever its dictionary says one word ends and the
+           next begins, and "เจือโร่ง" is two of those — which is how a
+           name came out as "เจือ" at the end of one line and "โร่ง" at the
+           start of the next. word-break: keep-all does not stop it.
+
+         Both are invisible and both survive the trip to the DOCX and the
+         PDF, which is the point: the paper has to break where the screen
+         does. */
+      /* The blank as a person would type it: what the picker matches its
+         boxes against, and what the officer sees if they edit it by hand. */
+      const plainNames = (text) =>
+        text.split(WORD_JOINER).join("").split(NO_BREAK_SPACE).join(" ");
       function joinOfficers(names) {
-        if (names.length < 2) return names.join('');
-        return `${names.slice(0, -1).join(' ')} และ${names[names.length - 1]}`;
+        const tie = (name) => name.trim().split(/\s+/).join(NO_BREAK_SPACE);
+        const tied = names.map(tie).filter(Boolean);
+        if (tied.length < 2) return tied.join('');
+        return `${tied.slice(0, -1).join(' ')} และ${tied[tied.length - 1]}`;
       }
+
+      /* The same names as the blank holds them. Chromium breaks Thai
+         wherever its dictionary says one word ends and the next begins, and
+         "เจือโร่ง" is two of those — which put "เจือ" at the end of one line
+         and "โร่ง" at the start of the next. A word joiner between the
+         letters forbids it; word-break: keep-all does not. Display only: the
+         joiners are stripped again on the way out (see collect()), so the
+         DOCX and the PDF carry the names as they are written, and put back
+         when a record is loaded so the paper breaks where the screen does. */
+      const tieBreaks = (text) =>
+        text
+          .split(' ')
+          .map((run) => [...run].join(WORD_JOINER))
+          .join(' ');
 
       const officersField = document.querySelector('[name="officers1"]');
 
@@ -977,7 +1039,7 @@
       document.getElementById('pickOfficers').addEventListener('click', () => {
         // Read the blank back, so a name typed straight onto it survives the
         // trip through the picker instead of being thrown away.
-        let rest = officersField.value;
+        let rest = plainNames(officersField.value);
         for (const box of officerList.querySelectorAll('input')) {
           box.checked = rest.includes(box.value);
           if (box.checked) rest = rest.replace(box.value, ' ');
@@ -1020,7 +1082,7 @@
           .map((line) => line.trim())
           .filter(Boolean);
         const picked = [...chosen, ...extra];
-        officersField.value = joinOfficers(picked);
+        officersField.value = tieBreaks(joinOfficers(picked));
         officersField.classList.toggle('filled', Boolean(officersField.value));
         signAs(picked);
         window.layoutBlanks();
@@ -1268,17 +1330,37 @@
                stroke straddles its centre line, so it is set half its weight
                above where the bar's underside goes. */
             const drop = baselineDrop(el, RULE_DROPS) / scale;
-            const y =
-              (r.bottom - box.top) / scale - drop + RULE_BELOW - RULE_THICK / 2;
-            const line = document.createElementNS(SVG_NS, 'line');
-            line.setAttribute('x1', (r.left - box.left) / scale);
-            line.setAttribute('x2', (r.right - box.left) / scale);
-            line.setAttribute('y1', y);
-            line.setAttribute('y2', y);
-            line.setAttribute('stroke', el.classList.contains('over') ? '#b00020' : '#000');
-            line.setAttribute('stroke-width', RULE_THICK);
-            line.setAttribute('stroke-dasharray', `${RULE_DASH} ${RULE_DASH}`);
-            host.querySelector(':scope > .rules').append(line);
+            /* A blank that flows with the paragraph is ruled line by line,
+               the way the template's leader carries on: the first line from
+               where the wording in front of it ends, every line after it
+               from the margin. Every other blank is one line and one rule. */
+            const flows = el.classList.contains('flow');
+            const lineHeight = parseFloat(getComputedStyle(el).lineHeight) / scale;
+            const rows =
+              flows && lineHeight > 0
+                ? Math.max(1, Math.round(r.height / scale / lineHeight))
+                : 1;
+            const indent = flows ? parseFloat(getComputedStyle(el).textIndent) || 0 : 0;
+            for (let row = 0; row < rows; row += 1) {
+              /* Off the box’s own bottom, so the last rule lands exactly
+                 where a single-line blank’s would; the ones above it are a
+                 line apart. */
+              const bottom =
+                (r.bottom - box.top) / scale - (rows - 1 - row) * lineHeight;
+              const y = bottom - drop + RULE_BELOW - RULE_THICK / 2;
+              const line = document.createElementNS(SVG_NS, 'line');
+              line.setAttribute(
+                'x1',
+                (r.left - box.left) / scale + (row === 0 ? indent : 0)
+              );
+              line.setAttribute('x2', (r.right - box.left) / scale);
+              line.setAttribute('y1', y);
+              line.setAttribute('y2', y);
+              line.setAttribute('stroke', el.classList.contains('over') ? '#b00020' : '#000');
+              line.setAttribute('stroke-width', RULE_THICK);
+              line.setAttribute('stroke-dasharray', `${RULE_DASH} ${RULE_DASH}`);
+              host.querySelector(':scope > .rules').append(line);
+            }
           }
         }
       }
@@ -1320,6 +1402,33 @@
           // are collapsed first so a long value cannot wrap them onto the next
           // line and have the grid measured from the wrong left edge.
           const wraps = field.tagName === 'TEXTAREA';
+          /* A blank that flows with the paragraph is a block of its own the
+             full width of the text, pulled up onto the line it starts on (see
+             .blank.flow). Only its first line is indented, and by however far
+             along that line the wording in front of it ends — measured over
+             the paragraph's own content rather than off the box, which starts
+             at the margin like any other block. */
+          if (field.classList.contains('flow')) {
+            /* Only its first line is indented, and by however far along the
+               line the wording in front of it ends. Measured over that
+               wording's own text node: the paragraph also holds the rules'
+               <svg> and the picker’s button, which stands out in the left
+               margin and would put the end of the line behind its start. */
+            let text = field.previousSibling;
+            while (text && text.nodeType !== Node.TEXT_NODE) text = text.previousSibling;
+            let indent = 0;
+            if (text) {
+              const range = document.createRange();
+              range.selectNodeContents(text);
+              const boxes = [...range.getClientRects()];
+              const last = boxes[boxes.length - 1];
+              if (last) indent = (last.right - field.parentNode.getBoundingClientRect().left) / scale;
+            }
+            field.style.textIndent = `${Math.max(0, indent)}px`;
+            fitHeight(field);
+            markOverflow(field);
+            continue;
+          }
           field.classList.remove('full-row');
           field.style.width = '0px';
           const start = (field.getBoundingClientRect().left - box.left) / scale;
@@ -1373,7 +1482,9 @@
       function collect() {
         const values = {};
         for (const input of document.querySelectorAll('input.blank, textarea.blank, .officer')) {
-          values[input.name] = input.value;
+          // The joiners are ours, for the line breaking; nothing outside
+          // this page has any use for them.
+          values[input.name] = input.value.split(WORD_JOINER).join("");
         }
         const checks = {};
         for (const button of document.querySelectorAll('.check')) {
@@ -1391,7 +1502,9 @@
         const checks = (data && data.checks) || {};
         for (const input of document.querySelectorAll('input.blank, textarea.blank, .officer')) {
           if (values[input.name] === undefined) continue;
-          input.value = values[input.name];
+          input.value = input.classList.contains('flow')
+            ? tieBreaks(values[input.name])
+            : values[input.name];
           input.classList.toggle('filled', Boolean(values[input.name]));
           markOverflow(input);
         }
