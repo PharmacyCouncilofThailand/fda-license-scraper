@@ -23,3 +23,6 @@ scripts/logo-source.jpg
 /fonts/
 
 .vercel
+
+# Inspection plans written by the `file` backend during local runs.
+/data/plans/

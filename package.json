@@ -14,6 +14,7 @@
     "smoke:api": "node smoke.js",
     "test:parse": "node test-parse.js",
     "test:name": "node test-thai-name.js",
+    "test:plans-store": "node test-plans-store.js",
     "test:parity": "node test-form-parity.js",
     "test:docx": "node test-docx-pad.js",
     "smoke:pharmacist": "node smoke-pharmacist.js"
