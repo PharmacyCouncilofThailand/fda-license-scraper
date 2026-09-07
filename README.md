@@ -65,6 +65,9 @@ template lives.
 | `FORM_TEMPLATE` | `templates/inspection-form.docx` | the tokenised Word file — see "Deploying" |
 | `CHROME_PATH` | auto | Chrome/Edge binary, when Puppeteer's own download is unavailable |
 | `USER_AGENT` | desktop Chrome | see "WAF" below |
+| `PLANS_STORE` | `blob` when `BLOB_READ_WRITE_TOKEN` is set, else `file` | ที่เก็บแผนการตรวจ — `blob` สำหรับ Vercel, `file` สำหรับเซิร์ฟเวอร์ที่เขียนดิสก์ได้ |
+| `PLANS_DIR` | `data/plans` | โฟลเดอร์เก็บแผน เมื่อใช้ `PLANS_STORE=file` |
+| `PLANS_PASSCODE` | *(ไม่ตั้ง)* | รหัสผ่านของสำนักงานสำหรับ `/api/plans/*` ไม่ตั้ง = ไม่กั้น |
 
 `npm install` normally downloads its own Chromium. If a proxy blocks that, the
 app falls back to an installed Chrome or Edge (`src/config.js` → `findChrome()`),

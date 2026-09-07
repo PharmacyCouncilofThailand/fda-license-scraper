@@ -76,7 +76,7 @@ The council's register searches first name and surname separately, but the FDA w
 - Consumes: nothing.
 - Produces: `splitThaiName(full) -> { title: string, firstName: string, lastName: string }`. Missing parts come back as `''`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `test-thai-name.js`:
 
@@ -117,7 +117,7 @@ for (const junk of [null, undefined, '', '   ', 'นางสาว']) {
 console.log('ok — แยกชื่อไทยได้ครบทุกกรณี');
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 node test-thai-name.js
@@ -125,7 +125,7 @@ node test-thai-name.js
 
 Expected: `Error: Cannot find module './src/thai-name'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `src/thai-name.js`:
 
@@ -176,7 +176,7 @@ function splitThaiName(full) {
 module.exports = { splitThaiName, TITLES };
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 node test-thai-name.js
@@ -184,7 +184,7 @@ node test-thai-name.js
 
 Expected: `ok — แยกชื่อไทยได้ครบทุกกรณี`.
 
-- [ ] **Step 5: Register the script**
+- [x] **Step 5: Register the script**
 
 In `package.json`, inside `"scripts"`, after `"test:parse"`:
 
@@ -192,7 +192,7 @@ In `package.json`, inside `"scripts"`, after `"test:parse"`:
     "test:name": "node test-thai-name.js",
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/thai-name.js test-thai-name.js package.json
@@ -224,7 +224,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `backendName() -> 'blob' | 'file'`
   - A `Plan` is the shape in the spec: `{ id, title, date, createdAt, updatedAt, items: [] }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `test-plans-store.js`:
 
@@ -285,7 +285,7 @@ const store = require('./src/plans-store');
 })();
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 node test-plans-store.js
@@ -293,7 +293,7 @@ node test-plans-store.js
 
 Expected: `Error: Cannot find module './src/plans-store'`.
 
-- [ ] **Step 3: Add the settings**
+- [x] **Step 3: Add the settings**
 
 In `src/config.js`, inside the exported object beside `blobToken`:
 
@@ -306,7 +306,7 @@ In `src/config.js`, inside the exported object beside `blobToken`:
   plansPasscode: process.env.PLANS_PASSCODE || null,
 ```
 
-- [ ] **Step 4: Write the file backend**
+- [x] **Step 4: Write the file backend**
 
 Create `src/plans-store.js`:
 
@@ -414,7 +414,7 @@ function backendName() {
 module.exports = { list, get, save, remove, backendName };
 ```
 
-- [ ] **Step 5: Run the test and watch it pass**
+- [x] **Step 5: Run the test and watch it pass**
 
 ```bash
 node test-plans-store.js
@@ -422,7 +422,7 @@ node test-plans-store.js
 
 Expected: `ok — ที่เก็บแผนแบบไฟล์ทำงานครบวงจร`.
 
-- [ ] **Step 6: Keep local plans out of git**
+- [x] **Step 6: Keep local plans out of git**
 
 Append to `.gitignore`:
 
@@ -431,7 +431,7 @@ Append to `.gitignore`:
 /data/plans/
 ```
 
-- [ ] **Step 7: Register the script**
+- [x] **Step 7: Register the script**
 
 In `package.json` `"scripts"`, after `"test:name"`:
 
@@ -439,7 +439,7 @@ In `package.json` `"scripts"`, after `"test:name"`:
     "test:plans-store": "node test-plans-store.js",
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/plans-store.js src/config.js test-plans-store.js package.json .gitignore
@@ -464,7 +464,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `assertId`, `byDateDesc` from Task 2.
 - Produces: no new exports. `backendName()` now also answers `'blob'`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `test-plans-store.js`, immediately before the `fs.rmSync(dir, …)` line:
 
@@ -480,7 +480,7 @@ Append to `test-plans-store.js`, immediately before the `fs.rmSync(dir, …)` li
   process.env.PLANS_STORE = 'file';
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 node test-plans-store.js
@@ -488,13 +488,13 @@ node test-plans-store.js
 
 Expected: `AssertionError … 'file' !== 'blob'`.
 
-- [ ] **Step 3: Install the dependency**
+- [x] **Step 3: Install the dependency**
 
 ```bash
 npm install @vercel/blob
 ```
 
-- [ ] **Step 4: Write the blob backend**
+- [x] **Step 4: Write the blob backend**
 
 In `src/plans-store.js`, add above `const backends = …`:
 
@@ -572,7 +572,7 @@ Then change the registry line:
 const backends = { file, blob };
 ```
 
-- [ ] **Step 5: Run the test and watch it pass**
+- [x] **Step 5: Run the test and watch it pass**
 
 ```bash
 node test-plans-store.js
@@ -580,7 +580,7 @@ node test-plans-store.js
 
 Expected: `ok — ที่เก็บแผนแบบไฟล์ทำงานครบวงจร`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/plans-store.js test-plans-store.js package.json package-lock.json
@@ -615,7 +615,7 @@ The one place that knows what a plan means. It takes the FDA detail and the coun
   - `buildItem(newCode, deps) -> Promise<Item>` — exported for the test.
   - `deps` is `{ fetchDetail, searchPharmacists }`; both default to the real ones.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `test-plans.js`:
 
@@ -759,7 +759,7 @@ const deps = {
 })();
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 node test-plans.js
@@ -767,7 +767,7 @@ node test-plans.js
 
 Expected: `Error: Cannot find module './src/plans'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `src/plans.js`:
 
@@ -1007,7 +1007,7 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 node test-plans.js
@@ -1015,7 +1015,7 @@ node test-plans.js
 
 Expected: `ok — ตรรกะแผนการตรวจถูกต้อง`.
 
-- [ ] **Step 5: Register the script**
+- [x] **Step 5: Register the script**
 
 In `package.json` `"scripts"`, after `"test:plans-store"`:
 
@@ -1023,7 +1023,7 @@ In `package.json` `"scripts"`, after `"test:plans-store"`:
     "test:plans": "node test-plans.js",
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/plans.js test-plans.js package.json
@@ -1048,7 +1048,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: everything `src/plans.js` exports, `store.list`/`store.get`/`store.remove`/`store.backendName`.
 - Produces: the ten routes in the spec. Every response is `{ success: true, … }`, matching the existing endpoints.
 
-- [ ] **Step 1: Add the requires**
+- [x] **Step 1: Add the requires**
 
 In `src/server.js`, after the `renderFormDocx` require:
 
@@ -1057,7 +1057,7 @@ const plansStore = require('./plans-store');
 const plans = require('./plans');
 ```
 
-- [ ] **Step 2: Report the store in /health**
+- [x] **Step 2: Report the store in /health**
 
 Replace the `/health` line:
 
@@ -1067,7 +1067,7 @@ app.get('/health', (req, res) =>
 );
 ```
 
-- [ ] **Step 3: Guard the plan routes**
+- [x] **Step 3: Guard the plan routes**
 
 Add immediately before the first plan route:
 
@@ -1086,7 +1086,7 @@ app.use('/api/plans', (req, res, next) => {
 });
 ```
 
-- [ ] **Step 4: Add the routes**
+- [x] **Step 4: Add the routes**
 
 After the guard:
 
@@ -1170,11 +1170,11 @@ app.post('/api/plans/:id/items/:newCode/sync', async (req, res, next) => {
 });
 ```
 
-- [ ] **Step 5: Check the error handler honours `err.status`**
+- [x] **Step 5: Check the error handler honours `err.status`**
 
 Read the `app.use((err, req, res, next) => …)` block at the bottom of `src/server.js`. If it always answers 500, change it to use `err.status || err.statusCode || 500` so `ไม่พบแผนการตรวจนี้` arrives as 404 rather than 500. Leave the `ScrapeError` branch as it is.
 
-- [ ] **Step 6: Exercise the routes by hand**
+- [x] **Step 6: Exercise the routes by hand**
 
 ```bash
 PLANS_STORE=file npm start
@@ -1191,7 +1191,7 @@ curl -s -X DELETE localhost:3000/api/plans/2569-08-27
 
 Expected: `/health` reports `"plansStore":"file"`; the POST answers 201 with the plan; the list shows `total: 0, done: 0`; the DELETE answers `{"success":true}`.
 
-- [ ] **Step 7: Check the passcode**
+- [x] **Step 7: Check the passcode**
 
 ```bash
 PLANS_STORE=file PLANS_PASSCODE=test123 npm start
@@ -1204,7 +1204,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -H 'x-plans-passcode: test123' localhos
 
 Expected: `401` then `200`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/server.js
@@ -1229,7 +1229,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `write` from `src/zip.js`; a `Plan` from Task 4.
 - Produces: `renderPlanDocx(plan) -> Buffer` — a complete `.docx`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `test-docx-plan.js`:
 
@@ -1316,7 +1316,7 @@ assert.strictEqual(rows, plan.items.length + 1, 'จำนวนแถวไม�
 console.log('ok — ไฟล์ Word ของแผนการตรวจถูกต้อง');
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 node test-docx-plan.js
@@ -1324,7 +1324,7 @@ node test-docx-plan.js
 
 Expected: `Error: Cannot find module './src/docx-plan'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `src/docx-plan.js`:
 
@@ -1528,11 +1528,11 @@ function renderPlanDocx(plan) {
 module.exports = { renderPlanDocx, thaiDate, coordinates, escapeXml };
 ```
 
-- [ ] **Step 4: Check `write()`'s entry shape before running**
+- [x] **Step 4: Check `write()`'s entry shape before running**
 
 Read `src/zip.js:89` (`function write(entries)`) and confirm it takes `{ name, data }`. If it expects different property names, change the five entries in `renderPlanDocx` to match — the rest of the file is unaffected.
 
-- [ ] **Step 5: Run the test and watch it pass**
+- [x] **Step 5: Run the test and watch it pass**
 
 ```bash
 node test-docx-plan.js
@@ -1540,7 +1540,7 @@ node test-docx-plan.js
 
 Expected: `ok — ไฟล์ Word ของแผนการตรวจถูกต้อง`.
 
-- [ ] **Step 6: Open the file in Word once**
+- [x] **Step 6: Open the file in Word once**
 
 ```bash
 node -e "const {renderPlanDocx}=require('./src/docx-plan');const fs=require('fs');fs.writeFileSync('plan-check.docx',renderPlanDocx(JSON.parse(fs.readFileSync('test/fixtures/plan-sample.json','utf8'))))"
@@ -1548,7 +1548,7 @@ node -e "const {renderPlanDocx}=require('./src/docx-plan');const fs=require('fs'
 
 If `test/fixtures/plan-sample.json` does not exist yet, create it from the `plan` object in `test-docx-plan.js`. Open `plan-check.docx` in Word, confirm the table has borders, six columns, and readable Thai, then delete the file. **Do not commit `plan-check.docx`.**
 
-- [ ] **Step 7: Add the route**
+- [x] **Step 7: Add the route**
 
 In `src/server.js`, after the sync route:
 
@@ -1575,7 +1575,7 @@ and add to the requires:
 const { renderPlanDocx } = require('./docx-plan');
 ```
 
-- [ ] **Step 8: Register the script and commit**
+- [x] **Step 8: Register the script and commit**
 
 In `package.json` `"scripts"`, after `"test:docx"`:
 
@@ -1606,7 +1606,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `getBrowser`, `createContext` inside `src/scraper.js`; `thaiDate`, `coordinates` from `src/docx-plan.js` (Task 6).
 - Produces: `renderPlanPdf(plan) -> Promise<Uint8Array>`, exported from `src/scraper.js`.
 
-- [ ] **Step 1: Write the print page**
+- [x] **Step 1: Write the print page**
 
 Create `web/public/plan-print.html`. It defines `window.applyPlan(plan)`, which fills a table already in the document — the same contract `form.html` uses with `window.applyData`.
 
@@ -1743,7 +1743,7 @@ Create `web/public/plan-print.html`. It defines `window.applyPlan(plan)`, which 
 </html>
 ```
 
-- [ ] **Step 2: Add the renderer**
+- [x] **Step 2: Add the renderer**
 
 In `src/scraper.js`, beside `FORM_PAGE` near line 33:
 
@@ -1792,7 +1792,7 @@ async function renderPlanPdf(plan) {
 
 Add `renderPlanPdf` to the `module.exports` list.
 
-- [ ] **Step 3: Add the route**
+- [x] **Step 3: Add the route**
 
 In `src/server.js`, add `renderPlanPdf` to the destructured require from `./scraper`, then after the docx route:
 
@@ -1813,7 +1813,7 @@ app.post('/api/plans/:id/pdf', async (req, res, next) => {
 });
 ```
 
-- [ ] **Step 4: Render one and look at it**
+- [x] **Step 4: Render one and look at it**
 
 ```bash
 PLANS_STORE=file PLANS_DIR=./data/plans npm start
@@ -1831,7 +1831,7 @@ curl -s -X POST localhost:3000/api/plans/2569-08-27/pdf -o plan-check.pdf
 
 Expected: a landscape PDF whose table has a heading row and one row per shop, Thai rendering correctly. Delete `plan-check.pdf` afterwards. **Do not commit it.**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/public/plan-print.html src/scraper.js src/server.js
@@ -1866,11 +1866,11 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `exportUrl(id, kind) -> string`
   - `downloadExport(id, kind) -> Promise<void>` — POSTs with the passcode header and saves the file.
 
-- [ ] **Step 1: Read how the existing client is written**
+- [x] **Step 1: Read how the existing client is written**
 
 Read `web/src/api.js` in full. Match its base-URL handling, its error shape, and its export style — the new file is a sibling, not a new convention.
 
-- [ ] **Step 2: Write the client**
+- [x] **Step 2: Write the client**
 
 Create `web/src/lib/plans-api.js`:
 
@@ -1960,7 +1960,7 @@ export async function downloadExport(id, kind) {
 }
 ```
 
-- [ ] **Step 3: Switch views on the hash**
+- [x] **Step 3: Switch views on the hash**
 
 In `web/src/App.jsx`, add near the other imports:
 
@@ -2001,7 +2001,7 @@ Then wrap the return so the plan screen replaces the search screen:
 
 Leave the existing search-screen return as it is, adding `route={route}` to its `<Sidebar />`.
 
-- [ ] **Step 4: Add the menu entry**
+- [x] **Step 4: Add the menu entry**
 
 In `web/src/components/Sidebar.jsx`, change the signature to `export default function Sidebar({ route = '#/' })` and insert between the search link and the record link:
 
@@ -2015,7 +2015,7 @@ In `web/src/components/Sidebar.jsx`, change the signature to `export default fun
 
 Change the search link's `aria-current="page"` to `aria-current={route.startsWith('#/plans') ? undefined : 'page'}` so only one entry is current.
 
-- [ ] **Step 5: Build and look**
+- [x] **Step 5: Build and look**
 
 ```bash
 npm --prefix web run build
@@ -2023,7 +2023,7 @@ npm --prefix web run build
 
 Then `npm start` and open `http://localhost:3000/#/plans`. Expected: the sidebar shows three entries, "แผนการตรวจ" is highlighted, and the main area is whatever `PlanView` renders (Task 10 fills it — for now a stub file exporting an empty `<div>` is enough to build; the real one lands in Task 10).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/lib/plans-api.js web/src/App.jsx web/src/components/Sidebar.jsx web/src/components/PlanView.jsx
@@ -2047,7 +2047,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `listPlans`, `createPlan`, `addToPlan` from Task 8.
 - Produces: nothing other tasks depend on.
 
-- [ ] **Step 1: Hold the selection in App**
+- [x] **Step 1: Hold the selection in App**
 
 In `web/src/App.jsx`, beside `selectedCode`:
 
@@ -2101,7 +2101,7 @@ and
           />
 ```
 
-- [ ] **Step 2: Add the checkbox**
+- [x] **Step 2: Add the checkbox**
 
 In `web/src/components/ResultCard.jsx`, take `checked` and `onCheck` in the props, and add as the first child of the `<li>`:
 
@@ -2117,7 +2117,7 @@ In `web/src/components/ResultCard.jsx`, take `checked` and `onCheck` in the prop
 
 The card's existing click handler already ignores `input`, so ticking will not also select the card — confirm that `event.target.closest('button, a, input')` guard is still the first line of the handler.
 
-- [ ] **Step 3: Style it**
+- [x] **Step 3: Style it**
 
 In `web/src/app.css`, beside the other result-card rules:
 
@@ -2134,7 +2134,7 @@ In `web/src/app.css`, beside the other result-card rules:
 }
 ```
 
-- [ ] **Step 4: Give PickBar its second mode**
+- [x] **Step 4: Give PickBar its second mode**
 
 Rewrite `web/src/components/PickBar.jsx`'s body to keep the single-shop behaviour and add the plan controls:
 
@@ -2282,7 +2282,7 @@ export default function PickBar({ row, detail, checkedRows = [], onClearChecked 
 }
 ```
 
-- [ ] **Step 5: Style the select**
+- [x] **Step 5: Style the select**
 
 In `web/src/app.css`, beside `.pickbar`:
 
@@ -2298,7 +2298,7 @@ In `web/src/app.css`, beside `.pickbar`:
 }
 ```
 
-- [ ] **Step 6: Build and try it**
+- [x] **Step 6: Build and try it**
 
 ```bash
 npm --prefix web run build
@@ -2306,7 +2306,7 @@ npm --prefix web run build
 
 `PLANS_STORE=file npm start`, search for a shop, tick two results. Expected: the bar changes to "เลือกไว้ 2 ร้าน" with a plan picker; "แผนใหม่" asks for a date, creates the plan, adds both, and the tick boxes clear. Untick everything and confirm the single-shop bar and its "กรอกฟอร์มการตรวจ" button still behave exactly as before.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/src/App.jsx web/src/components/ResultCard.jsx web/src/components/PickBar.jsx web/src/app.css
@@ -2330,7 +2330,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: every export of `web/src/lib/plans-api.js`.
 - Produces: `PlanView` as the default export, taking no props (Task 8 renders it bare).
 
-- [ ] **Step 1: Write the list column**
+- [x] **Step 1: Write the list column**
 
 Create `web/src/components/PlanList.jsx`:
 
@@ -2371,7 +2371,7 @@ export default function PlanList({ plans, currentId, onPick, onCreate, onDelete 
 }
 ```
 
-- [ ] **Step 2: Write the table**
+- [x] **Step 2: Write the table**
 
 Create `web/src/components/PlanTable.jsx`:
 
@@ -2507,7 +2507,7 @@ export default function PlanTable({ plan, onToggleDone, onRemove, onOpenForm, on
 }
 ```
 
-- [ ] **Step 3: Write the screen**
+- [x] **Step 3: Write the screen**
 
 Create `web/src/components/PlanView.jsx`:
 
@@ -2700,7 +2700,7 @@ export default function PlanView() {
 }
 ```
 
-- [ ] **Step 4: Style the screen**
+- [x] **Step 4: Style the screen**
 
 Append to `web/src/app.css`:
 
@@ -2768,7 +2768,7 @@ button.link {
 button.link.danger { color: var(--danger-fg); }
 ```
 
-- [ ] **Step 5: Build and walk through it**
+- [x] **Step 5: Build and walk through it**
 
 ```bash
 npm --prefix web run build
@@ -2776,7 +2776,7 @@ npm --prefix web run build
 
 `PLANS_STORE=file npm start`, then at `#/plans`: create a plan, go to `#/` and tick two shops into it, come back. Expected: the table shows both with numbering, coordinates in degrees, pharmacists with their ภ. numbers or an orange prompt; ticking "ตรวจแล้ว" fades the row and the left column's count goes up; "ส่งออก Word" and "ส่งออก PDF" download files that open.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components/PlanView.jsx web/src/components/PlanList.jsx web/src/components/PlanTable.jsx web/src/app.css
@@ -2799,11 +2799,11 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `PATCH /api/plans/:id/items/:newCode` (Task 5); `planId` and `newCode` in the handoff written by Task 10.
 - Produces: nothing.
 
-- [ ] **Step 1: Find the handoff and the export buttons**
+- [x] **Step 1: Find the handoff and the export buttons**
 
 Read `web/public/form.html` around its `fda:form:pending` read and its `/api/form/pdf` and `/api/form/docx` calls. Note the names of the two click handlers.
 
-- [ ] **Step 2: Keep the plan reference when the handoff is read**
+- [x] **Step 2: Keep the plan reference when the handoff is read**
 
 Where the handoff object is parsed, store the two fields on a module-level variable:
 
@@ -2817,7 +2817,7 @@ Where the handoff object is parsed, store the two fields on a module-level varia
     }
 ```
 
-- [ ] **Step 3: Report after a file is produced**
+- [x] **Step 3: Report after a file is produced**
 
 Add near the other helpers:
 
@@ -2847,7 +2847,7 @@ Add near the other helpers:
 
 Call `await markInspected();` immediately after each of the two export handlers has successfully received its file — after the download is triggered, not before the request.
 
-- [ ] **Step 4: Check the parity harness still passes**
+- [x] **Step 4: Check the parity harness still passes**
 
 ```bash
 node test-form-parity.js
@@ -2855,11 +2855,11 @@ node test-form-parity.js
 
 Expected: all `ok —` lines, page heights unchanged (285.77mm, 214.54mm). The record's layout was not touched; if any line moved, the edit went into markup rather than script — undo and put it in the `<script>` block.
 
-- [ ] **Step 5: Try it end to end**
+- [x] **Step 5: Try it end to end**
 
 `PLANS_STORE=file npm start`. From `#/plans`, press "กรอกฟอร์ม" on a shop, generate the PDF in the tab that opens, then return to the plan and reload. Expected: that row now shows "ตรวจแล้ว". Untick it, generate the PDF again, reload. Expected: it stays unticked — a person's decision outranks the automatic one.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/public/form.html
@@ -2883,11 +2883,11 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: everything above.
 - Produces: nothing.
 
-- [ ] **Step 1: Read the existing smoke test**
+- [x] **Step 1: Read the existing smoke test**
 
 Read `smoke.js` in full and note how it names its base URL and reports a pass. The new section follows the same shape.
 
-- [ ] **Step 2: Add the plan pass**
+- [x] **Step 2: Add the plan pass**
 
 Append to `smoke.js`, inside its existing async main function, using its own `BASE` constant and passcode from `process.env.PLANS_PASSCODE`:
 
@@ -2946,7 +2946,7 @@ Append to `smoke.js`, inside its existing async main function, using its own `BA
   console.log('ok — แผนการตรวจ: สร้าง ใส่ร้าน ส่งออก และลบได้');
 ```
 
-- [ ] **Step 3: Run every test**
+- [x] **Step 3: Run every test**
 
 ```bash
 node test-thai-name.js
@@ -2963,7 +2963,7 @@ Expected: every one prints its `ok —` line. Then with the server running:
 PLANS_STORE=file node smoke.js
 ```
 
-- [ ] **Step 4: Document the environment**
+- [x] **Step 4: Document the environment**
 
 In `README.md`, in the environment-variable table, add:
 
@@ -2975,7 +2975,7 @@ In `README.md`, in the environment-variable table, add:
 
 Add the same three keys, commented out, to `.env.example`.
 
-- [ ] **Step 5: Add a combined test script**
+- [x] **Step 5: Add a combined test script**
 
 In `package.json` `"scripts"`:
 
@@ -2983,7 +2983,7 @@ In `package.json` `"scripts"`:
     "test": "node test-thai-name.js && node test-plans-store.js && node test-plans.js && node test-docx-plan.js && node test-parse.js && node test-form-parity.js",
 ```
 
-- [ ] **Step 6: Build, commit, deploy**
+- [x] **Step 6: Build, commit, deploy**
 
 ```bash
 npm --prefix web run build
@@ -2994,11 +2994,11 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 git push origin main
 ```
 
-- [ ] **Step 7: Set the deployment's environment**
+- [x] **Step 7: Set the deployment's environment**
 
 In the Vercel project settings, add `PLANS_PASSCODE` (a passphrase the office agrees on). `PLANS_STORE` needs nothing — the blob token already there selects `blob`.
 
-- [ ] **Step 8: Verify production**
+- [x] **Step 8: Verify production**
 
 Poll until the new bundle is live, then check the plan API answers:
 
