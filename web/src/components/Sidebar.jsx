@@ -1,4 +1,4 @@
-export default function Sidebar() {
+export default function Sidebar({ route = '#/' }) {
   return (
     <aside className="app-sidebar glass-panel-primary">
       <div className="brand">
@@ -13,9 +13,14 @@ export default function Sidebar() {
       <hr />
       <span className="group-label">เมนู</span>
       <nav>
-        <a href="/" aria-current="page">
+        <a href="#/" aria-current={route.startsWith('#/plans') ? undefined : 'page'}>
           <span className="material-symbols-outlined sm fill">search</span>
           ค้นหาร้านยา
+          <span className="dot" />
+        </a>
+        <a href="#/plans" aria-current={route.startsWith('#/plans') ? 'page' : undefined}>
+          <span className="material-symbols-outlined sm">checklist</span>
+          แผนการตรวจ
           <span className="dot" />
         </a>
         {/* The record is a static page on purpose — see web/public/form.html. */}

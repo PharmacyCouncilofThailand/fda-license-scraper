@@ -1694,10 +1694,18 @@
         };
       }
 
+      /* A record opened from a plan reports itself back so the plan can tick
+         the shop off. Opened straight from the menu there is no plan, and this
+         stays null. */
+      let planRef = null;
+
       const handoff = localStorage.getItem(HANDOFF_KEY);
       if (handoff) {
         try {
           const row = JSON.parse(handoff);
+          if (row.planId && row.newCode) {
+            planRef = { planId: row.planId, newCode: row.newCode };
+          }
           window.applyData(fromRow(row));
           const duty = dutyFromPharmacists(row.pharmacists);
           statusEl.textContent =
@@ -1855,6 +1863,7 @@
             ? `ดาวน์โหลด ${label} แล้ว — ${over.length} ช่องยาวเกินกระดาษ (${over.map((f) => f.name).join(', ')}) แสดงไม่ครบใน PDF`
             : `ดาวน์โหลด ${label} แล้ว`;
           if (over.length) statusEl.className = 'err';
+          await markInspected();
         } catch (err) {
           statusEl.className = 'err';
           statusEl.textContent = `${err.message} — ใช้ปุ่ม “พิมพ์ / บันทึกเอง” แทนได้`;
@@ -1862,6 +1871,30 @@
           icon.classList.remove('spinning');
           icon.textContent = iconWas;
           button.disabled = false;
+        }
+      }
+
+      /* Producing the file is the moment the inspection is written up, so the
+         plan learns it without anyone remembering to say so. Reported as
+         `auto`, which the plan lets a person's own decision outrank. */
+      async function markInspected() {
+        if (!planRef) return;
+        const code = sessionStorage.getItem('fda:plans:passcode');
+        try {
+          await fetch(
+            `${API_BASE}/api/plans/${planRef.planId}/items/${encodeURIComponent(planRef.newCode)}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(code ? { 'x-plans-passcode': code } : {}),
+              },
+              body: JSON.stringify({ status: 'done', statusSource: 'auto' }),
+            }
+          );
+        } catch {
+          // The record is already saved; failing to tick a box must not look
+          // like the record failed. The officer can tick it in the plan.
         }
       }
 

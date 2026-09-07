@@ -5,6 +5,7 @@ import SearchForm from './components/SearchForm.jsx';
 import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
 import PickBar from './components/PickBar.jsx';
+import PlanView from './components/PlanView.jsx';
 import Preloader from './components/Preloader.jsx';
 import { SkeletonList } from './components/Skeleton.jsx';
 
@@ -17,6 +18,9 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [selectedCode, setSelectedCode] = useState(null);
+  // Ticked shops, kept apart from `selectedCode`: clicking a card still opens
+  // one shop, ticking one queues it for a plan.
+  const [checked, setChecked] = useState(() => new Set());
   // newCode -> { open, status, detail, message }
   const [previews, setPreviews] = useState({});
 
@@ -27,6 +31,14 @@ export default function App() {
   queryRef.current = query;
 
   const [booting, setBooting] = useState(true);
+
+  // Two screens is not a router's worth of dependency; the hash is enough.
+  const [route, setRoute] = useState(() => window.location.hash || '#/');
+  useEffect(() => {
+    const onHash = () => setRoute(window.location.hash || '#/');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   useEffect(() => {
     fetchAreas()
@@ -48,6 +60,7 @@ export default function App() {
     setBusy(true);
     setError('');
     setSelectedCode(null);
+    setChecked(new Set());
     setPreviews({});
     setData(null);
 
@@ -108,11 +121,32 @@ export default function App() {
   const selectedDetail =
     previews[selectedCode]?.status === 'ready' ? previews[selectedCode].detail : null;
 
+  function toggleChecked(newCode) {
+    setChecked((current) => {
+      const next = new Set(current);
+      if (!next.delete(newCode)) next.add(newCode);
+      return next;
+    });
+  }
+
   if (booting) return <Preloader variant="screen" />;
+
+  if (route.startsWith('#/plans')) {
+    return (
+      <>
+        <Sidebar route={route} />
+        <main className="app-main">
+          <div className="wrap">
+            <PlanView />
+          </div>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
-      <Sidebar />
+      <Sidebar route={route} />
       <main className="app-main">
         <div className="wrap">
           <h1>ค้นหาร้านยา</h1>
@@ -153,6 +187,8 @@ export default function App() {
                 key={row.newCode || row.licenseNo}
                 row={row}
                 selected={row.newCode === selectedCode}
+                checked={checked.has(row.newCode)}
+                onCheck={() => toggleChecked(row.newCode)}
                 onSelect={() => setSelectedCode(row.newCode)}
                 previewState={previews[row.newCode]}
                 onTogglePreview={() => togglePreview(row)}
@@ -160,7 +196,12 @@ export default function App() {
             ))}
           </ul>
 
-          <PickBar row={selected} detail={selectedDetail} />
+          <PickBar
+            row={selected}
+            detail={selectedDetail}
+            checkedRows={results.filter((r) => checked.has(r.newCode))}
+            onClearChecked={() => setChecked(new Set())}
+          />
         </div>
       </main>
     </>

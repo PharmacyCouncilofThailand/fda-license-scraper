@@ -494,3 +494,87 @@ a.detail:hover { text-decoration: underline; }
   #root ul li .card-head input[type="radio"] { transition: none; }
   #root ul li:hover { transform: none; box-shadow: var(--glass-shadow); }
 }
+
+/* --- แผนการตรวจ --------------------------------------------------------- */
+/* The tick queues a shop for a plan; clicking the card still opens one shop.
+   Two different jobs, so the control sits outside the card's text. */
+.pick-check {
+  float: left;
+  margin: 2px 10px 0 0;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.pickbar .plan-pick {
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+}
+.plan-view { display: grid; grid-template-columns: 240px 1fr; gap: 16px; }
+.plan-list .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.plan-list ul { list-style: none; margin: 0; padding: 0; }
+.plan-list li { display: flex; align-items: center; }
+.plan-list li > button:first-child {
+  flex: 1;
+  display: block;
+  text-align: left;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.plan-list li.current > button:first-child { background: var(--secondary); }
+.plan-list small { display: block; color: var(--muted-foreground); }
+.plan-list .remove { border: 0; background: transparent; cursor: pointer; color: var(--danger-fg); }
+.plan-head { display: flex; align-items: center; gap: 8px; }
+.plan-head h1 { margin: 0; }
+.plan-head button { margin-left: 8px; }
+/* The table is six columns of Thai prose — let it scroll rather than squeeze
+   the page into a horizontal scrollbar of its own. */
+.plan-table-wrap { overflow-x: auto; }
+.plan-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.plan-table th, .plan-table td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  vertical-align: top;
+  text-align: left;
+}
+.plan-table td.num, .plan-table th:first-child { text-align: center; }
+.plan-table tr.done { opacity: .55; }
+.plan-table .coords { color: var(--muted-foreground); font-size: 12px; }
+.plan-table .person + .person { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+.plan-table .licence { color: var(--muted-foreground); }
+.plan-table .hours { color: var(--muted-foreground); font-size: 12px; }
+.plan-table .hours.differ { color: var(--danger-fg); font-weight: 600; }
+.plan-table .hours-differ { color: var(--danger-fg); font-size: 12px; margin-bottom: 4px; }
+.plan-table .actions { white-space: nowrap; }
+.plan-table .actions label { display: flex; align-items: center; gap: 4px; }
+/* A licence the register could not settle is not an error — it is a decision
+   waiting for an officer, so it reads as a prompt, not a failure. */
+.licence-pick, .licence-missing {
+  margin-top: 2px;
+  padding: 2px 6px;
+  border: 1px solid var(--warning-line);
+  border-radius: 6px;
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+button.link {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+button.link.danger { color: var(--danger-fg); }

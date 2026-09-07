@@ -30,6 +30,8 @@ function StatusBadge({ status }) {
 export default function ResultCard({
   row,
   selected,
+  checked,
+  onCheck,
   onSelect,
   previewState,
   onTogglePreview,
@@ -46,6 +48,14 @@ export default function ResultCard({
         onSelect();
       }}
     >
+      <input
+        type="checkbox"
+        className="pick-check"
+        checked={checked}
+        onChange={onCheck}
+        aria-label={`เลือก ${row.placeName || 'ร้านนี้'} ใส่แผนการตรวจ`}
+      />
+
       <div className="card-head">
         <input
           type="radio"
