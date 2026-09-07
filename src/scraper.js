@@ -34,6 +34,11 @@ const FORM_PAGE = pathToFileURL(
   path.join(__dirname, '..', 'public', 'form.html')
 ).href;
 
+/** The plan's print sheet, built into public/ alongside the record's. */
+const PLAN_PAGE = pathToFileURL(
+  path.join(__dirname, '..', 'public', 'plan-print.html')
+).href;
+
 let browserPromise = null;
 
 /**
@@ -677,6 +682,37 @@ async function renderFormPdf(data) {
   }
 }
 
+/**
+ * The plan as a landscape A4 sheet. Same pipeline as the record: the page is
+ * opened off disk, filled by its own script, then printed. Height is left to
+ * the paper size here because a plan is a table that may run to several pages,
+ * unlike the record's fixed two.
+ */
+async function renderPlanPdf(plan) {
+  const browser = await getBrowser();
+  const context = await createContext(browser);
+  try {
+    const page = await context.newPage();
+    await page.setViewport({ width: 1123, height: 794 });
+    await page.emulateMediaType('print');
+    await page.goto(PLAN_PAGE, {
+      waitUntil: 'domcontentloaded',
+      timeout: config.navTimeoutMs,
+    });
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate((data) => window.applyPlan(data), plan || {});
+    return await page.pdf({
+      width: '297mm',
+      height: '210mm',
+      printBackground: false,
+      // plan-print.html's own @page rule carries the margins.
+      margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' },
+    });
+  } finally {
+    await context.close();
+  }
+}
+
 module.exports = {
   searchDrugLocations,
   getDetailByNewCode,
@@ -684,6 +720,7 @@ module.exports = {
   cacheStats,
   closeBrowser,
   renderFormPdf,
+  renderPlanPdf,
   ScrapeError,
   normalise,
   parseAddress,

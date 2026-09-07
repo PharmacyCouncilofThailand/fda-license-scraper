@@ -18,6 +18,7 @@
     "test:plans": "node test-plans.js",
     "test:parity": "node test-form-parity.js",
     "test:docx": "node test-docx-pad.js",
+    "test:docx-plan": "node test-docx-plan.js",
     "smoke:pharmacist": "node smoke-pharmacist.js"
   },
   "dependencies": {

@@ -10,6 +10,7 @@ const {
   cacheStats,
   closeBrowser,
   renderFormPdf,
+  renderPlanPdf,
   ScrapeError,
 } = require('./scraper');
 
@@ -23,6 +24,7 @@ const path = require('path');
 const { renderFormDocx } = require('./docx-form');
 const plansStore = require('./plans-store');
 const plans = require('./plans');
+const { renderPlanDocx } = require('./docx-plan');
 
 const app = express();
 app.use(express.json());
@@ -135,6 +137,36 @@ app.post('/api/plans/:id/items/:newCode/sync', async (req, res, next) => {
   try {
     const plan = await plans.syncItem(req.params.id, req.params.newCode);
     res.json({ success: true, plan });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/plans/:id/docx', async (req, res, next) => {
+  try {
+    const plan = await plansStore.get(req.params.id);
+    if (!plan) return res.status(404).json({ success: false, error: 'ไม่พบแผนการตรวจนี้' });
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': `attachment; filename="plan-${plan.id}.docx"`,
+    });
+    res.send(renderPlanDocx(plan));
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/plans/:id/pdf', async (req, res, next) => {
+  try {
+    const plan = await plansStore.get(req.params.id);
+    if (!plan) return res.status(404).json({ success: false, error: 'ไม่พบแผนการตรวจนี้' });
+    const pdf = await renderPlanPdf(plan);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="plan-${plan.id}.pdf"`,
+    });
+    res.send(Buffer.from(pdf));
   } catch (err) {
     next(err);
   }
