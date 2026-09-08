@@ -112,6 +112,52 @@ const PLAN = {
   await assert.rejects(() => records.readRecord('2569-08-27', 'NOPE'), /ไม่พบร้าน/);
   await assert.rejects(() => records.readRecord('2569-01-01', 'A/1'), /ไม่พบแผน/);
 
+  // A write that presents a non-null updatedAt against a shop with nothing
+  // stored yet is holding a stale version by definition — refused, not
+  // silently accepted as the first write.
+  await plansStore.save({
+    ...PLAN,
+    id: '2569-09-01',
+    date: '2569-09-01',
+    items: [{ ...PLAN.items[0], newCode: 'B/2' }],
+    createdAt: '2026-09-08T00:00:00.000Z',
+  });
+  await assert.rejects(
+    () =>
+      records.writeRecord('2569-09-01', 'B/2', {
+        officerName: 'คนที่สอง',
+        values: {},
+        checks: {},
+        signatures: {},
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    (err) => {
+      assert.strictEqual(err.status, 409, 'เขียนทับร้านที่ยังไม่เคยบันทึกด้วย updatedAt เดิมต้องถูกปฏิเสธ');
+      assert.strictEqual(err.current.updatedAt, null);
+      return true;
+    }
+  );
+
+  // A newCode containing characters encodeURIComponent leaves unescaped
+  // ( ) ' must still round-trip through a real write and read.
+  const oddCode = "A(1)'2";
+  await plansStore.save({
+    ...PLAN,
+    id: '2569-09-02',
+    date: '2569-09-02',
+    items: [{ ...PLAN.items[0], newCode: oddCode }],
+    createdAt: '2026-09-08T00:00:00.000Z',
+  });
+  const oddBlank = await records.readRecord('2569-09-02', oddCode);
+  const oddWritten = await records.writeRecord('2569-09-02', oddCode, {
+    ...oddBlank,
+    officerName: 'ทดสอบรหัสพิเศษ',
+    values: { ...oddBlank.values, inspectTime: '09.00' },
+  });
+  const oddRead = await records.readRecord('2569-09-02', oddCode);
+  assert.strictEqual(oddRead.values.inspectTime, '09.00');
+  assert.strictEqual(oddRead.updatedAt, oddWritten.updatedAt);
+
   fs.rmSync(root, { recursive: true, force: true });
   console.log('ok — บันทึกการตรวจหน้างานเก็บ อ่าน และกันเขียนทับได้');
 })();

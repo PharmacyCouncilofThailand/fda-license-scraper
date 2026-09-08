@@ -13,6 +13,10 @@ module.exports = createJsonStore({
   prefix: 'records/',
   // `<planId>__<url-encoded newCode>`. The encoding is what keeps the FDA's
   // keys — which contain slashes — out of the filesystem's path grammar.
-  idPattern: /^[0-9]{4}-[0-9]{2}-[0-9]{2}(-[0-9]+)?__[A-Za-z0-9%._~-]{1,200}$/,
+  // `encodeURIComponent` also leaves ! * ' ( ) unescaped, so those five stay
+  // in the accepted class alongside it — never escaped, the pattern keeps its
+  // shape. `/` stays out: that is what keeps an id from escaping the records
+  // directory.
+  idPattern: /^[0-9]{4}-[0-9]{2}-[0-9]{2}(-[0-9]+)?__[A-Za-z0-9%._~!*'()-]{1,200}$/,
   idError: 'รหัสบันทึกการตรวจไม่ถูกต้อง',
 });

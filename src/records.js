@@ -116,10 +116,25 @@ async function writeRecord(planId, newCode, incoming) {
   const item = await planItem(planId, newCode);
   const id = recordId(planId, newCode);
   const current = await store.get(id);
-  if (current && incoming.updatedAt !== current.updatedAt) {
+  if (current) {
+    if (incoming.updatedAt !== current.updatedAt) {
+      const err = new Error('มีคนอื่นบันทึกร้านนี้ไปแล้ว');
+      err.status = 409;
+      err.current = current;
+      throw err;
+    }
+  } else if (incoming.updatedAt != null) {
+    // A caller holding a non-null updatedAt for a shop with nothing stored is
+    // holding a stale version by definition (deleted, or another store) — refuse
+    // it the same way as any other conflict.
+    // ponytail: this only closes the stale-caller half of the race. Two
+    // officers who both open a never-yet-saved shop both hold updatedAt: null
+    // and this check lets both through — closing that needs a create-only
+    // write primitive in the store, out of scope here. Add one if the office
+    // outgrows it.
     const err = new Error('มีคนอื่นบันทึกร้านนี้ไปแล้ว');
     err.status = 409;
-    err.current = current;
+    err.current = blankRecord(planId, newCode, item);
     throw err;
   }
   const base = current || blankRecord(planId, newCode, item);
