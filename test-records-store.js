@@ -19,6 +19,7 @@ process.env.PHOTOS_DIR = path.join(root, 'photos');
 
 const plansStore = require('./src/plans-store');
 const records = require('./src/records');
+const photos = require('./src/photo-store');
 
 const PLAN = {
   id: '2569-08-27',
@@ -107,6 +108,24 @@ const PLAN = {
   );
   const withoutPhoto = await records.removePhoto('2569-08-27', 'A/1', 'p1');
   assert.deepStrictEqual(withoutPhoto.photos, []);
+
+  // --- photo bytes --------------------------------------------------------
+  const bytes = Buffer.from('\xff\xd8\xff\xe0 not really a jpeg', 'binary');
+  const { id: photoId } = await photos.putPhoto('2569-08-27', 'A/1', bytes);
+  assert.match(photoId, /^[0-9a-f]{24}$/, 'รหัสรูปควรเป็นเลขฐานสิบหก 24 ตัว');
+  assert.deepStrictEqual(await photos.getPhoto('2569-08-27', 'A/1', photoId), bytes);
+  assert.strictEqual(await photos.getPhoto('2569-08-27', 'A/1', 'ไม่มีรูปนี้'), null);
+  assert.strictEqual(await photos.delPhoto('2569-08-27', 'A/1', photoId), true);
+  assert.strictEqual(await photos.getPhoto('2569-08-27', 'A/1', photoId), null);
+  assert.strictEqual(await photos.delPhoto('2569-08-27', 'A/1', photoId), false);
+
+  // A `newCode` containing `*` — the character encodeURIComponent leaves
+  // unescaped that no Windows filesystem will accept — must still survive a
+  // full photo put-then-get round trip on this machine, not just in theory.
+  const starPhotoBytes = Buffer.from('star-code photo bytes');
+  const { id: starPhotoId } = await photos.putPhoto('2569-08-27', 'C*3', starPhotoBytes);
+  assert.deepStrictEqual(await photos.getPhoto('2569-08-27', 'C*3', starPhotoId), starPhotoBytes);
+  assert.strictEqual(await photos.delPhoto('2569-08-27', 'C*3', starPhotoId), true);
 
   // A shop that is not in the plan has no record to build.
   await assert.rejects(() => records.readRecord('2569-08-27', 'NOPE'), /ไม่พบร้าน/);
