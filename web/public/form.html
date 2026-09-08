@@ -1000,17 +1000,11 @@
        * spaces, the last one after "และ". A name the list has not got is
        * typed into the picker's own box, or straight onto the blank.
        */
-      const NO_BREAK_SPACE = " ";
+      const NO_BREAK_SPACE = " ";
       const WORD_JOINER = "⁠";
-      const OFFICERS = [
-        'นายเทอดภูมิ พัชรสุนทรชัย',
-        'นางสาวอชิดา บุญเพียร',
-        'นางสาวศศิธร เจือโร่ง',
-        'นายศิริพงษ์ เจือโร่ง',
-        'นายณภัทร ไกยวงค์',
-        'นายเจษฎา จันทรประเสริฐ',
-        'นางสาวอัญพิชา แก้วสม',
-      ];
+      /* The office's list, from /officers.js — one copy, read by this page and
+         by the touch wizard. */
+      const OFFICERS = window.OFFICERS || [];
 
       /* Names are written into the blank tied together, so that a line
          break can only ever fall between one officer and the next:
@@ -1927,6 +1921,7 @@
       window.addEventListener('resize', lookupTop);
       new ResizeObserver(lookupTop).observe(toolbar);
     </script>
+    <script src="./officers.js"></script>
     <script src="./pharmacist-search.js"></script>
   </body>
 </html>
