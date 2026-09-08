@@ -20,9 +20,50 @@ const rawSource = fs.readFileSync(MANIFEST, 'utf8');
 /* The manifest is an ES module and this is CommonJS. Rather than add a build
    step for one test, read the entries out of the source text. A `//`-commented
    or `/* *\/`-commented entry is dead code the bundler never ships, so it must
-   not count as present here either — strip comments before scanning. */
-const stripComments = (text) =>
-  text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+   not count as present here either — strip comments before scanning.
+
+   A regex can't tell a comment `//` from a `//` inside a quoted label (Thai
+   labels do contain it), so this walks the text char by char, tracking
+   whether it is inside a `'…'`/`"…"` string (backslash-escapes the quote)
+   and only treating line and block comments as comments outside of one. */
+const stripComments = (text) => {
+  let out = '';
+  let i = 0;
+  let quote = null; // the quote char we're inside, or null
+  while (i < text.length) {
+    const ch = text[i];
+    if (quote) {
+      out += ch;
+      if (ch === '\\' && i + 1 < text.length) {
+        out += text[i + 1];
+        i += 2;
+        continue;
+      }
+      if (ch === quote) quote = null;
+      i += 1;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      out += ch;
+      i += 1;
+      continue;
+    }
+    if (ch === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i += 1;
+      continue;
+    }
+    if (ch === '/' && text[i + 1] === '*') {
+      i += 2;
+      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i += 1;
+      i += 2;
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
+};
 
 const source = stripComments(rawSource);
 
