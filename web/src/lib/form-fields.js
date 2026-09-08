@@ -50,7 +50,7 @@ export const FIELDS = [
   { name: 'dutyPharmacist', step: 2, label: '2. ชื่อผู้มีหน้าที่ปฏิบัติการ', type: 'text' },
   { name: 'dutyLicenseNo', step: 2, label: 'ใบอนุญาตผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ.', type: 'text' },
   { name: 'dutyLicenseExpiry', step: 2, label: 'หมดอายุวันที่', type: 'text' },
-  { name: 'openHours', step: 2, label: 'เวลาทำการของผู้มีหน้าที่ปฏิบัติการ (น.)', type: 'text' },
+  { name: 'openHours', step: 2, label: 'เวลาทำการของผู้มีหน้าที่ปฏิบัติการ (น.)', type: 'textarea' },
 
   // --- step 3: items (1)–(4) ----------------------------------------------
   { name: 'checkTime', step: 3, label: '(1) ขณะตรวจสอบเวลา (น.)', type: 'time' },
@@ -69,16 +69,16 @@ export const FIELDS = [
   { name: 'mfgDate', step: 3, label: 'วันผลิต', type: 'text' },
   { name: 'expDate', step: 3, label: 'ยาสิ้นอายุ', type: 'text' },
   { name: 'ruled4', step: 3, label: 'รายละเอียดยาเพิ่มเติม', type: 'text' },
-  { name: 'notDispensedReason', step: 3, label: 'ไม่ได้จ่ายยา เนื่องจาก', type: 'text' },
+  { name: 'notDispensedReason', step: 3, label: 'ไม่ได้จ่ายยา เนื่องจาก', type: 'textarea' },
   { name: 'admitPerson', step: 3, label: '(3) ผู้ที่ยอมรับ (ชื่อ)', type: 'text' },
-  { name: 'complaintDetail', step: 3, label: '(4) แจ้งว่า (รายละเอียดเบาะแส / ข้อร้องเรียน)', type: 'text' },
+  { name: 'complaintDetail', step: 3, label: '(4) แจ้งว่า (รายละเอียดเบาะแส / ข้อร้องเรียน)', type: 'textarea' },
   { name: 'acknowledgedBy', step: 3, label: 'ผู้รับทราบวัตถุประสงค์การตรวจ', type: 'text' },
 
   // --- step 4: items (5)–(12) ---------------------------------------------
-  { name: 'dutyNote', step: 4, label: '(6) หมายเหตุการอยู่ปฏิบัติหน้าที่', type: 'text' },
+  { name: 'dutyNote', step: 4, label: '(6) หมายเหตุการอยู่ปฏิบัติหน้าที่', type: 'textarea' },
   { name: 'leaveProofNote', step: 4, label: '(7) หลักฐานการลางาน', type: 'text' },
   { name: 'leaveProofNote2', step: 4, label: '(7) หลักฐานการลางาน (บรรทัดที่ 2)', type: 'text' },
-  { name: 'curtainNote', step: 4, label: '(8) หมายเหตุการปิดม่านบังยาอันตราย', type: 'text' },
+  { name: 'curtainNote', step: 4, label: '(8) หมายเหตุการปิดม่านบังยาอันตราย', type: 'textarea' },
   { name: 'signPage1Name', step: 4, label: 'ชื่อผู้ลงชื่อท้ายหน้า 1 (ในวงเล็บ)', type: 'text' },
   { name: 'behaviour1', step: 4, label: '(9) พฤติกรรมที่พบเพิ่มเติม', type: 'text' },
   { name: 'behaviour2', step: 4, label: '(9) พฤติกรรมที่พบเพิ่มเติม (บรรทัดที่ 2)', type: 'text' },
