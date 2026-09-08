@@ -531,6 +531,44 @@ const pxToMm = (px) => px / 96 * 25.4;
 
     console.log('ok — ลายเซ็นบนจอวางลงกระดาษได้ครบ 8 จุด โดยไม่มีบรรทัดใดขยับ');
 
+    // A record with no photos is the two-sheet record the office has always
+    // issued; four photos add one sheet and still move nothing on the first two.
+    // Read before applyData({ ...FIXTURE, photos }) runs below, so this is
+    // the settled two-call state (beforeSign/afterSign), untouched by the
+    // photos call and by the empty-checks drift that call would otherwise
+    // reintroduce — safe regardless of what the photos call does next.
+    const sheetsWithout = await page.evaluate(
+      () => [...document.querySelectorAll('.sheet')].filter((s) => !s.hidden).length
+    );
+    assert.strictEqual(sheetsWithout, 2, 'ไม่มีรูป กระดาษต้องมีสองแผ่น');
+
+    const dot =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    // Spread FIXTURE (same payload the baseline/signature calls used) so the
+    // only thing this varies versus beforeSign is photos — an empty
+    // { values: {}, checks: {} } would also clear every checkbox and blame
+    // the resulting reflow on the appendix instead.
+    const afterPhotos = await page.evaluate((filled, png) => {
+      window.applyData({
+        ...filled,
+        photos: [1, 2, 3, 4].map((n) => ({ src: png, caption: `ชั้นวางยาที่ ${n}` })),
+      });
+      return {
+        sheets: [...document.querySelectorAll('.sheet')].filter((s) => !s.hidden).length,
+        cells: document.querySelectorAll('.photo-cell').length,
+        boxes: [...document.querySelectorAll('.para, .blank, .tab, .rule')].map((el) => {
+          const box = el.getBoundingClientRect();
+          return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+        }),
+      };
+    }, FIXTURE, dot);
+
+    assert.strictEqual(afterPhotos.sheets, 3, 'มีรูปแล้วต้องมีแผ่นภาคผนวกเพิ่มมา');
+    assert.strictEqual(afterPhotos.cells, 4, 'จำนวนรูปในภาคผนวกไม่ตรง');
+    assert.deepStrictEqual(afterPhotos.boxes, beforeSign, 'ภาคผนวกทำให้บรรทัดในกระดาษขยับ');
+
+    console.log('ok — ภาคผนวกภาพถ่ายเพิ่มแผ่นที่สามโดยไม่แตะสองแผ่นแรก');
+
     // --- page height ------------------------------------------------------
     // fitSheet()/shrinkToFit() are gone; nothing may silently reintroduce a
     // sheet taller than the page. Height comes from the template's own

@@ -712,6 +712,15 @@
       .sig { display: flex; align-items: baseline; gap: 3pt; }
       .sig .rule { flex: 1 1 auto; width: auto; min-width: 36pt; }
 
+      /* The appendix is not on Word's grid — there is no template page for it
+         — so it is plain block layout, sized to the same 210mm sheet. */
+      .photo-title { font-size: 16pt; font-weight: 700; text-align: center; margin: 0 0 4pt; }
+      .photo-sub { text-align: center; margin: 0 0 10pt; }
+      .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm 6mm; }
+      .photo-cell { break-inside: avoid; }
+      .photo-cell img { width: 100%; height: 62mm; object-fit: contain; border: 1px solid #000; }
+      .photo-cell figcaption { margin-top: 2mm; font-size: 13pt; text-align: center; }
+
       /*
        * The ภ. licence lookup, app chrome like the toolbar. It sits beside
        * the sheet rather than above it: the number it finds is copied into a
@@ -968,6 +977,16 @@
         </tbody>
       </table>
     </div>
+
+    <!-- The appendix item (10) already refers to: "รายละเอียดตาม บัญชียึด
+         อายัด และภาพถ่าย ตามเอกสารแนบท้าย". It is hidden until applyData()
+         is given photos, so a record with none is the two-page record the
+         office has always issued. -->
+    <section class="sheet photos" id="photoSheet" hidden>
+      <h2 class="photo-title">ภาพถ่ายประกอบการตรวจ</h2>
+      <p class="photo-sub" id="photoSubtitle"></p>
+      <div class="photo-grid" id="photoGrid"></div>
+    </section>
 
     <dialog class="picker glass-panel" id="officersPicker">
       <form method="dialog">
@@ -1587,6 +1606,43 @@
       }
 
       /**
+       * The photo appendix. The bytes arrive as data URLs — the server reads
+       * them out of the photo store and passes them in, so the page never
+       * fetches anything, the same way the seal and the font are already
+       * inlined for the PDF renderer.
+       */
+      function applyPhotos(photos) {
+        const sheet = document.getElementById('photoSheet');
+        const grid = document.getElementById('photoGrid');
+        grid.textContent = '';
+        if (!photos.length) {
+          sheet.hidden = true;
+          return;
+        }
+        const shop = document.querySelector('[name="placeName"]');
+        const when = document.querySelector('[name="inspectDate"]');
+        document.getElementById('photoSubtitle').textContent =
+          [shop && shop.value, when && when.value ? `ตรวจเมื่อวันที่ ${when.value}` : '']
+            .filter(Boolean)
+            .join(' · ');
+        photos.forEach((photo, index) => {
+          const cell = document.createElement('figure');
+          cell.className = 'photo-cell';
+          const image = document.createElement('img');
+          image.src = photo.src;
+          image.alt = '';
+          const caption = document.createElement('figcaption');
+          // textContent, never innerHTML: the caption is typed at the shop.
+          caption.textContent = photo.caption
+            ? `ภาพที่ ${index + 1} ${photo.caption}`
+            : `ภาพที่ ${index + 1}`;
+          cell.append(image, caption);
+          grid.append(cell);
+        });
+        sheet.hidden = false;
+      }
+
+      /**
        * Fill the form. Also called by the server's PDF renderer through
        * Puppeteer, so it must work with no user interaction.
        */
@@ -1605,6 +1661,7 @@
           setCheck(button, Boolean(checks[button.dataset.name]));
         }
         applySignatures((data && data.signatures) || {});
+        applyPhotos(((data && data.photos) || []).filter((photo) => photo && photo.src));
         window.layoutBlanks();
       };
 
