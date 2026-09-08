@@ -203,8 +203,11 @@ app.get('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res,
 
 app.delete('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
   try {
-    await photoStore.delPhoto(req.params.id, req.params.newCode, req.params.photoId);
+    // Record first, bytes second: if delPhoto fails after this, the record
+    // no longer references the id and we're left with an orphaned blob
+    // nobody points at — not a record pointing at bytes that are gone.
     const record = await records.removePhoto(req.params.id, req.params.newCode, req.params.photoId);
+    await photoStore.delPhoto(req.params.id, req.params.newCode, req.params.photoId);
     res.json({ success: true, record });
   } catch (err) {
     next(err);
@@ -394,6 +397,15 @@ app.use((req, res) =>
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, _next) => {
+  // body-parser rejects an oversized body before any route handler runs, so
+  // the route's own Thai branch never gets a chance — answer it here instead,
+  // in Thai, since it's the one body-parser error reachable from user input
+  // (an officer's iPad photo over the 5MB photo-route limit).
+  if (err.type === 'entity.too.large') {
+    return res
+      .status(413)
+      .json({ success: false, code: 'PAYLOAD_TOO_LARGE', message: 'ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน 5MB)' });
+  }
   const status = err instanceof ScrapeError ? err.status : err.status || err.statusCode || 500;
   const code = err instanceof ScrapeError ? err.code : 'INTERNAL_ERROR';
   if (status >= 500) console.error('[error]', err);
