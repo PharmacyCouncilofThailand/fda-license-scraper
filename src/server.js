@@ -24,10 +24,14 @@ const path = require('path');
 const { renderFormDocx } = require('./docx-form');
 const plansStore = require('./plans-store');
 const plans = require('./plans');
+const records = require('./records');
+const photoStore = require('./photo-store');
 const { renderPlanDocx } = require('./docx-plan');
 
 const app = express();
-app.use(express.json());
+// Signatures ride inside the record as data URLs — eight of them at a few tens
+// of kilobytes each is past express's 100kb default.
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 /*
@@ -49,7 +53,7 @@ app.use('/api', (req, res, next) => {
 });
 
 app.get('/health', (req, res) =>
-  res.json({ ok: true, plansStore: plansStore.backendName() })
+  res.json({ ok: true, plansStore: plansStore.backendName(), photoStore: photoStore.backendName() })
 );
 
 /*
@@ -137,6 +141,71 @@ app.post('/api/plans/:id/items/:newCode/sync', async (req, res, next) => {
   try {
     const plan = await plans.syncItem(req.params.id, req.params.newCode);
     res.json({ success: true, plan });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/plans/:id/items/:newCode/record', async (req, res, next) => {
+  try {
+    const record = await records.readRecord(req.params.id, req.params.newCode);
+    res.json({ success: true, record });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.put('/api/plans/:id/items/:newCode/record', async (req, res, next) => {
+  try {
+    const record = await records.writeRecord(req.params.id, req.params.newCode, req.body || {});
+    res.json({ success: true, record });
+  } catch (err) {
+    // A stale write is answered with the version that won, so the page can
+    // show the officer both and let them choose.
+    if (err.status === 409) {
+      return res.status(409).json({ success: false, error: err.message, current: err.current });
+    }
+    next(err);
+  }
+});
+
+/* The camera's own bytes, posted raw. `express.raw` is mounted on this one
+   route rather than globally: every other route on this server speaks JSON,
+   and a body parser that accepts images everywhere is a body parser waiting
+   to swallow something it should have rejected. */
+app.post(
+  '/api/plans/:id/items/:newCode/record/photos',
+  express.raw({ type: 'image/jpeg', limit: '5mb' }),
+  async (req, res, next) => {
+    try {
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+        return res.status(400).json({ success: false, error: 'ไม่พบข้อมูลรูปภาพ' });
+      }
+      const { id } = await photoStore.putPhoto(req.params.id, req.params.newCode, req.body);
+      const record = await records.addPhoto(req.params.id, req.params.newCode, { id });
+      res.status(201).json({ success: true, id, record });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+app.get('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
+  try {
+    const bytes = await photoStore.getPhoto(req.params.id, req.params.newCode, req.params.photoId);
+    if (!bytes) return res.status(404).json({ success: false, error: 'ไม่พบรูปนี้' });
+    res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=3600' });
+    res.send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.delete('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
+  try {
+    await photoStore.delPhoto(req.params.id, req.params.newCode, req.params.photoId);
+    const record = await records.removePhoto(req.params.id, req.params.newCode, req.params.photoId);
+    res.json({ success: true, record });
   } catch (err) {
     next(err);
   }
