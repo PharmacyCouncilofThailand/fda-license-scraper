@@ -214,6 +214,69 @@ app.delete('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, r
   }
 });
 
+/*
+ * The record's own PDF, made from the stored draft rather than from a body
+ * the page posts. The photo bytes are read here and passed in as data URLs:
+ * the page puppeteer opens is a file:// page with no passcode and no session,
+ * so it could not fetch them itself even if we wanted it to.
+ *
+ * ponytail: every photo marked for the appendix is inlined, so a record with
+ * dozens of them builds a large page. Cap it if the office ever attaches more
+ * than a handful.
+ */
+async function recordForExport(planId, newCode) {
+  const record = await records.readRecord(planId, newCode);
+  const photos = [];
+  for (const photo of record.photos || []) {
+    if (!photo.inPdf) continue;
+    const bytes = await photoStore.getPhoto(planId, newCode, photo.id);
+    if (!bytes) continue;
+    photos.push({
+      src: `data:image/jpeg;base64,${bytes.toString('base64')}`,
+      caption: photo.caption || '',
+    });
+  }
+  return {
+    values: record.values || {},
+    checks: record.checks || {},
+    signatures: record.signatures || {},
+    photos,
+  };
+}
+
+app.post('/api/plans/:id/items/:newCode/record/pdf', async (req, res, next) => {
+  try {
+    const data = await recordForExport(req.params.id, req.params.newCode);
+    const pdf = await renderFormPdf(data);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename="inspection-record.pdf"',
+    });
+    res.send(Buffer.from(pdf));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* The Word file carries the text and nothing else: no photographs and no
+   signatures. It exists to be edited afterwards, and embedding media in a
+   .docx means writing relationships and drawing XML for a file that is not
+   the one the office sends. */
+app.post('/api/plans/:id/items/:newCode/record/docx', async (req, res, next) => {
+  try {
+    const { values, checks } = await recordForExport(req.params.id, req.params.newCode);
+    const docx = await renderFormDocx({ values, checks });
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': 'attachment; filename="inspection-record.docx"',
+    });
+    res.send(Buffer.from(docx));
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.post('/api/plans/:id/docx', async (req, res, next) => {
   try {
     const plan = await plansStore.get(req.params.id);
