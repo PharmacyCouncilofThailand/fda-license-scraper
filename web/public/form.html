@@ -1685,10 +1685,13 @@
             licenseeName: row.licenseeName || '',
             operatorName: row.operatorName || '',
             licenseNo: row.licenseNo || '',
-            dutyPharmacist: duty.name,
-            // Falls back to the shop's hours only when the licence lists no
-            // pharmacist at all, so the blank is not left empty for nothing.
-            openHours: duty.hours || (duty.name ? '' : row.openHours || ''),
+            // Item (2) — name, ภ. number and เวลาทำการ — is one block about
+            // the pharmacist who was actually on duty at the inspection. The
+            // licence lists everyone entitled to be, which is not the same
+            // person, so the officer writes the whole block at the shop. The
+            // licence's names are shown in the status line to copy from.
+            dutyPharmacist: '',
+            openHours: '',
           },
           checks: {},
         };
@@ -1710,7 +1713,7 @@
           const duty = dutyFromPharmacists(row.pharmacists);
           statusEl.textContent =
             `กรอกจาก: ${row.placeName || row.licenseNo || 'ข้อมูลร้าน'}` +
-            (duty.name ? ` — ผู้มีหน้าที่ปฏิบัติการ: ${duty.name}` : '');
+            (duty.name ? ` — ผู้มีหน้าที่ปฏิบัติการตามใบอนุญาต: ${duty.name} (กรอกเอง)` : '');
           localStorage.removeItem(HANDOFF_KEY);
         } catch (err) {
           statusEl.textContent = 'อ่านข้อมูลร้านไม่สำเร็จ — กรอกเองได้';
