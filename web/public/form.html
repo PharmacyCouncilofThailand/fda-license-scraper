@@ -666,6 +666,22 @@
          84.91mm wide. */
       .signatures td { border: 0; padding: 0 1.9mm; vertical-align: bottom; }
       .rule { border-bottom: var(--rule); display: inline-block; width: 150pt; }
+      /* A signature drawn on the iPad sits on its rule rather than in the
+         line: absolute, so it takes no space and no measured rule moves. The
+         rule is the positioning context, which costs an inline-block nothing.
+         `.sheet` is already position: relative for the seal, but the rule is
+         closer and survives the screen's zoom without any arithmetic. */
+      .rule { position: relative; }
+      .rule > .signature {
+        position: absolute;
+        left: 0;
+        bottom: 1px;
+        width: 100%;
+        height: 2.6em;
+        object-fit: contain;
+        object-position: center bottom;
+        pointer-events: none;
+      }
       /* The officers who sign page 2. Fillable — the picker writes whoever was
          chosen here — but not a `blank`: the template prints these names as
          plain text, with no dotted rule under them and nothing for the tab
@@ -851,7 +867,7 @@
       <p class="para sm ind-992"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <textarea class="blank" name="curtainNote" data-tabs="15" rows="1"></textarea></p>
 
       <p class="para sm blank-line ind-left2268"><!-- 27 --></p>
-      <p class="para sm left ind-left2268"><!-- 28 -->ลงชื่อ <span class="rule blank"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
+      <p class="para sm left ind-left2268"><!-- 28 -->ลงชื่อ <span class="rule blank" data-sign="page1"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
       <p class="para sm left ind-left2268"><!-- 29 -->( <input class="blank w-l" name="signPage1Name" /> )</p>
     </div>
 
@@ -897,13 +913,13 @@
           <tr>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="duty"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" data-tabs="0" /> )</div>
               <div>&nbsp;</div>
             </td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer1"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer1" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -911,13 +927,13 @@
           <tr>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="licensee"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" data-tabs="0" /> )</div>
               <div>&nbsp;</div>
             </td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer2"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer2" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -926,7 +942,7 @@
             <td></td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer3"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer3" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -935,7 +951,7 @@
             <td></td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer4"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer4" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -944,7 +960,7 @@
             <td></td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer5"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer5" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -1551,6 +1567,26 @@
       }
 
       /**
+       * Signatures drawn on a touch screen, laid over the rules they belong
+       * to. A rule with nothing for it stays an empty rule to be signed with
+       * a pen — which is what happens to every one of them when the record is
+       * opened straight from the menu.
+       */
+      function applySignatures(signatures) {
+        for (const rule of document.querySelectorAll('[data-sign]')) {
+          const existing = rule.querySelector('.signature');
+          if (existing) existing.remove();
+          const source = signatures[rule.dataset.sign];
+          if (!source) continue;
+          const image = document.createElement('img');
+          image.className = 'signature';
+          image.alt = '';
+          image.src = source;
+          rule.append(image);
+        }
+      }
+
+      /**
        * Fill the form. Also called by the server's PDF renderer through
        * Puppeteer, so it must work with no user interaction.
        */
@@ -1568,6 +1604,7 @@
         for (const button of document.querySelectorAll('.check')) {
           setCheck(button, Boolean(checks[button.dataset.name]));
         }
+        applySignatures((data && data.signatures) || {});
         window.layoutBlanks();
       };
 

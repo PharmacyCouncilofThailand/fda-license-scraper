@@ -473,6 +473,51 @@ const pxToMm = (px) => px / 96 * 25.4;
 
     console.log('ok — พิมพ์ลงช่องกรอกแล้วไม่มีบรรทัดใดขยับ');
 
+    // --- signatures and the appendix may not move the record ---------------
+    // The wizard draws signatures over the rules and appends a photo sheet.
+    // Both are additions to a page whose every line is on Word's own grid, so
+    // the test is not that they look right — it is that nothing else moved.
+    //
+    // layoutBlanks() is not idempotent — a second call with the same FIXTURE
+    // drifts two fields (buyRequest, dutyNote) even with no signatures
+    // involved. That's pre-existing and tracked separately; it is NOT what
+    // this assertion is about. So both snapshots below are taken after the
+    // SAME number of applyData() calls (two), differing only in whether
+    // signatures were passed on the second call — that keeps the drift out
+    // of the comparison and leaves signatures as the only variable. Do not
+    // "simplify" this back to comparing the harness's first render against a
+    // second call — that reintroduces the drift and blames signatures for it.
+    const beforeSign = await page.evaluate((filled) => {
+      window.applyData(filled);
+      return [...document.querySelectorAll('.para, .blank, .tab, .rule')].map((el) => {
+        const box = el.getBoundingClientRect();
+        return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+      });
+    }, FIXTURE);
+
+    const signature =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    const afterSign = await page.evaluate((filled, png) => {
+      window.applyData({
+        ...filled,
+        signatures: {
+          page1: png, duty: png, licensee: png,
+          officer1: png, officer2: png, officer3: png, officer4: png, officer5: png,
+        },
+      });
+      return [...document.querySelectorAll('.para, .blank, .tab, .rule')].map((el) => {
+        const box = el.getBoundingClientRect();
+        return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+      });
+    }, FIXTURE, signature);
+
+    assert.deepStrictEqual(afterSign, beforeSign, 'ลายเซ็นทำให้บรรทัดในกระดาษขยับ');
+
+    const drawn = await page.evaluate(() => document.querySelectorAll('.rule > .signature').length);
+    assert.strictEqual(drawn, 8, `วางลายเซ็นได้ ${drawn} จุด ควรเป็น 8 จุด`);
+
+    console.log('ok — ลายเซ็นบนจอวางลงกระดาษได้ครบ 8 จุด โดยไม่มีบรรทัดใดขยับ');
+
     // --- page height ------------------------------------------------------
     // fitSheet()/shrinkToFit() are gone; nothing may silently reintroduce a
     // sheet taller than the page. Height comes from the template's own
