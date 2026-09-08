@@ -31,7 +31,11 @@ function notFound(message) {
 }
 
 function recordId(planId, newCode) {
-  return `${planId}__${encodeURIComponent(String(newCode))}`;
+  // `encodeURIComponent` leaves `*` bare, and a bare `*` in a filename is a
+  // Windows error: it surfaces as ENOENT on write and as a silent miss on
+  // read (the caller reads `null` and gets handed a blank draft over their
+  // own saved work). Escape it ourselves so the id can never contain one.
+  return `${planId}__${encodeURIComponent(String(newCode)).replace(/\*/g, '%2A')}`;
 }
 
 async function planItem(planId, newCode) {

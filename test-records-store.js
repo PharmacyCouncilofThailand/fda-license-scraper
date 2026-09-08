@@ -158,6 +158,27 @@ const PLAN = {
   assert.strictEqual(oddRead.values.inspectTime, '09.00');
   assert.strictEqual(oddRead.updatedAt, oddWritten.updatedAt);
 
+  // `*` is the one character encodeURIComponent leaves unescaped that no
+  // Windows filesystem accepts in a filename — recordId must escape it to
+  // %2A itself so this round-trips on this machine, not just in theory.
+  const starCode = 'C*3';
+  await plansStore.save({
+    ...PLAN,
+    id: '2569-09-03',
+    date: '2569-09-03',
+    items: [{ ...PLAN.items[0], newCode: starCode }],
+    createdAt: '2026-09-08T00:00:00.000Z',
+  });
+  const starBlank = await records.readRecord('2569-09-03', starCode);
+  const starWritten = await records.writeRecord('2569-09-03', starCode, {
+    ...starBlank,
+    officerName: 'ทดสอบเครื่องหมายดอกจัน',
+    values: { ...starBlank.values, inspectTime: '10.00' },
+  });
+  const starRead = await records.readRecord('2569-09-03', starCode);
+  assert.strictEqual(starRead.values.inspectTime, '10.00');
+  assert.strictEqual(starRead.updatedAt, starWritten.updatedAt);
+
   fs.rmSync(root, { recursive: true, force: true });
   console.log('ok — บันทึกการตรวจหน้างานเก็บ อ่าน และกันเขียนทับได้');
 })();
