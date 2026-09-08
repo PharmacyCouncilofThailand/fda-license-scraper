@@ -70,7 +70,7 @@
   planId: '2569-08-27',
   newCode: '…',
   officerName: 'นางสาวอชิดา บุญเพียร',   // ใครกรอก เลือกจากรายชื่อสำนักงาน
-  values: { placeName: '…', inspectDate: '…', /* 89 คีย์ เท่ากับ collect() */ },
+  values: { placeName: '…', inspectDate: '…', /* 64 คีย์ เท่ากับ collect() */ },
   checks: { shopOpen: true, /* 25 คีย์ */ },
   signatures: { page1: 'data:image/png;base64,…', duty: null, licensee: null,
                 officer1: null, officer2: null, officer3: null,
