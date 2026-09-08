@@ -478,15 +478,18 @@ const pxToMm = (px) => px / 96 * 25.4;
     // Both are additions to a page whose every line is on Word's own grid, so
     // the test is not that they look right — it is that nothing else moved.
     //
-    // layoutBlanks() is not idempotent — a second call with the same FIXTURE
-    // drifts two fields (buyRequest, dutyNote) even with no signatures
-    // involved. That's pre-existing and tracked separately; it is NOT what
-    // this assertion is about. So both snapshots below are taken after the
-    // SAME number of applyData() calls (two), differing only in whether
-    // signatures were passed on the second call — that keeps the drift out
-    // of the comparison and leaves signatures as the only variable. Do not
-    // "simplify" this back to comparing the harness's first render against a
-    // second call — that reintroduces the drift and blames signatures for it.
+    // layoutBlanks() is NOT idempotent on its first repeat: a second
+    // applyData(FIXTURE) call (the harness's setup already made the first, at
+    // line ~154) drifts two fields (buyRequest, dutyNote) even with no
+    // signatures involved — pre-existing, tracked separately. It DOES settle
+    // after that: a third call with the identical payload lands in the same
+    // place as the second. So this block first proves that settling — a
+    // third applyData(FIXTURE) must reproduce the second call's snapshot
+    // exactly — and only then applies the signatures and checks against that
+    // settled baseline. If this ever fails, the convergence assertion below
+    // tells you whether the drift is the pre-existing layout bug or an
+    // actual signature-placement regression, instead of leaving that to be
+    // rediscovered by hand.
     const beforeSign = await page.evaluate((filled) => {
       window.applyData(filled);
       return [...document.querySelectorAll('.para, .blank, .tab, .rule')].map((el) => {
@@ -494,6 +497,16 @@ const pxToMm = (px) => px / 96 * 25.4;
         return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
       });
     }, FIXTURE);
+
+    const settled = await page.evaluate((filled) => {
+      window.applyData(filled);
+      return [...document.querySelectorAll('.para, .blank, .tab, .rule')].map((el) => {
+        const box = el.getBoundingClientRect();
+        return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+      });
+    }, FIXTURE);
+
+    assert.deepStrictEqual(settled, beforeSign, 'หน้ากระดาษยังไม่นิ่งหลังเรียก applyData ซ้ำ (layoutBlanks ไม่ลู่เข้า)');
 
     const signature =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
