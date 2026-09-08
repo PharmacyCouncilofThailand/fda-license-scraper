@@ -399,12 +399,14 @@ app.use((req, res) =>
 app.use((err, req, res, _next) => {
   // body-parser rejects an oversized body before any route handler runs, so
   // the route's own Thai branch never gets a chance — answer it here instead,
-  // in Thai, since it's the one body-parser error reachable from user input
-  // (an officer's iPad photo over the 5MB photo-route limit).
+  // in Thai, since it's the one body-parser error reachable from user input.
+  // Both the JSON routes (2mb) and the photo route (5mb) raise this same
+  // err.type, so the limit must come from err.limit (bytes), not a literal,
+  // or the wrong number gets reported on whichever route doesn't match it.
   if (err.type === 'entity.too.large') {
-    return res
-      .status(413)
-      .json({ success: false, code: 'PAYLOAD_TOO_LARGE', message: 'ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน 5MB)' });
+    const limitText = Number.isFinite(err.limit) ? `${Math.floor(err.limit / (1024 * 1024))}MB` : '';
+    const message = limitText ? `ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน ${limitText})` : 'ไฟล์ใหญ่เกินไป';
+    return res.status(413).json({ success: false, code: 'PAYLOAD_TOO_LARGE', message });
   }
   const status = err instanceof ScrapeError ? err.status : err.status || err.statusCode || 500;
   const code = err instanceof ScrapeError ? err.code : 'INTERNAL_ERROR';
