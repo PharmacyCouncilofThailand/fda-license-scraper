@@ -24,8 +24,9 @@ scripts/logo-source.jpg
 
 .vercel
 
-# Inspection plans written by the `file` backend during local runs.
-/data/plans/
+# Inspection plans, records and photos written by the `file` backend during
+# local runs.
+/data/
 
 # SDD scratch: ledgers, briefs, review packages. Not the record — git is.
 .superpowers/

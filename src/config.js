@@ -79,6 +79,11 @@ module.exports = {
   plansDir: process.env.PLANS_DIR || path.join(__dirname, '..', 'data', 'plans'),
   plansPasscode: process.env.PLANS_PASSCODE || null,
 
+  // Photo bytes for on-site records. Same backend choice as the plans, so a
+  // deployment configures one thing, not two.
+  photosDir: process.env.PHOTOS_DIR || path.join(__dirname, '..', 'data', 'photos'),
+  recordsDir: process.env.RECORDS_DIR || path.join(__dirname, '..', 'data', 'records'),
+
   // How many rows one keyword may bring back, and how many of them get their
   // detail record fetched. The portal answers a search in one JSON response,
   // so there are no pages to walk any more — this is only a memory guard.
