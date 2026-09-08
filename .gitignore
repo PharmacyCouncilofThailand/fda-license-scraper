@@ -26,3 +26,6 @@ scripts/logo-source.jpg
 
 # Inspection plans written by the `file` backend during local runs.
 /data/plans/
+
+# SDD scratch: ledgers, briefs, review packages. Not the record — git is.
+.superpowers/

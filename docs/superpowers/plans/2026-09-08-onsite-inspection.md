@@ -536,8 +536,10 @@ async function planItem(planId, newCode) {
    officer would correct first. */
 function splitAddress(address) {
   const text = String(address || '').replace(/\s+/g, ' ').trim();
+  // The alternatives are wrapped: `แขวง|ตำบล\\s*(…)` would bind the capture to
+  // the second alternative alone, and half these labels would capture nothing.
   const grab = (label) => {
-    const match = text.match(new RegExp(`${label}\\s*([^\\s]+)`));
+    const match = text.match(new RegExp(`(?:${label})\\s*([^\\s]+)`));
     return match ? match[1] : '';
   };
   return {
