@@ -127,6 +127,77 @@ const PLAN = {
   assert.deepStrictEqual(await photos.getPhoto('2569-08-27', 'C*3', starPhotoId), starPhotoBytes);
   assert.strictEqual(await photos.delPhoto('2569-08-27', 'C*3', starPhotoId), true);
 
+  // --- photo path traversal ------------------------------------------------
+  // `planId` and `newCode` are wired straight off URL segments in the next
+  // task, so a `..` in either must be refused before a single byte is
+  // written — not sanitised, refused — and nothing may land outside
+  // PHOTOS_DIR (or anywhere else under the temp root).
+  function snapshotDir(dir) {
+    const out = [];
+    (function walk(d) {
+      let entries;
+      try {
+        entries = fs.readdirSync(d, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const full = path.join(d, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else out.push(full);
+      }
+    })(dir);
+    return out.sort();
+  }
+  function topLevelNames(dir) {
+    try {
+      return fs.readdirSync(dir).sort();
+    } catch {
+      return [];
+    }
+  }
+
+  // planId of ".." alone.
+  const rootBefore1 = snapshotDir(root);
+  await assert.rejects(
+    () => photos.putPhoto('..', 'A/1', Buffer.from('x')),
+    (err) => {
+      assert.strictEqual(err.status, 400);
+      return true;
+    },
+    'planId ".." ต้องถูกปฏิเสธ'
+  );
+  assert.deepStrictEqual(snapshotDir(root), rootBefore1, 'ไม่ควรมีไฟล์ใดถูกเขียนเมื่อ planId เป็น ".."');
+
+  // planId AND newCode both "..": the escape that would climb two
+  // directories above photosDir, out past the temp root entirely.
+  const tmpBefore = topLevelNames(os.tmpdir());
+  const rootBefore2 = snapshotDir(root);
+  await assert.rejects(
+    () => photos.putPhoto('..', '..', Buffer.from('x')),
+    (err) => {
+      assert.strictEqual(err.status, 400);
+      return true;
+    },
+    'planId และ newCode เป็น ".." ต้องถูกปฏิเสธ'
+  );
+  assert.deepStrictEqual(snapshotDir(root), rootBefore2, 'ไม่ควรมีไฟล์ใดถูกเขียนใต้ root เมื่อ planId และ newCode เป็น ".."');
+  assert.deepStrictEqual(topLevelNames(os.tmpdir()), tmpBefore, 'ไม่ควรมีไฟล์ใดหลุดออกไปนอกโฟลเดอร์ทดสอบ');
+
+  // newCode of ".." with a VALID planId: today this silently drops the
+  // photo into the photos root instead of the shop's own folder — must be
+  // refused instead.
+  const rootBefore3 = snapshotDir(root);
+  await assert.rejects(
+    () => photos.putPhoto('2569-08-27', '..', Buffer.from('x')),
+    (err) => {
+      assert.strictEqual(err.status, 400);
+      return true;
+    },
+    'newCode ".." กับ planId ที่ถูกต้องต้องถูกปฏิเสธ ไม่ใช่ตกไปอยู่ที่รากของ photos'
+  );
+  assert.deepStrictEqual(snapshotDir(root), rootBefore3, 'ไม่ควรมีไฟล์ใดถูกเขียนลงรากของ photos เมื่อ newCode เป็น ".."');
+
   // A shop that is not in the plan has no record to build.
   await assert.rejects(() => records.readRecord('2569-08-27', 'NOPE'), /ไม่พบร้าน/);
   await assert.rejects(() => records.readRecord('2569-01-01', 'A/1'), /ไม่พบแผน/);

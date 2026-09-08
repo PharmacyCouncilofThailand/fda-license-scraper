@@ -24,6 +24,20 @@ function assertPart(value, message) {
   return value;
 }
 
+// The real shape a plan id has — same pattern `records-store.js`'s
+// `idPattern` anchors its plan half to. Unlike `assertPart`'s open charset,
+// `..` cannot match this, so `planId` can never be a traversal segment.
+const PLAN_ID_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}(-[0-9]+)?$/;
+
+function assertPlanId(value) {
+  if (!PLAN_ID_PATTERN.test(String(value || ''))) {
+    const err = new Error('รหัสแผนไม่ถูกต้อง');
+    err.status = 400;
+    throw err;
+  }
+  return value;
+}
+
 /**
  * A shop's key can hold anything, so it is encoded before it is a path.
  *
@@ -32,11 +46,24 @@ function assertPart(value, message) {
  * (the caller reads `null` and gets handed a blank result instead of the
  * photo they just stored). Escape it ourselves so the key can never contain
  * one — same fix as `recordId` in `src/records.js`, same reason.
+ *
+ * `encodeURIComponent` also leaves `.` bare (it is unreserved), so a
+ * `newCode` of `..` survives whole and becomes its own path segment —
+ * `keyFor(planId, '..', id)` would climb back out of the shop's directory.
+ * `planId` gets the same treatment via `assertPlanId` above: an open
+ * charset like `assertPart`'s would accept `..` too. Both are rejected
+ * outright rather than sanitised — a value that is not a real plan id or
+ * shop code is a bad request, not something to quietly repair.
  */
 function keyFor(planId, newCode, photoId) {
-  assertPart(planId, 'รหัสแผนไม่ถูกต้อง');
+  assertPlanId(planId);
   assertPart(photoId, 'รหัสรูปไม่ถูกต้อง');
   const safeCode = encodeURIComponent(String(newCode)).replace(/\*/g, '%2A');
+  if (safeCode === '.' || safeCode === '..') {
+    const err = new Error('รหัสร้านไม่ถูกต้อง');
+    err.status = 400;
+    throw err;
+  }
   return `${planId}/${safeCode}/${photoId}.jpg`;
 }
 
@@ -104,8 +131,12 @@ const blob = {
     return Buffer.from(await response.arrayBuffer());
   },
   async del(key) {
-    const { del } = blobApi();
-    if (!(await blob.get(key))) return false;
+    const { head, del } = blobApi();
+    try {
+      await head(`${BLOB_PREFIX}${key}`, { token: config.blobToken });
+    } catch {
+      return false;
+    }
     await del(`${BLOB_PREFIX}${key}`, { token: config.blobToken });
     return true;
   },
