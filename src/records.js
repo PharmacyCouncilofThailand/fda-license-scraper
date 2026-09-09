@@ -24,6 +24,33 @@ const SIGNATURE_SLOTS = [
   'officer5',
 ];
 
+/**
+ * addPhoto/removePhoto/patchPhoto/writeRecord all do read-modify-write on the
+ * same record id. Two of them landing back to back (an officer tapping the
+ * shutter twice, or a caption edit racing an autosave) would otherwise read
+ * the same base and the second `store.save()` would silently discard the
+ * first's effect. Serializing same-id writes through one promise chain closes
+ * that.
+ *
+ * ponytail: process-local queue — closes the race for one server instance
+ * (what this office runs). A multi-instance deployment would need a real
+ * lock service; add one if that ever changes.
+ */
+const locks = new Map();
+function withLock(id, fn) {
+  const wait = locks.get(id) || Promise.resolve();
+  const run = wait.then(fn, fn);
+  const settled = run.then(
+    () => {},
+    () => {}
+  );
+  locks.set(id, settled);
+  settled.then(() => {
+    if (locks.get(id) === settled) locks.delete(id);
+  });
+  return run;
+}
+
 function notFound(message) {
   const err = new Error(message);
   err.status = 404;
@@ -119,60 +146,68 @@ async function readRecord(planId, newCode) {
 async function writeRecord(planId, newCode, incoming) {
   const item = await planItem(planId, newCode);
   const id = recordId(planId, newCode);
-  const current = await store.get(id);
-  if (current) {
-    if (incoming.updatedAt !== current.updatedAt) {
+  return withLock(id, async () => {
+    const current = await store.get(id);
+    if (current) {
+      if (incoming.updatedAt !== current.updatedAt) {
+        const err = new Error('มีคนอื่นบันทึกร้านนี้ไปแล้ว');
+        err.status = 409;
+        err.current = current;
+        throw err;
+      }
+    } else if (incoming.updatedAt != null) {
+      // A caller holding a non-null updatedAt for a shop with nothing stored is
+      // holding a stale version by definition (deleted, or another store) — refuse
+      // it the same way as any other conflict.
+      // ponytail: this only closes the stale-caller half of the race. Two
+      // officers who both open a never-yet-saved shop both hold updatedAt: null
+      // and this check lets both through — closing that needs a create-only
+      // write primitive in the store, out of scope here. Add one if the office
+      // outgrows it.
       const err = new Error('มีคนอื่นบันทึกร้านนี้ไปแล้ว');
       err.status = 409;
-      err.current = current;
+      err.current = blankRecord(planId, newCode, item);
       throw err;
     }
-  } else if (incoming.updatedAt != null) {
-    // A caller holding a non-null updatedAt for a shop with nothing stored is
-    // holding a stale version by definition (deleted, or another store) — refuse
-    // it the same way as any other conflict.
-    // ponytail: this only closes the stale-caller half of the race. Two
-    // officers who both open a never-yet-saved shop both hold updatedAt: null
-    // and this check lets both through — closing that needs a create-only
-    // write primitive in the store, out of scope here. Add one if the office
-    // outgrows it.
-    const err = new Error('มีคนอื่นบันทึกร้านนี้ไปแล้ว');
-    err.status = 409;
-    err.current = blankRecord(planId, newCode, item);
-    throw err;
-  }
-  const base = current || blankRecord(planId, newCode, item);
-  const signatures = {};
-  for (const slot of SIGNATURE_SLOTS) {
-    const value = (incoming.signatures || {})[slot];
-    if (value) signatures[slot] = String(value);
-  }
-  return store.save({
-    ...base,
-    officerName: String(incoming.officerName || ''),
-    values: { ...(incoming.values || {}) },
-    checks: { ...(incoming.checks || {}) },
-    signatures,
-    // Photos change through their own routes, never through a draft write —
-    // otherwise an autosave in flight when a photo lands would delete it.
-    photos: base.photos || [],
-    createdAt: base.createdAt || new Date().toISOString(),
+    const base = current || blankRecord(planId, newCode, item);
+    const signatures = {};
+    for (const slot of SIGNATURE_SLOTS) {
+      const value = (incoming.signatures || {})[slot];
+      if (value) signatures[slot] = String(value);
+    }
+    return store.save({
+      ...base,
+      officerName: String(incoming.officerName || ''),
+      values: { ...(incoming.values || {}) },
+      checks: { ...(incoming.checks || {}) },
+      signatures,
+      // Photos change through their own routes, never through a draft write —
+      // otherwise an autosave in flight when a photo lands would delete it.
+      photos: base.photos || [],
+      createdAt: base.createdAt || new Date().toISOString(),
+    });
   });
 }
 
 async function addPhoto(planId, newCode, { id: photoId }) {
-  const record = await readRecord(planId, newCode);
-  const photos = [
-    ...(record.photos || []),
-    { id: photoId, caption: '', inPdf: true, at: new Date().toISOString() },
-  ];
-  return store.save({ ...record, photos, createdAt: record.createdAt || new Date().toISOString() });
+  const id = recordId(planId, newCode);
+  return withLock(id, async () => {
+    const record = await readRecord(planId, newCode);
+    const photos = [
+      ...(record.photos || []),
+      { id: photoId, caption: '', inPdf: true, at: new Date().toISOString() },
+    ];
+    return store.save({ ...record, photos, createdAt: record.createdAt || new Date().toISOString() });
+  });
 }
 
 async function removePhoto(planId, newCode, photoId) {
-  const record = await readRecord(planId, newCode);
-  const photos = (record.photos || []).filter((photo) => photo.id !== photoId);
-  return store.save({ ...record, photos, createdAt: record.createdAt || new Date().toISOString() });
+  const id = recordId(planId, newCode);
+  return withLock(id, async () => {
+    const record = await readRecord(planId, newCode);
+    const photos = (record.photos || []).filter((photo) => photo.id !== photoId);
+    return store.save({ ...record, photos, createdAt: record.createdAt || new Date().toISOString() });
+  });
 }
 
 /** Caption and the appendix flag are the only things about a photo an
@@ -180,17 +215,20 @@ async function removePhoto(planId, newCode, photoId) {
     draft PUT, for the same reason addPhoto/removePhoto are: an autosave in
     flight when this lands must not resurrect or drop a photo. */
 async function patchPhoto(planId, newCode, photoId, patch) {
-  const record = await readRecord(planId, newCode);
-  const photos = (record.photos || []).map((photo) =>
-    photo.id === photoId
-      ? {
-          ...photo,
-          ...(patch.caption !== undefined ? { caption: String(patch.caption) } : {}),
-          ...(patch.inPdf !== undefined ? { inPdf: Boolean(patch.inPdf) } : {}),
-        }
-      : photo
-  );
-  return store.save({ ...record, photos, createdAt: record.createdAt || new Date().toISOString() });
+  const id = recordId(planId, newCode);
+  return withLock(id, async () => {
+    const record = await readRecord(planId, newCode);
+    const photos = (record.photos || []).map((photo) =>
+      photo.id === photoId
+        ? {
+            ...photo,
+            ...(patch.caption !== undefined ? { caption: String(patch.caption) } : {}),
+            ...(patch.inPdf !== undefined ? { inPdf: Boolean(patch.inPdf) } : {}),
+          }
+        : photo
+    );
+    return store.save({ ...record, photos, createdAt: record.createdAt || new Date().toISOString() });
+  });
 }
 
 module.exports = {
