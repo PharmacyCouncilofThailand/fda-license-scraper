@@ -86,6 +86,11 @@ export default function RecordForm({ planId, newCode }) {
       dirty.current = false;
       // Only the version marker is taken from the answer: the officer may
       // have typed more while it was in flight, and their keystrokes win.
+      // Patch pending.current directly too: a queued follow-up flush (below,
+      // in `finally`) runs synchronously, before React commits this setRecord
+      // — reading the version back out of state would still see the old one
+      // and manufacture a 409 against ourselves.
+      pending.current = { ...pending.current, updatedAt: saved.updatedAt, createdAt: saved.createdAt };
       setRecord((current) => ({ ...current, updatedAt: saved.updatedAt, createdAt: saved.createdAt }));
       setSave('saved');
     } catch (err) {
