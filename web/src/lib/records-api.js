@@ -26,7 +26,7 @@ async function call(url, options = {}) {
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.success === false) {
-    throw new Error(data.error || `ระบบตอบกลับผิดปกติ (HTTP ${response.status})`);
+    throw new Error(data.error || data.message || `ระบบตอบกลับผิดปกติ (HTTP ${response.status})`);
   }
   return data;
 }
@@ -72,7 +72,11 @@ export async function photoObjectUrl(planId, newCode, photoId) {
 /* The export routes also answer 409 — a listed photo's bytes are missing, or
    more than 20 are marked for the appendix — with no `current` field. That is
    a refusal to export, not a stale write, so it is read for its Thai message
-   here rather than routed through StaleRecordError. */
+   here rather than routed through StaleRecordError. The message lands under
+   `error` when the route answers itself (PUT .../record's own 409) or under
+   `message` when it falls through to the generic error handler in
+   src/server.js (the export routes' 409, via next(err)) — read whichever key
+   is present, generic fallback last. */
 export async function downloadRecordExport(planId, newCode, kind, filename) {
   const response = await fetch(`${base(planId, newCode)}/${kind}`, {
     method: 'POST',
@@ -84,7 +88,7 @@ export async function downloadRecordExport(planId, newCode, kind, filename) {
   }
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || `ส่งออกไม่สำเร็จ (HTTP ${response.status})`);
+    throw new Error(data.error || data.message || `ส่งออกไม่สำเร็จ (HTTP ${response.status})`);
   }
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement('a');
