@@ -11,6 +11,19 @@ import {
   StaleRecordError,
 } from '../lib/records-api.js';
 
+/** True when two drafts hold the same content — only the version marker
+    (and maybe photos, which travel their own route) differs. Used to tell a
+    real conflict from the officer's own photo action bumping `updatedAt`
+    out from under their in-flight autosave. */
+function sameDraftContent(a, b) {
+  return (
+    JSON.stringify(a.values || {}) === JSON.stringify(b.values || {}) &&
+    JSON.stringify(a.checks || {}) === JSON.stringify(b.checks || {}) &&
+    JSON.stringify(a.signatures || {}) === JSON.stringify(b.signatures || {}) &&
+    String(a.officerName || '') === String(b.officerName || '')
+  );
+}
+
 /**
  * One shop's record, filled at the shop.
  *
@@ -73,45 +86,85 @@ export default function RecordForm({ planId, newCode }) {
   // the first and cause a self-inflicted 409.
   const inFlight = useRef(false);
   const again = useRef(false);
+  // The promise chain for whatever is currently in flight (including any
+  // follow-up queued via `again`). A caller that must know the draft is
+  // actually persisted (export) awaits this instead of the instant resolve
+  // an early `return` would give it.
+  const inFlightPromise = useRef(null);
 
-  const flush = useCallback(async () => {
-    if (inFlight.current) {
-      again.current = true;
-      return;
-    }
+  const runFlush = useCallback(() => {
     const draft = pending.current;
-    if (!draft) return;
+    if (!draft) return Promise.resolve(true);
     inFlight.current = true;
     setSave('saving');
-    try {
-      const saved = await withPasscode(() => putRecord(planId, newCode, draft));
-      dirty.current = false;
-      // Only the version marker is taken from the answer: the officer may
-      // have typed more while it was in flight, and their keystrokes win.
-      // Patch pending.current directly too: a queued follow-up flush (below,
-      // in `finally`) runs synchronously, before React commits this setRecord
-      // — reading the version back out of state would still see the old one
-      // and manufacture a 409 against ourselves.
-      pending.current = { ...pending.current, updatedAt: saved.updatedAt, createdAt: saved.createdAt };
-      setRecord((current) => ({ ...current, updatedAt: saved.updatedAt, createdAt: saved.createdAt }));
-      setSave('saved');
-    } catch (err) {
-      setSave('failed');
-      if (err instanceof StaleRecordError) {
+    return (async () => {
+      try {
+        const saved = await withPasscode(() => putRecord(planId, newCode, draft));
+        dirty.current = false;
+        // Only the version marker is taken from the answer: the officer may
+        // have typed more while it was in flight, and their keystrokes win.
+        // Patch pending.current directly too: a queued follow-up flush (below)
+        // runs synchronously, before React commits this setRecord — reading
+        // the version back out of state would still see the old one and
+        // manufacture a 409 against ourselves.
+        pending.current = { ...pending.current, updatedAt: saved.updatedAt, createdAt: saved.createdAt };
+        setRecord((current) => ({ ...current, updatedAt: saved.updatedAt, createdAt: saved.createdAt }));
+        setSave('saved');
+        return true;
+      } catch (err) {
+        if (err instanceof StaleRecordError && sameDraftContent(draft, err.current)) {
+          // Nothing but the version marker (and maybe photos) changed — that's
+          // this officer's own photo action bumping `updatedAt`, not someone
+          // else's edit. Adopt the fresh marker and let the queued retry
+          // below resend transparently, instead of scaring them with "someone
+          // else already saved this".
+          pending.current = {
+            ...pending.current,
+            updatedAt: err.current.updatedAt,
+            createdAt: err.current.createdAt,
+          };
+          setRecord((current) => ({
+            ...current,
+            updatedAt: err.current.updatedAt,
+            createdAt: err.current.createdAt,
+          }));
+          again.current = true;
+          return true;
+        }
+        setSave('failed');
         setError(
-          'มีคนอื่นบันทึกร้านนี้ไปแล้ว — กด "โหลดของล่าสุด" เพื่อดูของเขา หรือ "บันทึกทับ" เพื่อใช้ของคุณ'
+          err instanceof StaleRecordError
+            ? 'มีคนอื่นบันทึกร้านนี้ไปแล้ว — กด "โหลดของล่าสุด" เพื่อดูของเขา หรือ "บันทึกทับ" เพื่อใช้ของคุณ'
+            : err.message
         );
-      } else {
-        setError(err.message);
+        return false;
+      } finally {
+        inFlight.current = false;
       }
-    } finally {
-      inFlight.current = false;
+    })().then((ok) => {
       if (again.current) {
         again.current = false;
-        flush();
+        const next = runFlush();
+        inFlightPromise.current = next;
+        return next;
       }
-    }
+      return ok;
+    });
   }, [planId, newCode, withPasscode]);
+
+  // Fire-and-forget for autosave/the header button; returns a promise a
+  // caller (export) can await to know the draft actually landed, including
+  // waiting out an in-flight save's queued follow-up rather than resolving
+  // the instant it finds one already running.
+  const flush = useCallback(() => {
+    if (inFlight.current) {
+      again.current = true;
+      return inFlightPromise.current;
+    }
+    const run = runFlush();
+    inFlightPromise.current = run;
+    return run;
+  }, [runFlush]);
 
   // Autosave a second after the typing stops. Nothing is ever dropped from the
   // screen when a save fails — the officer is at the shop and cannot retype it.
@@ -178,7 +231,11 @@ export default function RecordForm({ planId, newCode }) {
   async function exportFile(kind) {
     setError('');
     try {
-      await flush();
+      const ok = await flush();
+      if (!ok) {
+        setError('บันทึกไม่สำเร็จ — กรุณาบันทึกให้สำเร็จก่อนสร้างไฟล์');
+        return;
+      }
       // Thai shop names commonly contain "/" — a filesystem won't take that
       // (or other path separators) in a filename.
       const shop = (record.values.placeName || 'บันทึกการตรวจ').replace(/[\\/:*?"<>|]/g, ' ').slice(0, 40);
