@@ -632,3 +632,20 @@ button.link.danger { color: var(--danger-fg); }
 .photo-item input[type="text"] { min-height: 44px; padding: 6px 10px; border: 1px solid var(--border);
   border-radius: 10px; background: var(--background); color: var(--foreground); font: inherit; }
 .photo-inpdf { display: flex; align-items: center; gap: 6px; }
+
+.signature-slot { display: flex; flex-direction: column; gap: 6px; padding: 10px;
+  border: 1px solid var(--border); border-radius: 12px; }
+.signature-slot > span { color: var(--muted-foreground); font-size: 14px; }
+.signature-preview { height: 56px; object-fit: contain; object-position: left bottom;
+  border-bottom: 1px solid var(--foreground); }
+.signature-empty { min-height: 56px; display: grid; place-items: center;
+  color: var(--muted-foreground); border-bottom: 1px dashed var(--border); }
+.signature-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.signature-actions button { min-height: 44px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--background); font: inherit; cursor: pointer; }
+/* Full-screen: a signature drawn in a thumbnail-sized box does not look like
+   the person's own. */
+.signature-sheet { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
+  gap: 10px; padding: 16px; background: var(--background); }
+.signature-canvas { flex: 1; width: 100%; border: 1px solid var(--border); border-radius: 12px;
+  background: #fff; touch-action: none; }

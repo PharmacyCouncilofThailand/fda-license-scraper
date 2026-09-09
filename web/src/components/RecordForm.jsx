@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PhotoGrid from './PhotoGrid.jsx';
 import RecordStep from './RecordStep.jsx';
+import SignaturePad from './SignaturePad.jsx';
 import { STEPS } from '../lib/form-fields.js';
 import { getPlan, patchPlanItem, PasscodeError, setPasscode } from '../lib/plans-api.js';
 import {
@@ -284,6 +285,36 @@ export default function RecordForm({ planId, newCode }) {
             onChange={change}
             onCheck={check}
           />
+          {[
+            { slot: 'page1', label: 'หน้า 1 — เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต' },
+            { slot: 'duty', label: 'ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร' },
+            { slot: 'licensee', label: 'ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต' },
+            { slot: 'officer1', label: 'พนักงานเจ้าหน้าที่ คนที่ 1', needs: 'signOfficer1' },
+            { slot: 'officer2', label: 'พนักงานเจ้าหน้าที่ คนที่ 2', needs: 'signOfficer2' },
+            { slot: 'officer3', label: 'พนักงานเจ้าหน้าที่ คนที่ 3', needs: 'signOfficer3' },
+            { slot: 'officer4', label: 'พนักงานเจ้าหน้าที่ คนที่ 4', needs: 'signOfficer4' },
+            { slot: 'officer5', label: 'พนักงานเจ้าหน้าที่ คนที่ 5', needs: 'signOfficer5' },
+          ]
+            // An officer row with no name on it is a row nobody signs, so it
+            // is not five empty boxes to scroll past.
+            .filter((entry) => !entry.needs || record.values[entry.needs])
+            .map((entry) => (
+              <SignaturePad
+                key={entry.slot}
+                label={entry.label}
+                value={record.signatures[entry.slot] || null}
+                onChange={(dataUrl) => {
+                  dirty.current = true;
+                  setSave('idle');
+                  setRecord((current) => {
+                    const signatures = { ...current.signatures };
+                    if (dataUrl) signatures[entry.slot] = dataUrl;
+                    else delete signatures[entry.slot];
+                    return { ...current, signatures };
+                  });
+                }}
+              />
+            ))}
           <div className="record-export">
             <button type="button" onClick={() => exportFile('pdf')}>
               สร้าง PDF
