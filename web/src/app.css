@@ -578,3 +578,43 @@ button.link {
   padding: 2px 4px;
 }
 button.link.danger { color: var(--danger-fg); }
+
+/* --- บันทึกการตรวจหน้างาน ------------------------------------------------ */
+/* Sized for a thumb on an iPad held in one hand at a shop counter: nothing
+   tappable is under 44px, and the two things that move — the save state and
+   the step buttons — never scroll out of reach. */
+.record-form { display: flex; flex-direction: column; gap: 12px; padding-bottom: 72px; }
+.record-head { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 2;
+  background: var(--background); padding: 8px 0; }
+.record-head b { flex: 1; }
+.save-state { min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--secondary); font: inherit; cursor: pointer; }
+.save-state.saved { color: var(--success-fg); background: var(--success-bg); border-color: transparent; }
+.save-state.failed, .save-state.idle { color: var(--warning-fg); background: var(--warning-bg);
+  border-color: var(--warning-line); }
+.record-steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.record-steps button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--background); font: inherit; cursor: pointer; }
+.record-steps button.on { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+.record-step-title { margin-left: 8px; color: var(--muted-foreground); }
+.record-step { display: flex; flex-direction: column; gap: 14px; }
+.record-field { display: flex; flex-direction: column; gap: 4px; }
+.record-field span { color: var(--muted-foreground); font-size: 14px; }
+.record-field input, .record-field textarea {
+  min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--background); color: var(--foreground); font: inherit;
+}
+.record-checks { border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin: 0; }
+.record-checks legend { padding: 0 6px; color: var(--muted-foreground); font-size: 14px; }
+.check-option { display: block; width: 100%; min-height: 44px; margin-top: 6px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--background);
+  color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
+.check-option.on { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+.record-export { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.record-export button { min-height: 44px; padding: 0 16px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--background); font: inherit; cursor: pointer; }
+.record-nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px;
+  padding: 8px 12px; background: var(--background); border-top: 1px solid var(--border); }
+.record-nav button { flex: 1; min-height: 48px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--background); font: inherit; cursor: pointer; }
+.record-nav button:disabled { opacity: .45; }
