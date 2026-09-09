@@ -12,18 +12,24 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-// A throwaway directory, so a smoke run never touches the office's own plans.
+// A throwaway directory, so a smoke run never touches the office's own plans,
+// records, or photos — each has its own env var, none derived from PLANS_DIR.
 process.env.PLANS_STORE = 'file';
 process.env.PLANS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'smoke-plans-'));
+process.env.RECORDS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'smoke-records-'));
+process.env.PHOTOS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'smoke-photos-'));
 
 const {
   searchDrugLocations,
   getDetailByNewCode,
   renderPlanPdf,
+  renderFormPdf,
   closeBrowser,
 } = require('./src/scraper');
 const plans = require('./src/plans');
 const { renderPlanDocx } = require('./src/docx-plan');
+const records = require('./src/records');
+const photoStore = require('./src/photo-store');
 
 (async () => {
   const started = Date.now();
@@ -71,9 +77,51 @@ const { renderPlanDocx } = require('./src/docx-plan');
   const pdf = Buffer.from(await renderPlanPdf(added.plan));
   assert.ok(pdf.length > 1000, 'ไฟล์ PDF ของแผนเล็กผิดปกติ');
   assert.ok(pdf.subarray(0, 4).toString() === '%PDF', 'ไฟล์ PDF ของแผนไม่ใช่ PDF');
-  await closeBrowser();
-  fs.rmSync(process.env.PLANS_DIR, { recursive: true, force: true });
   console.log('ok — แผนการตรวจ: สร้าง ใส่ร้านจาก อย. และส่งออก Word/PDF ได้');
+
+  // --- บันทึกการตรวจหน้างาน -----------------------------------------------
+  const onsite = await records.readRecord(plan.id, row.newCode);
+  assert.strictEqual(onsite.values.placeName, row.placeName, 'ร่างต้องรู้จักชื่อร้านจากแผน');
+  assert.strictEqual(onsite.updatedAt, null);
+
+  const written = await records.writeRecord(plan.id, row.newCode, {
+    ...onsite,
+    officerName: 'นางสาวอชิดา บุญเพียร',
+    values: { ...onsite.values, inspectTime: '10.30', endTime: '11.15' },
+    checks: { shopOpen: true, rolePharmacist: true },
+    signatures: {
+      duty: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    },
+  });
+  assert.ok(written.updatedAt, 'บันทึกแล้วต้องมี updatedAt');
+
+  const jpeg = Buffer.from(
+    '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==',
+    'base64'
+  );
+  const { id: photoId } = await photoStore.putPhoto(plan.id, row.newCode, jpeg);
+  await records.addPhoto(plan.id, row.newCode, { id: photoId });
+
+  const recordPdf = Buffer.from(
+    await renderFormPdf({
+      values: written.values,
+      checks: written.checks,
+      signatures: written.signatures,
+      photos: [{ src: `data:image/jpeg;base64,${jpeg.toString('base64')}`, caption: 'ชั้นวางยา' }],
+    })
+  );
+  assert.strictEqual(recordPdf.subarray(0, 4).toString(), '%PDF', 'บันทึกการตรวจไม่ใช่ PDF');
+  // Two sheets of record plus the photo appendix.
+  const pages = (recordPdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  assert.strictEqual(pages, 3, `บันทึกที่มีรูปควรได้ 3 หน้า ได้ ${pages}`);
+
+  await photoStore.delPhoto(plan.id, row.newCode, photoId);
+  console.log('ok — บันทึกหน้างาน: ร่างจากแผน เขียนกลับ แนบรูป และได้ PDF สามหน้า');
+
+  await closeBrowser();
+  for (const dir of [process.env.PLANS_DIR, process.env.RECORDS_DIR, process.env.PHOTOS_DIR]) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 
   console.log(
     'ok —',

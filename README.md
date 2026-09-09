@@ -68,6 +68,8 @@ template lives.
 | `PLANS_STORE` | `blob` when `BLOB_READ_WRITE_TOKEN` is set, else `file` | ที่เก็บแผนการตรวจ — `blob` สำหรับ Vercel, `file` สำหรับเซิร์ฟเวอร์ที่เขียนดิสก์ได้ |
 | `PLANS_DIR` | `data/plans` | โฟลเดอร์เก็บแผน เมื่อใช้ `PLANS_STORE=file` |
 | `PLANS_PASSCODE` | *(ไม่ตั้ง)* | รหัสผ่านของสำนักงานสำหรับ `/api/plans/*` ไม่ตั้ง = ไม่กั้น |
+| `RECORDS_DIR` | `data/records` | โฟลเดอร์เก็บบันทึกการตรวจหน้างาน เมื่อใช้ `PLANS_STORE=file` |
+| `PHOTOS_DIR` | `data/photos` | โฟลเดอร์เก็บรูปถ่ายหน้างาน เมื่อใช้ `PLANS_STORE=file` |
 
 `npm install` normally downloads its own Chromium. If a proxy blocks that, the
 app falls back to an installed Chrome or Edge (`src/config.js` → `findChrome()`),
@@ -402,6 +404,17 @@ each rule runs. The comparison allows a few spaces either way, since the
 office's own lines disagree with each other by that much, but no blank may
 carry more tabs than theirs or than the blank form's. Both Word files stay out
 of the repository, so it skips with a message when they are absent.
+
+### ตรวจหน้างาน
+
+เปิดแผนการตรวจบนไอแพด แตะร้าน แล้วกรอกบันทึกทีละขั้น (`#/plans/<วันที่>/<newCode>`)
+ระบบบันทึกร่างขึ้นเซิร์ฟเวอร์เองทุกครั้งที่หยุดพิมพ์ ถ่ายรูปและเซ็นชื่อได้ในหน้าเดียวกัน
+กด "สร้าง PDF" แล้วร้านจะถูกติ๊กว่าตรวจแล้วในแผนโดยอัตโนมัติ
+
+ต้องมีอินเทอร์เน็ตขณะตรวจ — ระบบไม่ทำงานแบบออฟไลน์โดยตั้งใจ (ดู
+`docs/superpowers/specs/2026-09-08-onsite-inspection-design.md`)
+
+รูปถ่ายและลายเซ็นออกเฉพาะใน PDF ไฟล์ Word มีแต่ข้อความ
 
 ## Endpoint
 
