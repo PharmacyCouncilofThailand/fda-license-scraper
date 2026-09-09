@@ -583,7 +583,8 @@ button.link.danger { color: var(--danger-fg); }
 /* Sized for a thumb on an iPad held in one hand at a shop counter: nothing
    tappable is under 44px, and the two things that move — the save state and
    the step buttons — never scroll out of reach. */
-.record-form { display: flex; flex-direction: column; gap: 12px; padding-bottom: 72px; }
+.record-form { display: flex; flex-direction: column; gap: 12px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 .record-head { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 2;
   background: var(--background); padding: 8px 0; }
 .record-head b { flex: 1; }
@@ -614,7 +615,8 @@ button.link.danger { color: var(--danger-fg); }
 .record-export button { min-height: 44px; padding: 0 16px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--background); font: inherit; cursor: pointer; }
 .record-nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px;
-  padding: 8px 12px; background: var(--background); border-top: 1px solid var(--border); }
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--background);
+  border-top: 1px solid var(--border); }
 .record-nav button { flex: 1; min-height: 48px; border-radius: 12px; border: 1px solid var(--border);
   background: var(--background); font: inherit; cursor: pointer; }
 .record-nav button:disabled { opacity: .45; }

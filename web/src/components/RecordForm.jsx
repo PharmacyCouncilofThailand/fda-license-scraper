@@ -65,9 +65,21 @@ export default function RecordForm({ planId, newCode }) {
   // read it must not create a record for it.
   const dirty = useRef(false);
 
+  // At most one PUT in flight at a time. If the draft changes again while one
+  // is outstanding, that is remembered here and flushed once the in-flight
+  // one lands — rather than firing a second, overlapping PUT that can race
+  // the first and cause a self-inflicted 409.
+  const inFlight = useRef(false);
+  const again = useRef(false);
+
   const flush = useCallback(async () => {
+    if (inFlight.current) {
+      again.current = true;
+      return;
+    }
     const draft = pending.current;
     if (!draft) return;
+    inFlight.current = true;
     setSave('saving');
     try {
       const saved = await withPasscode(() => putRecord(planId, newCode, draft));
@@ -85,6 +97,12 @@ export default function RecordForm({ planId, newCode }) {
       } else {
         setError(err.message);
       }
+    } finally {
+      inFlight.current = false;
+      if (again.current) {
+        again.current = false;
+        flush();
+      }
     }
   }, [planId, newCode, withPasscode]);
 
@@ -98,7 +116,7 @@ export default function RecordForm({ planId, newCode }) {
 
   useEffect(() => {
     const warn = (event) => {
-      if (save === 'saved' || save === 'idle') return;
+      if (!dirty.current) return;
       event.preventDefault();
       event.returnValue = '';
     };
@@ -121,32 +139,42 @@ export default function RecordForm({ planId, newCode }) {
       // thumb: on paper both boxes can end up ticked, and they do.
       if (group.mode === 'one') for (const option of group.options) delete checks[option.name];
       if (on) checks[name] = true;
+      else delete checks[name];
       return { ...current, checks };
     });
   }
 
   async function reload() {
     setError('');
-    setRecord(await withPasscode(() => getRecord(planId, newCode)));
-    dirty.current = false;
-    setSave('idle');
+    try {
+      setRecord(await withPasscode(() => getRecord(planId, newCode)));
+      dirty.current = false;
+      setSave('idle');
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   /** Take the other version's marker and keep what is on screen. */
-  function overwrite() {
+  async function overwrite() {
     setError('');
     dirty.current = true;
     setSave('idle');
-    withPasscode(() => getRecord(planId, newCode)).then((current) =>
-      setRecord((mine) => ({ ...mine, updatedAt: current.updatedAt }))
-    );
+    try {
+      const current = await withPasscode(() => getRecord(planId, newCode));
+      setRecord((mine) => ({ ...mine, updatedAt: current.updatedAt }));
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function exportFile(kind) {
     setError('');
     try {
       await flush();
-      const shop = (record.values.placeName || 'บันทึกการตรวจ').slice(0, 40);
+      // Thai shop names commonly contain "/" — a filesystem won't take that
+      // (or other path separators) in a filename.
+      const shop = (record.values.placeName || 'บันทึกการตรวจ').replace(/[\\/:*?"<>|]/g, ' ').slice(0, 40);
       await withPasscode(() =>
         downloadRecordExport(planId, newCode, kind, `บันทึกการตรวจ ${shop}.${kind}`)
       );
@@ -160,7 +188,7 @@ export default function RecordForm({ planId, newCode }) {
   }
 
   function nextShop() {
-    const remaining = (plan.items || []).filter(
+    const remaining = (plan?.items || []).filter(
       (item) => item.newCode !== newCode && item.status !== 'done'
     );
     if (!remaining.length) {
