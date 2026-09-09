@@ -6,6 +6,7 @@ import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
 import PickBar from './components/PickBar.jsx';
 import PlanView from './components/PlanView.jsx';
+import RecordForm from './components/RecordForm.jsx';
 import Preloader from './components/Preloader.jsx';
 import { SkeletonList } from './components/Skeleton.jsx';
 
@@ -132,12 +133,19 @@ export default function App() {
   if (booting) return <Preloader variant="screen" />;
 
   if (route.startsWith('#/plans')) {
+    // #/plans, or #/plans/<planId>/<newCode> for one shop's record. Two
+    // shapes is still not a router's worth of dependency.
+    const [, , planId, encodedCode] = route.split('/');
     return (
       <>
         <Sidebar route={route} />
         <main className="app-main">
           <div className="wrap">
-            <PlanView />
+            {planId && encodedCode ? (
+              <RecordForm planId={planId} newCode={decodeURIComponent(encodedCode)} />
+            ) : (
+              <PlanView />
+            )}
           </div>
         </main>
       </>

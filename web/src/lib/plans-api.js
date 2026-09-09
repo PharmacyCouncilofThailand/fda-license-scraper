@@ -67,6 +67,13 @@ export const syncPlanItem = (id, newCode) =>
     (d) => d.plan
   );
 
+/** The one place the passcode becomes a header. The record client needs the
+    same one, and two readers of the same sessionStorage key would drift. */
+export function passcodeHeaders(extra = {}) {
+  const code = sessionStorage.getItem(PASSCODE_KEY) || '';
+  return { ...extra, ...(code ? { 'x-plans-passcode': code } : {}) };
+}
+
 export const exportUrl = (id, kind) => `${apiBase}/api/plans/${id}/${kind}`;
 
 /** The exports are POSTs behind a passcode, so a plain link cannot fetch them. */
