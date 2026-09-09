@@ -54,6 +54,15 @@ export const deletePhoto = (planId, newCode, photoId) =>
     headers: passcodeHeaders(),
   }).then((d) => d.record);
 
+/* Caption and "แนบท้าย PDF" edits, patched straight to the server — never
+   through the whole-record PUT, which never carries photos at all. */
+export const patchPhoto = (planId, newCode, photoId, patch) =>
+  call(`${base(planId, newCode)}/photos/${photoId}`, {
+    method: 'PATCH',
+    headers: passcodeHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(patch),
+  }).then((d) => d.record);
+
 /* An <img src> cannot carry the passcode header, and the passcode may not go
    in a URL — so the bytes are fetched and handed to the page as a blob URL.
    The caller revokes it when the image goes away. */

@@ -175,6 +175,24 @@ async function removePhoto(planId, newCode, photoId) {
   return store.save({ ...record, photos, createdAt: record.createdAt || new Date().toISOString() });
 }
 
+/** Caption and the appendix flag are the only things about a photo an
+    officer edits after it is taken. Routed here, never through the whole
+    draft PUT, for the same reason addPhoto/removePhoto are: an autosave in
+    flight when this lands must not resurrect or drop a photo. */
+async function patchPhoto(planId, newCode, photoId, patch) {
+  const record = await readRecord(planId, newCode);
+  const photos = (record.photos || []).map((photo) =>
+    photo.id === photoId
+      ? {
+          ...photo,
+          ...(patch.caption !== undefined ? { caption: String(patch.caption) } : {}),
+          ...(patch.inPdf !== undefined ? { inPdf: Boolean(patch.inPdf) } : {}),
+        }
+      : photo
+  );
+  return store.save({ ...record, photos, createdAt: record.createdAt || new Date().toISOString() });
+}
+
 module.exports = {
   SIGNATURE_SLOTS,
   recordId,
@@ -183,4 +201,5 @@ module.exports = {
   writeRecord,
   addPhoto,
   removePhoto,
+  patchPhoto,
 };

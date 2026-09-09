@@ -201,6 +201,15 @@ app.get('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res,
   }
 });
 
+app.patch('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
+  try {
+    const record = await records.patchPhoto(req.params.id, req.params.newCode, req.params.photoId, req.body || {});
+    res.json({ success: true, record });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.delete('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
   try {
     // Record first, bytes second: if delPhoto fails after this, the record

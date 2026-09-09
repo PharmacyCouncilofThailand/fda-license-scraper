@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import PhotoGrid from './PhotoGrid.jsx';
 import RecordStep from './RecordStep.jsx';
 import { STEPS } from '../lib/form-fields.js';
 import { getPlan, patchPlanItem, PasscodeError, setPasscode } from '../lib/plans-api.js';
@@ -260,7 +261,20 @@ export default function RecordForm({ planId, newCode }) {
           onCheck={check}
         />
       )}
-      {step === 5 && <div className="empty">ภาพถ่าย — ทำในงานถัดไป</div>}
+      {step === 5 && (
+        <PhotoGrid
+          planId={planId}
+          newCode={newCode}
+          record={record}
+          onRecord={(next) =>
+            // Every photo route (add/remove/patch) answers with the whole
+            // record and has already saved it — no dirty.current, no
+            // setSave: that pair means "there is a draft PUT waiting to go
+            // out", and a photo edit never is one.
+            setRecord((current) => ({ ...current, photos: next.photos, updatedAt: next.updatedAt }))
+          }
+        />
+      )}
       {step === 6 && (
         <div className="record-step">
           <RecordStep

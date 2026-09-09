@@ -620,3 +620,15 @@ button.link.danger { color: var(--danger-fg); }
 .record-nav button { flex: 1; min-height: 48px; border-radius: 12px; border: 1px solid var(--border);
   background: var(--background); font: inherit; cursor: pointer; }
 .record-nav button:disabled { opacity: .45; }
+.photo-add { display: block; }
+.photo-add input { display: none; }
+.photo-add span { display: block; min-height: 48px; line-height: 48px; text-align: center;
+  border: 1px dashed var(--border); border-radius: 12px; cursor: pointer; }
+.photo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.photo-item { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.photo-item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; }
+.photo-loading { aspect-ratio: 4 / 3; display: grid; place-items: center;
+  background: var(--secondary); border-radius: 10px; color: var(--muted-foreground); }
+.photo-item input[type="text"] { min-height: 44px; padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--background); color: var(--foreground); font: inherit; }
+.photo-inpdf { display: flex; align-items: center; gap: 6px; }
