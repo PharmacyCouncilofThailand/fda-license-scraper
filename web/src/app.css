@@ -649,3 +649,18 @@ button.link.danger { color: var(--danger-fg); }
   gap: 10px; padding: 16px; background: var(--background); }
 .signature-canvas { flex: 1; width: 100%; border: 1px solid var(--border); border-radius: 12px;
   background: #fff; touch-action: none; }
+
+/* Six columns of Thai prose do not fit a phone. Under 700px each row becomes
+   a card with the column name in front of each value — the same data, read
+   down instead of across. */
+@media (max-width: 700px) {
+  .plan-table thead { display: none; }
+  .plan-table, .plan-table tbody, .plan-table tr, .plan-table td { display: block; width: 100%; }
+  .plan-table tr { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; padding: 8px; }
+  .plan-table td { border: 0; padding: 4px 0; }
+  .plan-table td::before { content: attr(data-label); display: block; color: var(--muted-foreground);
+    font-size: 12px; }
+  .plan-table td.num { text-align: left; font-weight: 700; }
+  .plan-table .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .plan-table .actions button, .plan-table .actions label { min-height: 44px; }
+}

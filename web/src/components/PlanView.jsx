@@ -14,8 +14,6 @@ import {
   syncPlanItem,
 } from '../lib/plans-api.js';
 
-const HANDOFF_KEY = 'fda:form:pending';
-
 export default function PlanView() {
   const [plans, setPlans] = useState([]);
   const [plan, setPlan] = useState(null);
@@ -95,13 +93,10 @@ export default function PlanView() {
   }
 
   function openForm(item) {
-    // The record page reports back with these two, which is how ticking
-    // "ตรวจแล้ว" happens by itself.
-    localStorage.setItem(
-      HANDOFF_KEY,
-      JSON.stringify({ ...item, planId: plan.id, newCode: item.newCode })
-    );
-    window.open('/form.html', '_blank', 'noopener');
+    // On-site: the touch wizard, which knows the plan and reports the shop
+    // done by itself. The static record page is still there for a shop that
+    // is not in any plan.
+    window.location.hash = `#/plans/${plan.id}/${encodeURIComponent(item.newCode)}`;
   }
 
   function typeLicence(item, index) {

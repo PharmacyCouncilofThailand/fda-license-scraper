@@ -92,8 +92,8 @@ export default function PlanTable({
         <tbody>
           {plan.items.map((item) => (
             <tr key={item.newCode} className={item.status === 'done' ? 'done' : undefined}>
-              <td className="num">{item.order}</td>
-              <td>
+              <td className="num" data-label="ลำดับที่">{item.order}</td>
+              <td data-label="ชื่อสถานที่">
                 <b>{item.placeName}</b>
                 {item.openHours && <div>เวลาทำการ {item.openHours}</div>}
                 {item.lat != null && item.lng != null && (
@@ -102,20 +102,20 @@ export default function PlanTable({
                   </div>
                 )}
               </td>
-              <td>
+              <td data-label="ประเภทใบอนุญาต">
                 <div>{item.licenseType}</div>
                 <div>{item.licenseNo}</div>
               </td>
-              <td>{item.address}</td>
-              <td>{item.licenseeName}</td>
-              <td>
+              <td data-label="สถานที่ตั้ง">{item.address}</td>
+              <td data-label="ผู้รับอนุญาต">{item.licenseeName}</td>
+              <td data-label="ผู้มีหน้าที่ปฏิบัติการ">
                 <Pharmacists
                   item={item}
                   onPickLicence={onPickLicence}
                   onTypeLicence={onTypeLicence}
                 />
               </td>
-              <td className="actions">
+              <td className="actions" data-label="ตรวจแล้ว">
                 <label>
                   <input
                     type="checkbox"
