@@ -2,9 +2,19 @@
 function degrees(value, positive, negative) {
   if (value == null) return '';
   const abs = Math.abs(value);
-  const d = Math.floor(abs);
-  const m = Math.floor((abs - d) * 60);
-  const s = ((abs - d) * 60 - m) * 60;
+  let d = Math.floor(abs);
+  let m = Math.floor((abs - d) * 60);
+  // Round to the displayed precision before checking for a rollover — .toFixed(1)
+  // rounding "60.0" into view after the fact is what let 47'60.0" out the door.
+  let s = Math.round(((abs - d) * 60 - m) * 60 * 10) / 10;
+  if (s >= 60) {
+    s -= 60;
+    m += 1;
+  }
+  if (m >= 60) {
+    m -= 60;
+    d += 1;
+  }
   return `${d}°${String(m).padStart(2, '0')}'${s.toFixed(1)}"${value >= 0 ? positive : negative}`;
 }
 
