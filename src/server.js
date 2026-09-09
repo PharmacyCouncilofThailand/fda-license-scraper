@@ -214,23 +214,43 @@ app.delete('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, r
   }
 });
 
+// Appendix photos are inlined as base64 data URLs into the page puppeteer
+// renders; past this many the page gets large and slow to print.
+const MAX_APPENDIX_PHOTOS = 20;
+
 /*
  * The record's own PDF, made from the stored draft rather than from a body
  * the page posts. The photo bytes are read here and passed in as data URLs:
  * the page puppeteer opens is a file:// page with no passcode and no session,
  * so it could not fetch them itself even if we wanted it to.
  *
- * ponytail: every photo marked for the appendix is inlined, so a record with
- * dozens of them builds a large page. Cap it if the office ever attaches more
- * than a handful.
+ * Refuses to export (409) rather than silently drop a photo: one marked for
+ * the appendix whose bytes are gone names itself so the officer can remove it
+ * or re-photograph it, and more than MAX_APPENDIX_PHOTOS marked at once is
+ * refused with the count and the limit.
  */
 async function recordForExport(planId, newCode) {
   const record = await records.readRecord(planId, newCode);
+  const marked = (record.photos || []).filter((photo) => photo.inPdf);
+  if (marked.length > MAX_APPENDIX_PHOTOS) {
+    const err = new Error(
+      `มีรูปภาพผนวกท้ายทั้งหมด ${marked.length} รูป เกินจำนวนที่ส่งออกได้สูงสุด ${MAX_APPENDIX_PHOTOS} รูป`
+    );
+    err.status = 409;
+    throw err;
+  }
   const photos = [];
-  for (const photo of record.photos || []) {
+  for (const [index, photo] of (record.photos || []).entries()) {
     if (!photo.inPdf) continue;
     const bytes = await photoStore.getPhoto(planId, newCode, photo.id);
-    if (!bytes) continue;
+    if (!bytes) {
+      const label = photo.caption ? `"${photo.caption}"` : `ภาพที่ ${index + 1}`;
+      const err = new Error(
+        `ไม่พบไฟล์รูป ${label} กรุณานำออกจากบันทึกหรือถ่ายใหม่ก่อนออกเอกสาร`
+      );
+      err.status = 409;
+      throw err;
+    }
     photos.push({
       src: `data:image/jpeg;base64,${bytes.toString('base64')}`,
       caption: photo.caption || '',
@@ -250,7 +270,7 @@ app.post('/api/plans/:id/items/:newCode/record/pdf', async (req, res, next) => {
     const pdf = await renderFormPdf(data);
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename="inspection-record.pdf"',
+      'Content-Disposition': disposition(data.values, 'pdf'),
     });
     res.send(Buffer.from(pdf));
   } catch (err) {
@@ -269,7 +289,7 @@ app.post('/api/plans/:id/items/:newCode/record/docx', async (req, res, next) => 
     res.set({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'Content-Disposition': 'attachment; filename="inspection-record.docx"',
+      'Content-Disposition': disposition(values, 'docx'),
     });
     res.send(Buffer.from(docx));
   } catch (err) {
@@ -333,11 +353,13 @@ app.get('/api/fda/detail', async (req, res, next) => {
 /**
  * The shop name makes the download easy to find in a folder of them. The plain
  * `filename` is the ASCII fallback for clients that cannot read RFC 5987.
+ * `values` is the record's `{ placeName, ... }` object, wherever it came from.
  */
-function disposition(req, extension) {
-  const name = String(
-    (req.body && req.body.values && req.body.values.placeName) || 'inspection'
-  ).replace(/[\\/:*?"<>|]/g, ' ');
+function disposition(values, extension) {
+  const name = String((values && values.placeName) || 'inspection').replace(
+    /[\\/:*?"<>|]/g,
+    ' '
+  );
   return (
     `attachment; filename="inspection.${extension}"; filename*=UTF-8''` +
     encodeURIComponent(`บันทึกการตรวจ ${name}.${extension}`)
@@ -353,7 +375,7 @@ app.post('/api/form/pdf', async (req, res, next) => {
     const pdf = await renderFormPdf(req.body || {});
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': disposition(req, 'pdf'),
+      'Content-Disposition': disposition(req.body && req.body.values, 'pdf'),
     });
     // Puppeteer v23 returns a Uint8Array; Express would JSON-encode it.
     res.send(Buffer.from(pdf));
@@ -373,7 +395,7 @@ app.post('/api/form/docx', async (req, res, next) => {
     res.set({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'Content-Disposition': disposition(req, 'docx'),
+      'Content-Disposition': disposition(req.body && req.body.values, 'docx'),
     });
     res.send(docx);
   } catch (err) {
