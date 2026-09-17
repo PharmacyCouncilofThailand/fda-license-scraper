@@ -169,13 +169,15 @@ export default function PlanView() {
                 ส่งออก PDF
               </button>
               {/* SCAFFOLD (ยังไม่คำนวณจริง): the trip-ordering feature's place in
-                  the UI. When it is built, this reorders plan.items for the
-                  shortest route — nearest-neighbor over the haversine distance
-                  between each shop's item.lat/item.lng (already on every item),
-                  shops with no coordinates sinking to the end — then persists the
-                  new order via patchPlanItem's `order`. Disabled until then. */}
-              <button type="button" disabled title="กำลังพัฒนา — ยังไม่คำนวณระยะทางจริง">
-                จัดลำดับตามเส้นทาง (เร็ว ๆ นี้)
+                  the UI. When built, it reorders plan.items primarily by each
+                  shop's on-duty start time — the opening time parsed from the
+                  pharmacist's openHours, earliest first — and only then by
+                  distance (nearest-neighbor over the haversine distance between
+                  each shop's item.lat/item.lng) as the tiebreaker. Shops with no
+                  time or no coordinates sink to the end. It then persists the new
+                  order via patchPlanItem's `order`. Disabled until then. */}
+              <button type="button" disabled title="กำลังพัฒนา — เรียงตามเวลาทำการแล้วระยะทาง">
+                จัดลำดับตามเวลา/เส้นทาง (เร็ว ๆ นี้)
               </button>
             </div>
             <PlanTable
