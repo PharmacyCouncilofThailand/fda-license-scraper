@@ -509,6 +509,9 @@ a.detail:hover { text-decoration: underline; }
 
 /* --- แผนการตรวจ --------------------------------------------------------- */
 .plan-view { display: grid; grid-template-columns: 240px 1fr; gap: 16px; }
+/* The plan list folds away so the table has the whole width on a narrow screen. */
+.plan-view.no-list { grid-template-columns: 1fr; }
+.list-toggle { align-self: flex-start; margin-bottom: 8px; }
 .plan-list .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .plan-list ul { list-style: none; margin: 0; padding: 0; }
 .plan-list li { display: flex; align-items: center; }

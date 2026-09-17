@@ -72,7 +72,6 @@ function Pharmacists({ item, onPickLicence, onTypeLicence }) {
 
 export default function PlanTable({
   plan,
-  onToggleDone,
   onRemove,
   onOpenForm,
   onPickLicence,
@@ -96,7 +95,7 @@ export default function PlanTable({
             <th>สถานที่ตั้ง</th>
             <th>ผู้รับอนุญาต</th>
             <th>ผู้มีหน้าที่ปฏิบัติการ</th>
-            <th>ตรวจแล้ว</th>
+            <th>การทำงาน</th>
           </tr>
         </thead>
         <tbody>
@@ -125,15 +124,7 @@ export default function PlanTable({
                   onTypeLicence={onTypeLicence}
                 />
               </td>
-              <td className="actions" data-label="ตรวจแล้ว">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={item.status === 'done'}
-                    onChange={() => onToggleDone(item)}
-                  />
-                  ตรวจแล้ว
-                </label>
+              <td className="actions" data-label="การทำงาน">
                 <button type="button" className="link" onClick={() => onOpenForm(item)}>
                   กรอกฟอร์ม
                 </button>

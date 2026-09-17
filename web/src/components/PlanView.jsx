@@ -20,6 +20,7 @@ export default function PlanView() {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showList, setShowList] = useState(true);
 
   /** One retry after the passcode is entered — the API asks for it on 401. */
   const withPasscode = useCallback(async (action) => {
@@ -128,15 +129,24 @@ export default function PlanView() {
   }
 
   return (
-    <div className="plan-view">
-      <PlanList
-        plans={plans}
-        currentId={plan ? plan.id : null}
-        onPick={open}
-        onCreate={newPlan}
-        onDelete={removePlan}
-      />
+    <div className={`plan-view${showList ? '' : ' no-list'}`}>
+      {showList && (
+        <PlanList
+          plans={plans}
+          currentId={plan ? plan.id : null}
+          onPick={open}
+          onCreate={newPlan}
+          onDelete={removePlan}
+        />
+      )}
       <div className="plan-main">
+        <button
+          type="button"
+          className="list-toggle link"
+          onClick={() => setShowList((v) => !v)}
+        >
+          {showList ? '‹ ซ่อนรายการแผน' : '› แสดงรายการแผน'}
+        </button>
         {error && <div className="error">{error}</div>}
         {!plan ? (
           <div className="empty">เลือกแผนทางซ้าย หรือสร้างแผนใหม่</div>
@@ -161,13 +171,6 @@ export default function PlanView() {
             </div>
             <PlanTable
               plan={plan}
-              onToggleDone={(item) =>
-                mutate(() =>
-                  patchPlanItem(plan.id, item.newCode, {
-                    status: item.status === 'done' ? 'planned' : 'done',
-                  })
-                )
-              }
               onRemove={(item) => mutate(() => removePlanItem(plan.id, item.newCode))}
               onOpenForm={openForm}
               onPickLicence={(item, index, licenceNo) =>
