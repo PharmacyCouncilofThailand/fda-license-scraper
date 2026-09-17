@@ -12,6 +12,7 @@ import {
   removePlanItem,
   setPasscode,
   syncPlanItem,
+  updatePlan,
 } from '../lib/plans-api.js';
 
 export default function PlanView() {
@@ -70,15 +71,23 @@ export default function PlanView() {
   }
 
   async function newPlan() {
-    const date = window.prompt('วันที่ตรวจ (พ.ศ.) เช่น 2569-08-27');
-    if (!date) return;
+    // The plan is named by its letter; its date is set afterward with แก้ไขวันที่.
     try {
-      const created = await withPasscode(() => createPlan({ date }));
+      const created = await withPasscode(() => createPlan({}));
       await refreshList();
       setPlan(created);
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  function editDate() {
+    const entered = window.prompt(
+      'วันที่ตรวจ (พ.ศ.) เช่น 2569-08-27 — เว้นว่างเพื่อล้างวันที่',
+      plan.date || ''
+    );
+    if (entered === null) return;
+    mutate(() => updatePlan(plan.id, { date: entered.trim() }));
   }
 
   async function removePlan(id) {
@@ -135,8 +144,13 @@ export default function PlanView() {
           <>
             <div className="plan-head">
               <div>
-                <h1>{plan.title}</h1>
-                <p className="sub">วันที่ {plan.date}</p>
+                <h1>แผน {plan.id}</h1>
+                <p className="sub">
+                  วันที่ {plan.date || 'ยังไม่กำหนด'}{' '}
+                  <button type="button" className="link" disabled={busy} onClick={editDate}>
+                    แก้ไขวันที่
+                  </button>
+                </p>
               </div>
               <button type="button" disabled={busy} onClick={() => exportPlan('docx')}>
                 ส่งออก Word

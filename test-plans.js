@@ -57,14 +57,24 @@ const deps = {
 };
 
 (async () => {
-  const plan = await plans.createPlan({ date: '2569-08-27' });
-  assert.strictEqual(plan.id, '2569-08-27');
+  const plan = await plans.createPlan();
+  assert.strictEqual(plan.id, 'A', 'แผนแรกได้ชื่อ A');
+  assert.strictEqual(plan.date, '', 'สร้างแผนได้โดยไม่ต้องมีวันที่');
   assert.strictEqual(plan.title, 'แผนการตรวจสถานที่ประกอบวิชาชีพเภสัชกรรม');
   assert.deepStrictEqual(plan.items, []);
 
-  // A second plan for the same date gets its own id rather than overwriting.
-  const twin = await plans.createPlan({ date: '2569-08-27' });
-  assert.strictEqual(twin.id, '2569-08-27-2');
+  // The next plan gets the next free letter, not a date.
+  const twin = await plans.createPlan({});
+  assert.strictEqual(twin.id, 'B');
+
+  // The date is optional and set — or cleared — afterward; a malformed one is
+  // refused, at update and at creation alike.
+  const dated = await plans.updatePlan(plan.id, { date: '2569-08-27' });
+  assert.strictEqual(dated.date, '2569-08-27');
+  const cleared = await plans.updatePlan(plan.id, { date: '' });
+  assert.strictEqual(cleared.date, '');
+  await assert.rejects(() => plans.updatePlan(plan.id, { date: '27 ส.ค. 69' }), /วันที่/);
+  await assert.rejects(() => plans.createPlan({ date: 'bad' }), /วันที่/);
 
   const first = await plans.addItems(plan.id, ['A', 'B', 'BOOM'], deps);
   assert.deepStrictEqual(first.added, ['A', 'B']);

@@ -11,8 +11,8 @@ export default function PickBar({ activePlan, onSwitchPlan }) {
   return (
     <div className="pickbar glass-panel">
       <div className="who">
-        <b>แผนที่กำลังใส่: {activePlan.date}</b>
-        <small>{activePlan.id}</small>
+        <b>แผนที่กำลังใส่: แผน {activePlan.id}</b>
+        <small>{activePlan.date || 'ยังไม่กำหนดวันที่'}</small>
       </div>
       <Button variant="outline" className="ml-auto" onClick={onSwitchPlan}>
         สลับแผน

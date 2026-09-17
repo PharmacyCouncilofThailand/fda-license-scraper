@@ -50,6 +50,8 @@ async function call(path, { method = 'GET', body } = {}) {
 export const listPlans = () => call('').then((d) => d.plans);
 export const getPlan = (id) => call(`/${id}`).then((d) => d.plan);
 export const createPlan = (body) => call('', { method: 'POST', body }).then((d) => d.plan);
+export const updatePlan = (id, patch) =>
+  call(`/${id}`, { method: 'PATCH', body: patch }).then((d) => d.plan);
 export const deletePlan = (id) => call(`/${id}`, { method: 'DELETE' }).then(() => undefined);
 /* `newCodes` may carry whole search rows, not just codes: the FDA's detail
    call answers the licensee and the pharmacists but not the shop's name,

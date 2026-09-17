@@ -12,7 +12,10 @@ const store = createJsonStore({
   backend: config.plansStore,
   dir: config.plansDir,
   prefix: 'plans/',
-  idPattern: /^[0-9]{4}-[0-9]{2}-[0-9]{2}(-[0-9]+)?$/,
+  // A letter label (A…Z, AA…) for a plan made now, or the date shape older
+  // plans were named with — both kept so existing plans still resolve.
+  // Neither alternative can be `.`/`..`, so the id can never be a path segment.
+  idPattern: /^([0-9]{4}-[0-9]{2}-[0-9]{2}(-[0-9]+)?|[A-Z]{1,4})$/,
   idError: 'รหัสแผนไม่ถูกต้อง',
   sort: (a, b) => String(b.date || b.id).localeCompare(String(a.date || a.id)),
 });

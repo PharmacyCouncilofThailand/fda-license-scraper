@@ -96,6 +96,15 @@ app.post('/api/plans', async (req, res, next) => {
   }
 });
 
+app.patch('/api/plans/:id', async (req, res, next) => {
+  try {
+    const plan = await plans.updatePlan(req.params.id, req.body || {});
+    res.json({ success: true, plan });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.delete('/api/plans/:id', async (req, res, next) => {
   try {
     const gone = await plansStore.remove(req.params.id);

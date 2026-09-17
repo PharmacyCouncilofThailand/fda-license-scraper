@@ -151,9 +151,9 @@ export default function App() {
       first "+ ใส่แผน" tap of the day. */
   async function ensureActivePlan() {
     if (activePlan?.id) return activePlan.id;
-    const date = window.prompt('วันที่ตรวจ (พ.ศ.) เช่น 2569-08-27');
-    if (!date) throw new Error('ยังไม่ได้เลือกวันที่ของแผน');
-    const plan = await withPasscode(() => createPlan({ date }));
+    // No date is asked for here — a plan is named by its letter and its date is
+    // set later from the plan screen.
+    const plan = await withPasscode(() => createPlan({}));
     const picked = { id: plan.id, date: plan.date };
     setActivePlan(picked);
     localStorage.setItem(ACTIVE_PLAN_KEY, JSON.stringify(picked));
@@ -168,7 +168,9 @@ export default function App() {
       setError(err.message);
       return;
     }
-    const list = plans.map((p) => `${p.id} — ${p.date} (${p.total} ร้าน)`).join('\n');
+    const list = plans
+      .map((p) => `${p.id} — ${p.date || 'ยังไม่กำหนดวันที่'} (${p.total} ร้าน)`)
+      .join('\n');
     const id = window.prompt(`ใส่รหัสแผนที่จะสลับไป:\n${list}`, activePlan?.id || '');
     if (!id) return;
     const plan = plans.find((p) => p.id === id);

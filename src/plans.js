@@ -4,6 +4,26 @@ const store = require('./plans-store');
 const { splitThaiName } = require('./thai-name');
 
 const DEFAULT_TITLE = 'แผนการตรวจสถานที่ประกอบวิชาชีพเภสัชกรรม';
+const DATE_RE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+
+/** Spreadsheet-column label for a positive integer: 1→A, 26→Z, 27→AA, … */
+function columnLabel(n) {
+  let label = '';
+  for (let value = n; value > 0; value = Math.floor((value - 1) / 26)) {
+    label = String.fromCharCode(65 + ((value - 1) % 26)) + label;
+  }
+  return label;
+}
+
+/** The lowest column label no existing plan holds, so a deleted plan's letter
+    is reused and ids stay stable under plans that already carry records. */
+function nextPlanId(existingIds) {
+  const taken = new Set(existingIds);
+  for (let n = 1; ; n += 1) {
+    const label = columnLabel(n);
+    if (!taken.has(label)) return label;
+  }
+}
 
 function notFound(message) {
   const err = new Error(message);
@@ -105,23 +125,39 @@ async function buildItem(entry, deps) {
   };
 }
 
-async function createPlan({ date, title } = {}) {
-  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(date || ''))) {
-    throw badRequest('ต้องระบุวันที่ตรวจในรูปแบบ พ.ศ. เช่น 2569-08-27');
+// The date is no longer the plan's name: a plan is created before its date is
+// known and gets the next free letter (A, B, C, … AA), with the date an
+// optional field set later through `updatePlan`.
+async function createPlan({ date = '', title } = {}) {
+  const value = String(date || '');
+  if (value && !DATE_RE.test(value)) {
+    throw badRequest('วันที่ต้องเป็นรูปแบบ พ.ศ. เช่น 2569-08-27');
   }
-  // Two rounds can fall on one day, so a taken id gains a suffix rather than
-  // overwriting the plan already there.
-  let id = date;
-  for (let n = 2; await store.get(id); n += 1) id = `${date}-${n}`;
+  const existing = await store.list();
+  const id = nextPlanId(existing.map((plan) => plan.id));
   const now = new Date().toISOString();
   return store.save({
     id,
     title: title || DEFAULT_TITLE,
-    date,
+    date: value,
     createdAt: now,
     updatedAt: now,
     items: [],
   });
+}
+
+/** The date is the one plan-level field a person edits; items have their own
+    routes. Accepts an empty date (not yet set) or a Buddhist-era YYYY-MM-DD. */
+async function updatePlan(id, { date } = {}) {
+  const plan = await mustGet(id);
+  if (date !== undefined) {
+    const value = String(date || '');
+    if (value && !DATE_RE.test(value)) {
+      throw badRequest('วันที่ต้องเป็นรูปแบบ พ.ศ. เช่น 2569-08-27');
+    }
+    plan.date = value;
+  }
+  return store.save(plan);
 }
 
 async function mustGet(id) {
@@ -238,6 +274,7 @@ function summarise(plan) {
 module.exports = {
   DEFAULT_TITLE,
   createPlan,
+  updatePlan,
   addItems,
   patchItem,
   removeItem,

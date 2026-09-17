@@ -1,4 +1,4 @@
-/** Plans by date, with how far each one has got. */
+/** Plans by letter, with the date and how far each one has got. */
 export default function PlanList({ plans, currentId, onPick, onCreate, onDelete }) {
   return (
     <div className="plan-list">
@@ -13,9 +13,9 @@ export default function PlanList({ plans, currentId, onPick, onCreate, onDelete 
         {plans.map((plan) => (
           <li key={plan.id} className={plan.id === currentId ? 'current' : undefined}>
             <button type="button" onClick={() => onPick(plan.id)}>
-              <b>{plan.date}</b>
+              <b>แผน {plan.id}</b>
               <small>
-                {plan.total} ร้าน · ตรวจแล้ว {plan.done}
+                {plan.date || 'ยังไม่กำหนดวันที่'} · {plan.total} ร้าน · ตรวจแล้ว {plan.done}
               </small>
             </button>
             <button
