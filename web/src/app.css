@@ -94,43 +94,63 @@ li.selected {
 }
 .name { font-weight: 500; font-size: 16px; }
 
-/* The chosen shop, kept in view while the officer scrolls the results. */
-/* The bar rides over the results it is anchored above, so unlike every
-   other panel it is opaque — a translucent one let the card behind it show
-   through and the officer lost track of which shop was chosen. */
-.pickbar {
-  position: sticky;
-  bottom: 16px;
-  z-index: 20;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 15px 18px;
+/* The working plan as a cart: a floating button in the bottom-right corner,
+   with the shops in the plan revealed on hover. Fixed to the viewport so it
+   stays reachable however far the results are scrolled. */
+.cart { position: fixed; right: 24px; bottom: 24px; z-index: 30; }
+.cart-fab {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  cursor: pointer;
+  box-shadow: 0 10px 28px -8px rgba(15, 23, 42, .45);
+  transition: transform .06s;
+}
+.cart-fab:active { transform: translateY(1px); }
+.cart-fab .material-symbols-outlined { font-size: 26px; }
+.cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--card);
+  border: 1.5px solid var(--primary);
+}
+/* Opens upward from the button, right-aligned so it never leaves the viewport. */
+.cart-popover {
+  position: absolute;
+  right: 0;
+  bottom: 68px;
+  width: 260px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 14px 16px;
   border-radius: 1rem;
   font-size: 14px;
   background: var(--card);
   border: 1.5px solid var(--primary);
-  box-shadow:
-    0 0 0 4px rgba(115, 115, 0, .10),
-    0 18px 44px -12px rgba(15, 23, 42, .30);
+  box-shadow: 0 18px 44px -12px rgba(15, 23, 42, .30);
 }
-/* a spine in the org colour, so the bar reads as one object at a glance */
-.pickbar::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 12px;
-  bottom: 12px;
-  width: 4px;
-  border-radius: 0 4px 4px 0;
-  background: var(--primary);
-}
-.pickbar .who { min-width: 0; }
-.pickbar .who b { font-weight: 600; display: block; font-size: 15px; }
-.pickbar .who small { color: var(--muted-foreground); }
-.pickbar .primary { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.cart-head b { display: block; font-weight: 600; font-size: 15px; }
+.cart-head small { color: var(--muted-foreground); }
+.cart-empty { margin-top: 10px; color: var(--muted-foreground); }
+.cart-items { margin: 10px 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.cart-items li.done { color: var(--muted-foreground); text-decoration: line-through; }
+.cart-actions { display: flex; gap: 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .addr { color: var(--muted-foreground); font-size: 14px; margin: 6px 0 12px; }
 .meta {
   display: flex;
@@ -473,13 +493,6 @@ a.detail:hover { text-decoration: underline; }
   to   { grid-template-rows: 1fr; opacity: 1; }
 }
 
-/* the bar arrives because a shop was picked */
-@keyframes pickbar-in {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
-}
-.pickbar { animation: pickbar-in .26s cubic-bezier(.2, .8, .3, 1) both; }
-
 /* the summary bar replacing the preloader */
 .toolbar { animation: rise-in .3s ease both; }
 
@@ -488,7 +501,6 @@ a.detail:hover { text-decoration: underline; }
   .wrap > .sub,
   .wrap > form,
   .toolbar,
-  .pickbar,
   .preview-reveal { animation: none; }
   #root ul li,
   #root ul li .card-head input[type="radio"] { transition: none; }
