@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
 const config = require('./config');
+const { safeEncodeCode } = require('./records');
 
 /**
  * Photo bytes taken at the shop. Not `json-store`: these are binary, they are
@@ -41,13 +42,10 @@ function assertPlanId(value) {
 /**
  * A shop's key can hold anything, so it is encoded before it is a path.
  *
- * `encodeURIComponent` leaves `*` bare, and a bare `*` in a filename is a
- * Windows error: it surfaces as ENOENT on write and as a silent miss on read
- * (the caller reads `null` and gets handed a blank result instead of the
- * photo they just stored). Escape it ourselves so the key can never contain
- * one — same fix as `recordId` in `src/records.js`, same reason.
+ * `safeEncodeCode` escapes `*` to `%2A` so the key can never contain one —
+ * same fix as `recordId` in `src/records.js`.
  *
- * `encodeURIComponent` also leaves `.` bare (it is unreserved), so a
+ * `encodeURIComponent` leaves `.` bare (it is unreserved), so a
  * `newCode` of `..` survives whole and becomes its own path segment —
  * `keyFor(planId, '..', id)` would climb back out of the shop's directory.
  * `planId` gets the same treatment via `assertPlanId` above: an open
@@ -58,7 +56,7 @@ function assertPlanId(value) {
 function keyFor(planId, newCode, photoId) {
   assertPlanId(planId);
   assertPart(photoId, 'รหัสรูปไม่ถูกต้อง');
-  const safeCode = encodeURIComponent(String(newCode)).replace(/\*/g, '%2A');
+  const safeCode = safeEncodeCode(newCode);
   if (safeCode === '.' || safeCode === '..') {
     const err = new Error('รหัสร้านไม่ถูกต้อง');
     err.status = 400;
