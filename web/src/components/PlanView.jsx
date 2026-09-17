@@ -168,6 +168,15 @@ export default function PlanView() {
               <button type="button" disabled={busy} onClick={() => exportPlan('pdf')}>
                 ส่งออก PDF
               </button>
+              {/* SCAFFOLD (ยังไม่คำนวณจริง): the trip-ordering feature's place in
+                  the UI. When it is built, this reorders plan.items for the
+                  shortest route — nearest-neighbor over the haversine distance
+                  between each shop's item.lat/item.lng (already on every item),
+                  shops with no coordinates sinking to the end — then persists the
+                  new order via patchPlanItem's `order`. Disabled until then. */}
+              <button type="button" disabled title="กำลังพัฒนา — ยังไม่คำนวณระยะทางจริง">
+                จัดลำดับตามเส้นทาง (เร็ว ๆ นี้)
+              </button>
             </div>
             <PlanTable
               plan={plan}
