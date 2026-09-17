@@ -25,10 +25,12 @@ function assertPart(value, message) {
   return value;
 }
 
-// The real shape a plan id has — same pattern `records-store.js`'s
-// `idPattern` anchors its plan half to. Unlike `assertPart`'s open charset,
-// `..` cannot match this, so `planId` can never be a traversal segment.
-const PLAN_ID_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}(-[0-9]+)?$/;
+// The real shape a plan id has — a letter label (A…Z, AA…) for a plan made
+// now, or the date shape older plans carry — the same two alternatives
+// `records-store.js`'s `idPattern` anchors its plan half to. Unlike
+// `assertPart`'s open charset, neither can be `..`, so `planId` can never be a
+// traversal segment.
+const PLAN_ID_PATTERN = /^([0-9]{4}-[0-9]{2}-[0-9]{2}(-[0-9]+)?|[A-Z]{1,4})$/;
 
 function assertPlanId(value) {
   if (!PLAN_ID_PATTERN.test(String(value || ''))) {
