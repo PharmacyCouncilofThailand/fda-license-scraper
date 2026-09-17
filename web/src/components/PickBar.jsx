@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getPlan } from '../lib/plans-api.js';
 
 /**
- * The working plan as a cart: a floating button in the bottom-right corner
- * that carries a count of the shops filed into the active plan, and reveals
- * the list of those shops on hover. Each result card's "+ ใส่แผน" fills this
- * cart; clicking it opens the plan.
+ * The working plan, as a button pinned to the bottom-right corner: it carries a
+ * count of the shops filed into the active plan, and a click opens a panel
+ * listing them with the plan actions (switch plan / open plan). Each result
+ * card's "+ ใส่แผน" fills it.
  */
 export default function PickBar({ activePlan, onSwitchPlan }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState(null); // null until first load, then an array
+  const box = useRef(null);
 
   const planId = activePlan?.id;
   // Refetch when a shop is added: App bumps `total` on every "+ ใส่แผน".
@@ -26,16 +27,24 @@ export default function PickBar({ activePlan, onSwitchPlan }) {
     };
   }, [planId, total]);
 
+  // A click anywhere outside the panel closes it, so it stays open for as long
+  // as the officer is working in it — the hover version vanished the moment the
+  // cursor left, before สลับแผน could be reached.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (event) => {
+      if (box.current && !box.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
   if (!activePlan) return null;
 
   const count = items ? items.length : total || 0;
 
   return (
-    <div
-      className="cart"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
+    <div className="cart" ref={box}>
       {open && (
         <div className="cart-popover glass-panel">
           <div className="cart-head">
@@ -54,10 +63,21 @@ export default function PickBar({ activePlan, onSwitchPlan }) {
             </ol>
           )}
           <div className="cart-actions">
-            <button type="button" className="link" onClick={onSwitchPlan}>
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                setOpen(false);
+                onSwitchPlan();
+              }}
+            >
               สลับแผน
             </button>
-            <button type="button" className="link" onClick={() => (window.location.hash = '#/plans')}>
+            <button
+              type="button"
+              className="link"
+              onClick={() => (window.location.hash = '#/plans')}
+            >
               ดูแผน
             </button>
           </div>
@@ -68,9 +88,10 @@ export default function PickBar({ activePlan, onSwitchPlan }) {
         type="button"
         className="cart-fab"
         aria-label={`แผน ${activePlan.id} — ${count} ร้าน`}
-        onClick={() => (window.location.hash = '#/plans')}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
       >
-        <span className="material-symbols-outlined">shopping_cart</span>
+        <span className="material-symbols-outlined">checklist</span>
         {count > 0 && <span className="cart-badge">{count}</span>}
       </button>
     </div>
