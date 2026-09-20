@@ -128,6 +128,16 @@ app.post('/api/plans/:id/items', async (req, res, next) => {
   }
 });
 
+app.put('/api/plans/:id/order', async (req, res, next) => {
+  try {
+    const codes = req.body && Array.isArray(req.body.newCodes) ? req.body.newCodes : [];
+    const plan = await plans.reorderItems(req.params.id, codes);
+    res.json({ success: true, plan });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.patch('/api/plans/:id/items/:newCode', async (req, res, next) => {
   try {
     const plan = await plans.patchItem(req.params.id, req.params.newCode, req.body || {});

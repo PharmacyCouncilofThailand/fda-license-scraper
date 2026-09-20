@@ -10,10 +10,12 @@ import {
   PasscodeError,
   patchPlanItem,
   removePlanItem,
+  reorderPlan,
   setPasscode,
   syncPlanItem,
   updatePlan,
 } from '../lib/plans-api.js';
+import { orderForTrip } from '../lib/route.js';
 
 export default function PlanView() {
   const [plans, setPlans] = useState([]);
@@ -119,6 +121,11 @@ export default function PlanView() {
     );
   }
 
+  function sortTrip() {
+    const ordered = orderForTrip(plan.items).map((item) => item.newCode);
+    mutate(() => reorderPlan(plan.id, ordered));
+  }
+
   async function exportPlan(kind) {
     setError('');
     try {
@@ -168,16 +175,17 @@ export default function PlanView() {
               <button type="button" disabled={busy} onClick={() => exportPlan('pdf')}>
                 ส่งออก PDF
               </button>
-              {/* SCAFFOLD (ยังไม่คำนวณจริง): the trip-ordering feature's place in
-                  the UI. When built, it reorders plan.items primarily by each
-                  shop's on-duty start time — the opening time parsed from the
-                  pharmacist's openHours, earliest first — and only then by
-                  distance (nearest-neighbor over the haversine distance between
-                  each shop's item.lat/item.lng) as the tiebreaker. Shops with no
-                  time or no coordinates sink to the end. It then persists the new
-                  order via patchPlanItem's `order`. Disabled until then. */}
-              <button type="button" disabled title="กำลังพัฒนา — เรียงตามเวลาทำการแล้วระยะทาง">
-                จัดลำดับตามเวลา/เส้นทาง (เร็ว ๆ นี้)
+              {/* Reorder the plan for the day's trip: by on-duty start time
+                  first, then by distance from the Pharmacy Council (see
+                  ../lib/route.js), and persist the new order so the exports
+                  carry it. */}
+              <button
+                type="button"
+                disabled={busy}
+                title="เรียงตามเวลาทำการก่อน แล้วระยะทางจากสภาเภสัชกรรม"
+                onClick={sortTrip}
+              >
+                จัดลำดับตามเวลา/เส้นทาง
               </button>
             </div>
             <PlanTable

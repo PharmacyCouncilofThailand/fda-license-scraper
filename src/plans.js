@@ -234,6 +234,20 @@ async function patchItem(id, newCode, patch = {}) {
   return store.save(plan);
 }
 
+/** Reorder the whole plan to match a sequence of newCodes (the client works
+    out the order). Codes not in the sequence keep their relative order at the
+    end, so a partial or stale list can never drop a shop. */
+async function reorderItems(id, orderedNewCodes) {
+  const plan = await mustGet(id);
+  const order = Array.isArray(orderedNewCodes) ? orderedNewCodes : [];
+  const rank = new Map(order.map((code, index) => [code, index]));
+  const at = (item) => (rank.has(item.newCode) ? rank.get(item.newCode) : Infinity);
+  // Array.prototype.sort is stable, so ties (both unranked) keep their order.
+  plan.items.sort((a, b) => at(a) - at(b));
+  renumber(plan.items);
+  return store.save(plan);
+}
+
 async function removeItem(id, newCode) {
   const plan = await mustGet(id);
   const index = plan.items.findIndex((entry) => entry.newCode === newCode);
@@ -277,6 +291,7 @@ module.exports = {
   updatePlan,
   addItems,
   patchItem,
+  reorderItems,
   removeItem,
   syncItem,
   summarise,

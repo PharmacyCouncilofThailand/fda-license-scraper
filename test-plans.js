@@ -146,6 +146,14 @@ const deps = {
   assert.strictEqual(manual.items[0].pharmacists[2].licenceSource, 'manual');
   assert.strictEqual(manual.items[0].pharmacists[0].licenceNo, '2524', 'คนอื่นต้องไม่ถูกแตะ');
 
+  // Reordering rewrites the sequence and renumbers; a code left off the list
+  // keeps its place at the end rather than vanishing.
+  const reordered = await plans.reorderItems(plan.id, ['B', 'A']);
+  assert.deepStrictEqual(reordered.items.map((i) => i.newCode), ['B', 'A']);
+  assert.deepStrictEqual(reordered.items.map((i) => i.order), [1, 2]);
+  const partial = await plans.reorderItems(plan.id, ['A']);
+  assert.deepStrictEqual(partial.items.map((i) => i.newCode), ['A', 'B']);
+
   const removed = await plans.removeItem(plan.id, 'B');
   assert.strictEqual(removed.items.length, 1);
   assert.strictEqual(removed.items[0].newCode, 'A');

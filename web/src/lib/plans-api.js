@@ -64,6 +64,8 @@ export const patchPlanItem = (id, newCode, patch) =>
   );
 export const removePlanItem = (id, newCode) =>
   call(`/${id}/items/${encodeURIComponent(newCode)}`, { method: 'DELETE' }).then((d) => d.plan);
+export const reorderPlan = (id, newCodes) =>
+  call(`/${id}/order`, { method: 'PUT', body: { newCodes } }).then((d) => d.plan);
 export const syncPlanItem = (id, newCode) =>
   call(`/${id}/items/${encodeURIComponent(newCode)}/sync`, { method: 'POST' }).then(
     (d) => d.plan
