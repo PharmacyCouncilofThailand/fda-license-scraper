@@ -6,7 +6,6 @@ import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
 import PlanBar from './components/PlanBar.jsx';
 import PlanView from './components/PlanView.jsx';
-import PlanInspect from './components/PlanInspect.jsx';
 import RecordForm from './components/RecordForm.jsx';
 import Preloader from './components/Preloader.jsx';
 import { SkeletonList } from './components/Skeleton.jsx';
@@ -355,7 +354,11 @@ export default function App() {
           {step === 2 && (
             <PlanView planId={activePlan?.id || null} onPlansChanged={refreshPlans} />
           )}
-          {step === 3 && <PlanInspect planId={activePlan?.id || null} />}
+          {/* The form step shows the original record sheet (the static
+              form.html), not a shop list. */}
+          {step === 3 && (
+            <iframe className="form-frame" src="/form.html" title="แบบบันทึกการตรวจสถานที่" />
+          )}
         </div>
       </main>
     </>

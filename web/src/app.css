@@ -650,22 +650,10 @@ button.link.danger { color: var(--danger-fg); }
 }
 .app-sidebar nav button[aria-current="page"] .dot { opacity: 1; transform: scale(1); }
 
-.inspect-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.inspect-list li {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 14px; background: var(--card);
-  border: 1px solid var(--border); border-radius: 1rem;
-}
-.inspect-name { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.inspect-status {
-  padding: 1px 8px; border-radius: 999px; font-size: 12px;
-  background: var(--muted); color: var(--muted-foreground);
-}
-.inspect-status.is-done { background: var(--success-bg); color: var(--success-fg); }
-.inspect-num {
-  display: grid; place-items: center; width: 26px; height: 26px;
-  border-radius: 999px; background: var(--olive-100); color: var(--olive-700);
-  font-size: 13px; font-weight: 600;
+/* The form step embeds the original record sheet (form.html) full-width. */
+.form-frame {
+  width: 100%; height: calc(100dvh - 170px); min-height: 560px;
+  border: 1px solid var(--border); border-radius: 1rem; background: #fff;
 }
 
 @media (max-width: 560px) {
