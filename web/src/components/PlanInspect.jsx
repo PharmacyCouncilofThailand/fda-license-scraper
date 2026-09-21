@@ -26,20 +26,29 @@ export default function PlanInspect({ planId }) {
 
   return (
     <ol className="inspect-list">
-      {plan.items.map((item) => (
-        <li key={item.newCode} className={item.status === 'done' ? 'done' : undefined}>
-          <div className="inspect-name">
-            <span className="inspect-num">{item.order}</span>
-            <b>{item.placeName || '(ไม่ระบุชื่อ)'}</b>
-          </div>
-          <a
-            className="btn btn-sm"
-            href={`#/plans/${plan.id}/${encodeURIComponent(item.newCode)}`}
-          >
-            กรอกฟอร์ม
-          </a>
-        </li>
-      ))}
+      {plan.items.map((item) => {
+        // ponytail: "filled" = the record page marked the item done. A record
+        // that was started but not completed still reads as ยังไม่กรอก; opening
+        // it shows the saved draft either way, so no extra lookup is needed.
+        const done = item.status === 'done';
+        return (
+          <li key={item.newCode}>
+            <div className="inspect-name">
+              <span className="inspect-num">{item.order}</span>
+              <b>{item.placeName || '(ไม่ระบุชื่อ)'}</b>
+              <span className={`inspect-status${done ? ' is-done' : ''}`}>
+                {done ? 'กรอกแล้ว' : 'ยังไม่กรอก'}
+              </span>
+            </div>
+            <a
+              className={`btn btn-sm${done ? ' btn-outline' : ''}`}
+              href={`#/plans/${plan.id}/${encodeURIComponent(item.newCode)}`}
+            >
+              {done ? 'ดูฟอร์ม' : 'กรอกฟอร์ม'}
+            </a>
+          </li>
+        );
+      })}
     </ol>
   );
 }
