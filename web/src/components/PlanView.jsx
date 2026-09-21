@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import PlanList from './PlanList.jsx';
 import PlanTable from './PlanTable.jsx';
 import {
   createPlan,
@@ -22,7 +21,6 @@ export default function PlanView() {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [showList, setShowList] = useState(true);
 
   /** One retry after the passcode is entered — the API asks for it on 401. */
   const withPasscode = useCallback(async (action) => {
@@ -129,27 +127,35 @@ export default function PlanView() {
   }
 
   return (
-    <div className={`plan-view${showList ? '' : ' no-list'}`}>
-      {showList && (
-        <PlanList
-          plans={plans}
-          currentId={plan ? plan.id : null}
-          onPick={open}
-          onCreate={newPlan}
-          onDelete={removePlan}
-        />
-      )}
+    <div className="plan-view">
+      {/* The plan is chosen from a dropdown at the top right, not a side list. */}
+      <div className="plan-bar">
+        <b>แผนการตรวจ</b>
+        <div className="plan-pick">
+          <select
+            className="plan-select"
+            value={plan ? plan.id : ''}
+            onChange={(event) => event.target.value && open(event.target.value)}
+            aria-label="เลือกแผนการตรวจ"
+          >
+            <option value="" disabled>
+              {plans.length ? 'เลือกแผน' : 'ยังไม่มีแผน'}
+            </option>
+            {plans.map((p) => (
+              <option key={p.id} value={p.id}>
+                แผน {p.id} · {p.date || 'ยังไม่กำหนดวันที่'} · {p.total} ร้าน
+              </option>
+            ))}
+          </select>
+          <button type="button" className="link" disabled={busy} onClick={newPlan}>
+            + แผนใหม่
+          </button>
+        </div>
+      </div>
       <div className="plan-main">
-        <button
-          type="button"
-          className="list-toggle link"
-          onClick={() => setShowList((v) => !v)}
-        >
-          {showList ? '‹ ซ่อนรายการแผน' : '› แสดงรายการแผน'}
-        </button>
         {error && <div className="error">{error}</div>}
         {!plan ? (
-          <div className="empty">เลือกแผนทางซ้าย หรือสร้างแผนใหม่</div>
+          <div className="empty">เลือกแผนจากด้านบน หรือสร้างแผนใหม่</div>
         ) : (
           <>
             <div className="plan-head">
@@ -179,6 +185,14 @@ export default function PlanView() {
                 onClick={sortTrip}
               >
                 จัดลำดับตามเวลา/เส้นทาง
+              </button>
+              <button
+                type="button"
+                className="link danger"
+                disabled={busy}
+                onClick={() => removePlan(plan.id)}
+              >
+                ลบแผน
               </button>
             </div>
             <PlanTable

@@ -508,28 +508,23 @@ a.detail:hover { text-decoration: underline; }
 }
 
 /* --- แผนการตรวจ --------------------------------------------------------- */
-.plan-view { display: grid; grid-template-columns: 240px 1fr; gap: 16px; }
-/* The plan list folds away so the table has the whole width on a narrow screen. */
-.plan-view.no-list { grid-template-columns: 1fr; }
-.list-toggle { align-self: flex-start; margin-bottom: 8px; }
-.plan-list .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-.plan-list ul { list-style: none; margin: 0; padding: 0; }
-.plan-list li { display: flex; align-items: center; }
-.plan-list li > button:first-child {
-  flex: 1;
-  display: block;
-  text-align: left;
-  padding: 8px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
+.plan-view { display: block; }
+/* The plan is chosen from a dropdown pinned to the top-right of the page. */
+.plan-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.plan-bar > b { font-size: 18px; }
+.plan-pick { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.plan-select {
+  min-height: 40px;
+  min-width: 220px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--foreground);
   font: inherit;
   cursor: pointer;
 }
-.plan-list li.current > button:first-child { background: var(--secondary); }
-.plan-list small { display: block; color: var(--muted-foreground); }
-.plan-list .remove { border: 0; background: transparent; cursor: pointer; color: var(--danger-fg); }
-.plan-head { display: flex; align-items: center; gap: 8px; }
+.plan-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .plan-head h1 { margin: 0; }
 .plan-head button { margin-left: 8px; }
 /* The table is six columns of Thai prose — let it scroll rather than squeeze
