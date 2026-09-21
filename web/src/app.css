@@ -615,19 +615,27 @@ button.link.danger { color: var(--danger-fg); }
 }
 .planbar-new:disabled { opacity: .6; cursor: default; }
 
-.wizard-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
-.wizard-tabs button {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 10px; border: 0; border-radius: .75rem; cursor: pointer;
-  background: var(--olive-100); color: var(--olive-700); font: inherit;
+/* Step nav lives in the sidebar as buttons (see Sidebar.jsx). The base
+   .app-sidebar nav rules in theme.css style <a>; buttons need the reset plus
+   the same look, so they are spelled out here. */
+.app-sidebar nav button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 12px; border: 0; border-radius: .75rem;
+  background: transparent; color: inherit; font: inherit; font-size: 14px;
+  text-align: left; cursor: pointer;
+  transition: background .16s ease, color .16s ease, padding-left .16s ease;
 }
-.wizard-tabs button .n {
-  display: grid; place-items: center; width: 20px; height: 20px;
-  border-radius: 999px; background: var(--olive-300); color: var(--olive-900);
-  font-size: 12px; font-weight: 600;
+.app-sidebar nav button:hover { background: var(--sidebar-accent); padding-left: 15px; }
+.app-sidebar nav button[aria-current="page"] {
+  background: color-mix(in srgb, var(--sidebar-primary) 12%, transparent);
+  color: var(--sidebar-primary); font-weight: 500;
 }
-.wizard-tabs button.active { background: var(--primary); color: #fff; }
-.wizard-tabs button.active .n { background: #fff; color: var(--primary); }
+.app-sidebar nav button .dot {
+  margin-left: auto; width: 6px; height: 6px; border-radius: 999px;
+  background: var(--sidebar-primary); opacity: 0;
+  transition: opacity .2s ease, transform .2s ease; transform: scale(.4);
+}
+.app-sidebar nav button[aria-current="page"] .dot { opacity: 1; transform: scale(1); }
 
 .inspect-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .inspect-list li {
@@ -646,5 +654,4 @@ button.link.danger { color: var(--danger-fg); }
 @media (max-width: 560px) {
   .planbar { flex-wrap: wrap; }
   .planbar-title { font-size: 14px; }
-  .wizard-tabs button { font-size: 13px; padding: 8px; }
 }

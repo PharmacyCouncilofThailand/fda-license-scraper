@@ -276,7 +276,7 @@ export default function App() {
     if (planId && encodedCode) {
       return (
         <>
-          <Sidebar />
+          <Sidebar onStep={(n) => { setStep(n); window.location.hash = '#/'; }} />
           <main className="app-main">
             <div className="wrap">
               <RecordForm planId={planId} newCode={decodeURIComponent(encodedCode)} />
@@ -289,7 +289,7 @@ export default function App() {
 
   return (
     <>
-      <Sidebar />
+      <Sidebar step={step} onStep={setStep} />
       <main className="app-main">
         <div className="wrap">
           <PlanBar
@@ -299,32 +299,6 @@ export default function App() {
             onPick={pickPlan}
             onNew={newPlan}
           />
-          <nav className="wizard-tabs" aria-label="ขั้นตอน">
-            <button
-              type="button"
-              className={step === 1 ? 'active' : ''}
-              aria-selected={step === 1}
-              onClick={() => setStep(1)}
-            >
-              <span className="n">1</span> ค้นหา / เลือกร้าน
-            </button>
-            <button
-              type="button"
-              className={step === 2 ? 'active' : ''}
-              aria-selected={step === 2}
-              onClick={() => setStep(2)}
-            >
-              <span className="n">2</span> จัดแผน / เรียงเส้นทาง
-            </button>
-            <button
-              type="button"
-              className={step === 3 ? 'active' : ''}
-              aria-selected={step === 3}
-              onClick={() => setStep(3)}
-            >
-              <span className="n">3</span> ออกตรวจ / กรอกฟอร์ม
-            </button>
-          </nav>
 
           {error && <div className="error">{error}</div>}
 
