@@ -300,7 +300,7 @@ export default function App() {
             onNew={newPlan}
           />
 
-          {error && <div className="error">{error}</div>}
+          {error && <div className="error" role="alert" aria-live="polite">{error}</div>}
 
           {step === 1 && (
             <>

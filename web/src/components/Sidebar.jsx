@@ -29,7 +29,7 @@ export default function Sidebar({ step, onStep }) {
             aria-current={step === s.n ? 'page' : undefined}
             onClick={() => onStep?.(s.n)}
           >
-            <span className="material-symbols-outlined sm">{s.icon}</span>
+            <span className="material-symbols-outlined sm" aria-hidden="true">{s.icon}</span>
             {s.label}
             <span className="dot" />
           </button>

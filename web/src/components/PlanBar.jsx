@@ -6,7 +6,7 @@
 export default function PlanBar({ activePlan, plans, busy, onPick, onNew }) {
   return (
     <div className="planbar">
-      <span className="material-symbols-outlined">checklist</span>
+      <span className="material-symbols-outlined" aria-hidden="true">checklist</span>
       <b className="planbar-title">ระบบวางแผนออกตรวจร้านยา</b>
       <span className="planbar-spacer" />
       <label className="planbar-pick">

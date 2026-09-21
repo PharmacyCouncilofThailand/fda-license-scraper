@@ -20,8 +20,8 @@ export default function PlanInspect({ planId }) {
   }, [planId]);
 
   if (!planId) return <div className="empty">เลือกแผนจากแถบด้านบนก่อน</div>;
-  if (error) return <div className="error">{error}</div>;
-  if (!plan) return <div className="empty">กำลังโหลด…</div>;
+  if (error) return <div className="error" role="alert" aria-live="polite">{error}</div>;
+  if (!plan) return <div className="empty" role="status" aria-live="polite">กำลังโหลด…</div>;
   if (!plan.items.length) return <div className="empty">ยังไม่มีร้านในแผนนี้</div>;
 
   return (

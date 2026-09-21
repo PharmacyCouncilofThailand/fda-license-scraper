@@ -111,7 +111,7 @@ export default function PlanView({ planId, onPlansChanged }) {
   return (
     <div className="plan-view">
       <div className="plan-main">
-        {error && <div className="error">{error}</div>}
+        {error && <div className="error" role="alert" aria-live="polite">{error}</div>}
         {!plan ? (
           <div className="empty">เลือกแผนจากแถบด้านบน หรือกด + แผนใหม่</div>
         ) : (

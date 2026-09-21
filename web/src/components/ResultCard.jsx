@@ -29,7 +29,7 @@ function StatusBadge({ status }) {
 
 const PLAN_LABEL = {
   idle: '+ ใส่แผน',
-  busy: 'กำลังใส่...',
+  busy: 'กำลังใส่…',
   added: '✓ อยู่ในแผน',
   error: '+ ใส่แผน (ลองใหม่)',
 };
@@ -78,7 +78,7 @@ export default function ResultCard({
             {previewState?.open ? 'ซ่อน' : 'พรีวิว'}
           </button>
           <button type="button" className="ghost" disabled={formBusy} onClick={onOpenForm}>
-            {formBusy ? 'กำลังเปิด...' : 'กรอกฟอร์ม'}
+            {formBusy ? 'กำลังเปิด…' : 'กรอกฟอร์ม'}
           </button>
           {/* Cart-style: one tap files this shop into the working plan right
               away — no separate tick-then-confirm step. */}
