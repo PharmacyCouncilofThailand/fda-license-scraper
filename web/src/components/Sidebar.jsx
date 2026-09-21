@@ -2,9 +2,9 @@
 // not a top tab strip. Each item selects a step; on the full-screen record page
 // (no `step`) an item returns to the shell at that step via `onStep`.
 const STEPS = [
-  { n: 1, icon: 'search', label: 'ค้นหา / เลือกร้าน' },
-  { n: 2, icon: 'checklist', label: 'จัดแผน / เรียงเส้นทาง' },
-  { n: 3, icon: 'description', label: 'ออกตรวจ / กรอกฟอร์ม' },
+  { n: 1, icon: 'search', label: 'ค้นหา' },
+  { n: 2, icon: 'checklist', label: 'จัดแผน' },
+  { n: 3, icon: 'description', label: 'ฟอร์ม' },
 ];
 
 export default function Sidebar({ step, onStep }) {
