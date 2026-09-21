@@ -55,16 +55,11 @@ export default function ResultCard({
         onSelect();
       }}
     >
-      <div className="card-head">
-        <input
-          type="radio"
-          name="pick"
-          checked={selected}
-          aria-label={`เลือก ${row.placeName || 'ร้านนี้'}`}
-          onChange={onSelect}
-        />
-        <div className="name">{row.placeName || '(ไม่ระบุชื่อสถานที่)'}</div>
-      </div>
+      {/* Radio and name share one hit target so tapping the name selects. */}
+      <label className="card-head">
+        <input type="radio" name="pick" checked={selected} onChange={onSelect} />
+        <span className="name">{row.placeName || '(ไม่ระบุชื่อสถานที่)'}</span>
+      </label>
 
       <div className="addr">{row.address || '-'}</div>
 

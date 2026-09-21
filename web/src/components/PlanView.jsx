@@ -132,6 +132,8 @@ export default function PlanView({ planId, onPlansChanged }) {
                   วันที่ตรวจ
                   <input
                     type="date"
+                    name="planDate"
+                    autoComplete="off"
                     value={toInput(plan.date)}
                     disabled={busy}
                     onChange={(event) => saveDate(event.target.value)}
@@ -172,7 +174,10 @@ export default function PlanView({ planId, onPlansChanged }) {
             </div>
             <PlanTable
               plan={plan}
-              onRemove={(item) => mutate(() => removePlanItem(plan.id, item.newCode))}
+              onRemove={(item) =>
+                window.confirm(`เอา "${item.placeName || 'ร้านนี้'}" ออกจากแผน?`) &&
+                mutate(() => removePlanItem(plan.id, item.newCode))
+              }
               onPickLicence={(item, index, licenceNo) =>
                 licenceNo &&
                 mutate(() =>

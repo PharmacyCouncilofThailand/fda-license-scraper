@@ -83,7 +83,7 @@ li.selected {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent),
     var(--glass-shadow);
 }
-.card-head { display: flex; align-items: flex-start; gap: 11px; }
+.card-head { display: flex; align-items: flex-start; gap: 11px; cursor: pointer; }
 .card-head input[type="radio"] {
   margin: 3px 0 0;
   width: 18px;
@@ -609,7 +609,7 @@ button.link.danger { color: var(--danger-fg); }
   background: var(--primary); color: var(--primary-foreground);
   padding: 10px 14px; border-radius: 1rem; margin-bottom: 12px;
 }
-.planbar-title { font-weight: 500; }
+.planbar-title { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .planbar-spacer { flex: 1; }
 .planbar-lbl { opacity: .85; font-size: 13px; margin-right: 6px; }
 .planbar .plan-select {
@@ -644,6 +644,11 @@ button.link.danger { color: var(--danger-fg); }
   transition: opacity .2s ease, transform .2s ease; transform: scale(.4);
 }
 .app-sidebar nav button[aria-current="page"] .dot { opacity: 1; transform: scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar nav button { transition: none; }
+  .app-sidebar nav button:hover { padding-left: 12px; }
+  .app-sidebar nav button .dot { transition: none; transform: scale(1); }
+}
 
 /* The form step embeds the original record sheet (form.html) full-width. */
 .form-frame {

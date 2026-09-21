@@ -33,15 +33,11 @@ export default function PlanRoute({ planId }) {
     <div className="plan-route">
       <div className="plan-route-bar">
         <b>เส้นทางออกตรวจ · แผน {plan.id}</b>
-        <a
-          className="btn"
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-disabled={!url}
-        >
-          เปิดเส้นทางใน Google Maps
-        </a>
+        {url && (
+          <a className="btn" href={url} target="_blank" rel="noopener noreferrer">
+            เปิดเส้นทางใน Google Maps
+          </a>
+        )}
       </div>
       {embed && (
         <iframe
