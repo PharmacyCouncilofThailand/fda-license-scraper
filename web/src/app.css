@@ -94,63 +94,6 @@ li.selected {
 }
 .name { font-weight: 500; font-size: 16px; }
 
-/* The working plan as a cart: a floating button in the bottom-right corner,
-   with the shops in the plan revealed on hover. Fixed to the viewport so it
-   stays reachable however far the results are scrolled. */
-.cart { position: fixed; right: 24px; bottom: 24px; z-index: 30; }
-.cart-fab {
-  position: relative;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 0;
-  display: grid;
-  place-items: center;
-  color: var(--primary-foreground);
-  background: var(--primary);
-  cursor: pointer;
-  box-shadow: 0 10px 28px -8px rgba(15, 23, 42, .45);
-  transition: transform .06s;
-}
-.cart-fab:active { transform: translateY(1px); }
-.cart-fab .material-symbols-outlined { font-size: 26px; }
-.cart-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--primary);
-  background: var(--card);
-  border: 1.5px solid var(--primary);
-}
-/* Opens upward from the button, right-aligned so it never leaves the viewport. */
-.cart-popover {
-  position: absolute;
-  right: 0;
-  bottom: 68px;
-  width: 260px;
-  max-height: 60vh;
-  overflow-y: auto;
-  padding: 14px 16px;
-  border-radius: 1rem;
-  font-size: 14px;
-  background: var(--card);
-  border: 1.5px solid var(--primary);
-  box-shadow: 0 18px 44px -12px rgba(15, 23, 42, .30);
-}
-.cart-head b { display: block; font-weight: 600; font-size: 15px; }
-.cart-head small { color: var(--muted-foreground); }
-.cart-empty { margin-top: 10px; color: var(--muted-foreground); }
-.cart-items { margin: 10px 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
-.cart-items li.done { color: var(--muted-foreground); text-decoration: line-through; }
-.cart-actions { display: flex; gap: 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .addr { color: var(--muted-foreground); font-size: 14px; margin: 6px 0 12px; }
 .meta {
   display: flex;
@@ -509,10 +452,6 @@ a.detail:hover { text-decoration: underline; }
 
 /* --- แผนการตรวจ --------------------------------------------------------- */
 .plan-view { display: block; }
-/* The plan is chosen from a dropdown pinned to the top-right of the page. */
-.plan-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.plan-bar > b { font-size: 18px; }
-.plan-pick { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .plan-select {
   min-height: 40px;
   min-width: 220px;
@@ -654,4 +593,58 @@ button.link.danger { color: var(--danger-fg); }
   .plan-table td.num { text-align: left; font-weight: 700; }
   .plan-table .actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .plan-table .actions button, .plan-table .actions label { min-height: 44px; }
+}
+
+/* --- Wizard shell: top bar, step tabs, inspection list ------------------ */
+.planbar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--primary); color: var(--primary-foreground);
+  padding: 10px 14px; border-radius: 1rem; margin-bottom: 12px;
+}
+.planbar-title { font-weight: 500; }
+.planbar-spacer { flex: 1; }
+.planbar-lbl { opacity: .85; font-size: 13px; margin-right: 6px; }
+.planbar .plan-select {
+  background: rgba(255,255,255,.16); color: #fff; border: 0;
+  padding: 6px 10px; border-radius: .6rem;
+}
+.planbar .plan-select option { color: #111827; }
+.planbar-new {
+  background: #fff; color: var(--olive-700); border: 0;
+  padding: 6px 12px; border-radius: .6rem; font-weight: 500; cursor: pointer;
+}
+.planbar-new:disabled { opacity: .6; cursor: default; }
+
+.wizard-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.wizard-tabs button {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px; border: 0; border-radius: .75rem; cursor: pointer;
+  background: var(--olive-100); color: var(--olive-700); font: inherit;
+}
+.wizard-tabs button .n {
+  display: grid; place-items: center; width: 20px; height: 20px;
+  border-radius: 999px; background: var(--olive-300); color: var(--olive-900);
+  font-size: 12px; font-weight: 600;
+}
+.wizard-tabs button.active { background: var(--primary); color: #fff; }
+.wizard-tabs button.active .n { background: #fff; color: var(--primary); }
+
+.inspect-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.inspect-list li {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 1rem;
+}
+.inspect-list li.done { opacity: .6; }
+.inspect-name { display: flex; align-items: center; gap: 10px; }
+.inspect-num {
+  display: grid; place-items: center; width: 26px; height: 26px;
+  border-radius: 999px; background: var(--olive-100); color: var(--olive-700);
+  font-size: 13px; font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .planbar { flex-wrap: wrap; }
+  .planbar-title { font-size: 14px; }
+  .wizard-tabs button { font-size: 13px; padding: 8px; }
 }
