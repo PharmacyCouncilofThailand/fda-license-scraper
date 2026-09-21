@@ -117,7 +117,7 @@ export default function PlanView({ planId, onPlansChanged }) {
         ) : (
           <>
             <div className="plan-head">
-              <div>
+              <div className="plan-head-info">
                 <h1>แผน {plan.id}</h1>
                 <p className="sub">
                   วันที่ {plan.date || 'ยังไม่กำหนด'}{' '}
@@ -126,32 +126,37 @@ export default function PlanView({ planId, onPlansChanged }) {
                   </button>
                 </p>
               </div>
-              <button type="button" disabled={busy} onClick={() => exportPlan('docx')}>
-                ส่งออก Word
-              </button>
-              <button type="button" disabled={busy} onClick={() => exportPlan('pdf')}>
-                ส่งออก PDF
-              </button>
-              {/* Reorder the plan for the day's trip: by on-duty start time
-                  first, then by distance from the Pharmacy Council (see
-                  ../lib/route.js), and persist the new order so the exports
-                  carry it. */}
-              <button
-                type="button"
-                disabled={busy}
-                title="เรียงตามเวลาทำการก่อน แล้วระยะทางจากสภาเภสัชกรรม"
-                onClick={sortTrip}
-              >
-                จัดลำดับตามเวลา/เส้นทาง
-              </button>
-              <button
-                type="button"
-                className="link danger"
-                disabled={busy}
-                onClick={() => removePlan(plan.id)}
-              >
-                ลบแผน
-              </button>
+              <div className="plan-head-actions">
+                {/* Export the plan as the office's Word / PDF record. */}
+                <div className="plan-head-group">
+                  <button type="button" disabled={busy} onClick={() => exportPlan('docx')}>
+                    ส่งออก Word
+                  </button>
+                  <button type="button" disabled={busy} onClick={() => exportPlan('pdf')}>
+                    ส่งออก PDF
+                  </button>
+                </div>
+                {/* Reorder the plan for the day's trip: by on-duty start time
+                    first, then by distance from the Pharmacy Council (see
+                    ../lib/route.js), and persist the new order so the exports
+                    carry it. */}
+                <button
+                  type="button"
+                  disabled={busy}
+                  title="เรียงตามเวลาทำการก่อน แล้วระยะทางจากสภาเภสัชกรรม"
+                  onClick={sortTrip}
+                >
+                  จัดลำดับตามเวลา/เส้นทาง
+                </button>
+                <button
+                  type="button"
+                  className="link danger"
+                  disabled={busy}
+                  onClick={() => removePlan(plan.id)}
+                >
+                  ลบแผน
+                </button>
+              </div>
             </div>
             <PlanTable
               plan={plan}

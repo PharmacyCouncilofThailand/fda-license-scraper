@@ -463,9 +463,22 @@ a.detail:hover { text-decoration: underline; }
   font: inherit;
   cursor: pointer;
 }
-.plan-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.plan-head h1 { margin: 0; }
-.plan-head button { margin-left: 8px; }
+/* The plan header is a card, and its actions are boxed into groups so exports,
+   trip-ordering and delete read as distinct parts, not one crowded row. */
+.plan-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  padding: 14px 16px; margin-bottom: 14px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
+}
+.plan-head h1 { margin: 0; font-size: 1.4rem; }
+.plan-head-info .sub { margin: 2px 0 0; }
+.plan-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.plan-head-group {
+  display: flex; gap: 6px;
+  padding: 4px; border: 1px solid var(--border); border-radius: .8rem;
+  background: var(--olive-50);
+}
 /* The table is six columns of Thai prose — let it scroll rather than squeeze
    the page into a horizontal scrollbar of its own. */
 .plan-table-wrap { overflow-x: auto; }
