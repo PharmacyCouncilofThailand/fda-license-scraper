@@ -656,6 +656,30 @@ button.link.danger { color: var(--danger-fg); }
   border: 1px solid var(--border); border-radius: 1rem; background: #fff;
 }
 
+/* Pick the inspection date from the native calendar. */
+.plan-date { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: var(--muted-foreground); }
+.plan-date input { color: var(--foreground); }
+.plan-date-be { color: var(--muted-foreground); font-size: 13px; }
+
+/* The map step: the day's stops and one button into Google Maps. */
+.plan-route-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.route-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.route-list li {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 14px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 1rem;
+}
+.route-list .route-origin { background: var(--olive-50); }
+.route-pin {
+  display: grid; place-items: center; min-width: 34px; height: 26px; padding: 0 6px;
+  border-radius: 999px; background: var(--olive-100); color: var(--olive-700);
+  font-size: 13px; font-weight: 600;
+}
+.route-note { color: var(--warning-fg); font-size: 12px; }
+
 @media (max-width: 560px) {
   .planbar { flex-wrap: wrap; }
   .planbar-title { font-size: 14px; }

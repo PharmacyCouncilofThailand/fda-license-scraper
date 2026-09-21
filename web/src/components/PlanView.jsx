@@ -14,6 +14,19 @@ import {
 } from '../lib/plans-api.js';
 import { orderForTrip } from '../lib/route.js';
 
+// Plan dates are stored in the Buddhist calendar (พ.ศ.) — the form the office's
+// record prints. The native <input type="date"> works in the Gregorian
+// calendar, so convert on the way in and out.
+const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+function toInput(be) {
+  const m = DATE.exec(be || '');
+  return m ? `${Number(m[1]) - 543}-${m[2]}-${m[3]}` : '';
+}
+function toStored(ce) {
+  const m = DATE.exec(ce || '');
+  return m ? `${Number(m[1]) + 543}-${m[2]}-${m[3]}` : '';
+}
+
 export default function PlanView({ planId, onPlansChanged }) {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState('');
@@ -64,13 +77,9 @@ export default function PlanView({ planId, onPlansChanged }) {
     }
   }
 
-  function editDate() {
-    const entered = window.prompt(
-      'วันที่ตรวจ (พ.ศ.) เช่น 2569-08-27 — เว้นว่างเพื่อล้างวันที่',
-      plan.date || ''
-    );
-    if (entered === null) return;
-    mutate(() => updatePlan(plan.id, { date: entered.trim() }));
+  function saveDate(value) {
+    // `value` is the picker's Gregorian yyyy-mm-dd, or '' when cleared.
+    mutate(() => updatePlan(plan.id, { date: toStored(value) }));
   }
 
   async function removePlan(id) {
@@ -119,12 +128,16 @@ export default function PlanView({ planId, onPlansChanged }) {
             <div className="plan-head">
               <div className="plan-head-info">
                 <h1>แผน {plan.id}</h1>
-                <p className="sub">
-                  วันที่ {plan.date || 'ยังไม่กำหนด'}{' '}
-                  <button type="button" className="link" disabled={busy} onClick={editDate}>
-                    แก้ไขวันที่
-                  </button>
-                </p>
+                <label className="plan-date">
+                  วันที่ตรวจ
+                  <input
+                    type="date"
+                    value={toInput(plan.date)}
+                    disabled={busy}
+                    onChange={(event) => saveDate(event.target.value)}
+                  />
+                  {plan.date && <span className="plan-date-be">พ.ศ. {plan.date}</span>}
+                </label>
               </div>
               <div className="plan-head-actions">
                 {/* Export the plan as the office's Word / PDF record. */}

@@ -66,3 +66,28 @@ export function orderForTrip(items, origin = PHARMACY_COUNCIL) {
   keyed.sort((a, b) => cmp(a, b, 't') || cmp(a, b, 'd'));
   return keyed.map((k) => k.item);
 }
+
+/**
+ * A Google Maps directions link that drives from the Pharmacy Council through
+ * the given shops in order. Each stop is its coordinate when known, otherwise
+ * its name/address as a text query. Returns '' when there is nothing to route.
+ * ponytail: Google's free directions URL caps at ~9 waypoints; a plan longer
+ * than that will drop the overflow — split the plan if it ever gets that big.
+ */
+export function googleMapsUrl(items, origin = PHARMACY_COUNCIL) {
+  const point = (it) =>
+    it.lat != null && it.lng != null
+      ? `${it.lat},${it.lng}`
+      : (it.placeName || it.address || '').trim();
+  const stops = (items || []).map(point).filter(Boolean);
+  if (stops.length === 0) return '';
+  const params = new URLSearchParams({
+    api: '1',
+    origin: `${origin.lat},${origin.lng}`,
+    destination: stops[stops.length - 1],
+    travelmode: 'driving',
+  });
+  const waypoints = stops.slice(0, -1);
+  if (waypoints.length) params.set('waypoints', waypoints.join('|'));
+  return `https://www.google.com/maps/dir/?${params}`;
+}

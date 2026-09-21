@@ -4,7 +4,8 @@
 const STEPS = [
   { n: 1, icon: 'search', label: 'ค้นหา' },
   { n: 2, icon: 'checklist', label: 'จัดแผน' },
-  { n: 3, icon: 'description', label: 'ฟอร์ม' },
+  { n: 3, icon: 'map', label: 'แผนที่' },
+  { n: 4, icon: 'description', label: 'ฟอร์ม' },
 ];
 
 export default function Sidebar({ step, onStep }) {

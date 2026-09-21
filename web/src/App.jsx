@@ -6,6 +6,7 @@ import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
 import PlanBar from './components/PlanBar.jsx';
 import PlanView from './components/PlanView.jsx';
+import PlanRoute from './components/PlanRoute.jsx';
 import RecordForm from './components/RecordForm.jsx';
 import Preloader from './components/Preloader.jsx';
 import { SkeletonList } from './components/Skeleton.jsx';
@@ -171,10 +172,10 @@ export default function App() {
   }, [refreshPlans]);
 
   // A bare #/plans (e.g. the record page's "← แผนการตรวจ" link) means "back to
-  // the plan", which is now step 3 of the shell — not the old plans page.
+  // the plan", which is the จัดแผน step of the shell — not the old plans page.
   useEffect(() => {
     if (route === '#/plans') {
-      setStep(3);
+      setStep(2);
       window.location.hash = '#/';
     }
   }, [route]);
@@ -354,9 +355,10 @@ export default function App() {
           {step === 2 && (
             <PlanView planId={activePlan?.id || null} onPlansChanged={refreshPlans} />
           )}
+          {step === 3 && <PlanRoute planId={activePlan?.id || null} />}
           {/* The form step shows the original record sheet (the static
               form.html), not a shop list. */}
-          {step === 3 && (
+          {step === 4 && (
             <iframe className="form-frame" src="/form.html" title="แบบบันทึกการตรวจสถานที่" />
           )}
         </div>
