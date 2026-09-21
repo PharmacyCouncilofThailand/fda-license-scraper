@@ -67,19 +67,21 @@ export function orderForTrip(items, origin = PHARMACY_COUNCIL) {
   return keyed.map((k) => k.item);
 }
 
+/** A stop as a coordinate when known, otherwise its name/address text query. */
+function stopText(it) {
+  return it.lat != null && it.lng != null
+    ? `${it.lat},${it.lng}`
+    : (it.placeName || it.address || '').trim();
+}
+
 /**
  * A Google Maps directions link that drives from the Pharmacy Council through
- * the given shops in order. Each stop is its coordinate when known, otherwise
- * its name/address as a text query. Returns '' when there is nothing to route.
+ * the given shops in order. Returns '' when there is nothing to route.
  * ponytail: Google's free directions URL caps at ~9 waypoints; a plan longer
  * than that will drop the overflow — split the plan if it ever gets that big.
  */
 export function googleMapsUrl(items, origin = PHARMACY_COUNCIL) {
-  const point = (it) =>
-    it.lat != null && it.lng != null
-      ? `${it.lat},${it.lng}`
-      : (it.placeName || it.address || '').trim();
-  const stops = (items || []).map(point).filter(Boolean);
+  const stops = (items || []).map(stopText).filter(Boolean);
   if (stops.length === 0) return '';
   const params = new URLSearchParams({
     api: '1',
@@ -90,4 +92,19 @@ export function googleMapsUrl(items, origin = PHARMACY_COUNCIL) {
   const waypoints = stops.slice(0, -1);
   if (waypoints.length) params.set('waypoints', waypoints.join('|'));
   return `https://www.google.com/maps/dir/?${params}`;
+}
+
+/**
+ * The same route as a keyless embeddable map (`output=embed`), for an in-app
+ * iframe preview. Returns '' when there is nothing to route.
+ * ponytail: `output=embed` is Google's old keyless embed — no API key needed,
+ * but it is undocumented; if Google ever drops it, switch to the Maps Embed
+ * API (which needs a key) or a Leaflet map.
+ */
+export function googleMapsEmbedUrl(items, origin = PHARMACY_COUNCIL) {
+  const stops = (items || []).map(stopText).filter(Boolean);
+  if (stops.length === 0) return '';
+  const saddr = `${origin.lat},${origin.lng}`;
+  const daddr = stops.join(' to:');
+  return `https://maps.google.com/maps?saddr=${encodeURIComponent(saddr)}&daddr=${encodeURIComponent(daddr)}&output=embed`;
 }

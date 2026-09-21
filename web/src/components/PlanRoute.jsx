@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getPlan } from '../lib/plans-api.js';
-import { googleMapsUrl, orderForTrip } from '../lib/route.js';
+import { googleMapsEmbedUrl, googleMapsUrl, orderForTrip } from '../lib/route.js';
 
 /**
  * The map step: the plan's shops in trip order, with a button that opens the
@@ -27,6 +27,7 @@ export default function PlanRoute({ planId }) {
 
   const ordered = orderForTrip(plan.items);
   const url = googleMapsUrl(ordered);
+  const embed = googleMapsEmbedUrl(ordered);
 
   return (
     <div className="plan-route">
@@ -42,6 +43,14 @@ export default function PlanRoute({ planId }) {
           เปิดเส้นทางใน Google Maps
         </a>
       </div>
+      {embed && (
+        <iframe
+          className="route-map"
+          src={embed}
+          title={`แผนที่เส้นทางออกตรวจ แผน ${plan.id}`}
+          loading="lazy"
+        />
+      )}
       <ol className="route-list">
         <li className="route-origin">
           <span className="route-pin">เริ่ม</span>

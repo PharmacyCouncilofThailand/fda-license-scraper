@@ -661,6 +661,10 @@ button.link.danger { color: var(--danger-fg); }
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
 }
+.route-map {
+  width: 100%; height: 380px; margin-bottom: 14px;
+  border: 1px solid var(--border); border-radius: 1rem; background: #fff;
+}
 .route-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .route-list li {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
