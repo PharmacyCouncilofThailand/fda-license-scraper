@@ -4,7 +4,7 @@ import Sidebar from './components/Sidebar.jsx';
 import SearchForm from './components/SearchForm.jsx';
 import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
-import PickBar from './components/PickBar.jsx';
+import PlanBar from './components/PlanBar.jsx';
 import PlanView from './components/PlanView.jsx';
 import RecordForm from './components/RecordForm.jsx';
 import Preloader from './components/Preloader.jsx';
@@ -37,6 +37,8 @@ export default function App() {
   });
   // newCode -> 'idle' | 'busy' | 'added' | 'error'
   const [planStatus, setPlanStatus] = useState({});
+  // All plans, for the top bar's switcher dropdown.
+  const [plans, setPlans] = useState([]);
   // newCode -> true while its "กรอกฟอร์ม" is fetching the licensee detail.
   const [formBusy, setFormBusy] = useState(() => new Set());
 
@@ -147,6 +149,17 @@ export default function App() {
     }
   }
 
+  const refreshPlans = useCallback(async () => {
+    try {
+      setPlans(await withPasscode(listPlans));
+    } catch (err) {
+      setError(err.message);
+    }
+  }, []);
+  useEffect(() => {
+    refreshPlans();
+  }, [refreshPlans]);
+
   /** The basket's plan: whatever was last chosen, or a fresh one made on the
       first "+ ใส่แผน" tap of the day. */
   async function ensureActivePlan() {
@@ -157,28 +170,29 @@ export default function App() {
     const picked = { id: plan.id, date: plan.date };
     setActivePlan(picked);
     localStorage.setItem(ACTIVE_PLAN_KEY, JSON.stringify(picked));
+    await refreshPlans();
     return plan.id;
   }
 
-  async function switchPlan() {
-    let plans;
-    try {
-      plans = await withPasscode(listPlans);
-    } catch (err) {
-      setError(err.message);
-      return;
-    }
-    const list = plans
-      .map((p) => `${p.id} — ${p.date || 'ยังไม่กำหนดวันที่'} (${p.total} ร้าน)`)
-      .join('\n');
-    const id = window.prompt(`ใส่รหัสแผนที่จะสลับไป:\n${list}`, activePlan?.id || '');
-    if (!id) return;
+  function pickPlan(id) {
     const plan = plans.find((p) => p.id === id);
     if (!plan) return;
-    const picked = { id: plan.id, date: plan.date };
+    const picked = { id: plan.id, date: plan.date, total: plan.total };
     setActivePlan(picked);
     localStorage.setItem(ACTIVE_PLAN_KEY, JSON.stringify(picked));
     setPlanStatus({});
+  }
+
+  async function newPlan() {
+    try {
+      const plan = await withPasscode(() => createPlan({}));
+      const picked = { id: plan.id, date: plan.date, total: 0 };
+      setActivePlan(picked);
+      localStorage.setItem(ACTIVE_PLAN_KEY, JSON.stringify(picked));
+      await refreshPlans();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   /* Cart-style: one tap files this row into the working plan right away —
@@ -260,6 +274,13 @@ export default function App() {
       <Sidebar route={route} />
       <main className="app-main">
         <div className="wrap">
+          <PlanBar
+            activePlan={activePlan}
+            plans={plans}
+            busy={busy}
+            onPick={pickPlan}
+            onNew={newPlan}
+          />
           <h1>ค้นหาร้านยา</h1>
           <p className="sub">
             ดึงข้อมูลสดจากระบบตรวจสอบการอนุญาตของ อย. แล้วกรองด้วยที่ตั้งก่อนแสดงผล
@@ -308,8 +329,6 @@ export default function App() {
               />
             ))}
           </ul>
-
-          <PickBar activePlan={activePlan} onSwitchPlan={switchPlan} />
         </div>
       </main>
     </>
