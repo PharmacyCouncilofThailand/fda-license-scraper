@@ -154,7 +154,15 @@ export default function App() {
 
   const refreshPlans = useCallback(async () => {
     try {
-      setPlans(await withPasscode(listPlans));
+      const list = await withPasscode(listPlans);
+      setPlans(list);
+      setActivePlan((cur) => {
+        if (cur && !list.some((p) => p.id === cur.id)) {
+          localStorage.removeItem(ACTIVE_PLAN_KEY);
+          return null;
+        }
+        return cur;
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -162,6 +170,15 @@ export default function App() {
   useEffect(() => {
     refreshPlans();
   }, [refreshPlans]);
+
+  // A bare #/plans (e.g. the record page's "← แผนการตรวจ" link) means "back to
+  // the plan", which is now step 3 of the shell — not the old plans page.
+  useEffect(() => {
+    if (route === '#/plans') {
+      setStep(3);
+      window.location.hash = '#/';
+    }
+  }, [route]);
 
   /** The basket's plan: whatever was last chosen, or a fresh one made on the
       first "+ ใส่แผน" tap of the day. */
@@ -222,6 +239,7 @@ export default function App() {
         ...s,
         [row.newCode]: result.added.length ? 'added' : 'error',
       }));
+      await refreshPlans();
     } catch (err) {
       setError(err.message);
       setPlanStatus((s) => ({ ...s, [row.newCode]: 'error' }));
@@ -282,13 +300,28 @@ export default function App() {
             onNew={newPlan}
           />
           <nav className="wizard-tabs" aria-label="ขั้นตอน">
-            <button type="button" className={step === 1 ? 'active' : ''} onClick={() => setStep(1)}>
+            <button
+              type="button"
+              className={step === 1 ? 'active' : ''}
+              aria-selected={step === 1}
+              onClick={() => setStep(1)}
+            >
               <span className="n">1</span> ค้นหา / เลือกร้าน
             </button>
-            <button type="button" className={step === 2 ? 'active' : ''} onClick={() => setStep(2)}>
+            <button
+              type="button"
+              className={step === 2 ? 'active' : ''}
+              aria-selected={step === 2}
+              onClick={() => setStep(2)}
+            >
               <span className="n">2</span> จัดแผน / เรียงเส้นทาง
             </button>
-            <button type="button" className={step === 3 ? 'active' : ''} onClick={() => setStep(3)}>
+            <button
+              type="button"
+              className={step === 3 ? 'active' : ''}
+              aria-selected={step === 3}
+              onClick={() => setStep(3)}
+            >
               <span className="n">3</span> ออกตรวจ / กรอกฟอร์ม
             </button>
           </nav>
