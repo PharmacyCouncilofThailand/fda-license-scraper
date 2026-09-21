@@ -816,9 +816,14 @@
     <!-- Licence lookup — screen only, see the print rules above. -->
     <!-- Everything below the bar scrolls inside this, not behind it. -->
     <div class="doc">
-    <div class="lookup glass-panel">
+    <div class="lookup glass-panel" id="lookup">
       <pharmacist-search></pharmacist-search>
     </div>
+    <script>
+      // In the app the เลข ภ. search lives in the sidebar, so hide this copy
+      // when the sheet is embedded (iframe). Standalone (own tab) keeps it.
+      if (window.self !== window.top) document.getElementById('lookup').style.display = 'none';
+    </script>
 
     <!-- ============================ PAGE 1 ============================ -->
     <!-- Paragraph numbers in the comments below are the template's own
