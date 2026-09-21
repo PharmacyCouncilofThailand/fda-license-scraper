@@ -140,15 +140,14 @@ export default function PlanView({ planId, onPlansChanged }) {
                 </label>
               </div>
               <div className="plan-head-actions">
-                {/* Export the plan as the office's Word / PDF record. */}
-                <div className="plan-head-group">
-                  <button type="button" disabled={busy} onClick={() => exportPlan('docx')}>
-                    ส่งออก Word
-                  </button>
-                  <button type="button" disabled={busy} onClick={() => exportPlan('pdf')}>
-                    ส่งออก PDF
-                  </button>
-                </div>
+                {/* Export the plan as the office's Word / PDF record —
+                    separate buttons, not one boxed pair. */}
+                <button type="button" disabled={busy} onClick={() => exportPlan('docx')}>
+                  ส่งออก Word
+                </button>
+                <button type="button" disabled={busy} onClick={() => exportPlan('pdf')}>
+                  ส่งออก PDF
+                </button>
                 {/* Reorder the plan for the day's trip: by on-duty start time
                     first, then by distance from the Pharmacy Council (see
                     ../lib/route.js), and persist the new order so the exports
