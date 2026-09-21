@@ -28,8 +28,25 @@
   --card-foreground: #111827;
   --popover: #ffffff;
   --popover-foreground: #111827;
-  --primary: #737300;           /* ← สีองค์กร เปลี่ยนตรงนี้ */
+
+  /* Olive ramp seeded from the org colour; --olive-600 is #737300, the anchor.
+     Repoint the brand tokens at it so tints/shades are consistent and one
+     place drives them all. */
+  --olive-50:  #fafae6;
+  --olive-100: #f2f2c2;
+  --olive-200: #e6e68a;
+  --olive-300: #d4d452;
+  --olive-400: #b3b32e;
+  --olive-500: #8f8f0a;
+  --olive-600: #737300;   /* ← สีองค์กร */
+  --olive-700: #5c5c00;
+  --olive-800: #454500;
+  --olive-900: #2e2e00;
+
+  --primary: var(--olive-600);
   --primary-foreground: #ffffff;
+  --primary-hover: var(--olive-500);
+  --primary-active: var(--olive-700);
   --secondary: #f3f4f6;
   --secondary-foreground: #1f2937;
   --muted: #f3f4f6;
@@ -40,22 +57,22 @@
   --destructive-foreground: #ffffff;
   --border: #e5e7eb;
   --input: #e5e7eb;
-  --ring: #737300;
-  --chart-1: #737300;
+  --ring: var(--olive-600);
+  --chart-1: var(--olive-600);
   --chart-2: #84cc16;
   --chart-3: #10b981;
   --chart-4: #0ea5e9;
   --chart-5: #6366f1;
   --radius: 0.5rem;
 
-  --sidebar: #737300;
+  --sidebar: var(--olive-600);
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #737300;
-  --sidebar-accent: #8a8a00;
+  --sidebar-primary-foreground: var(--olive-600);
+  --sidebar-accent: var(--olive-500);
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #8a8a00;
-  --sidebar-ring: #737300;
+  --sidebar-border: var(--olive-500);
+  --sidebar-ring: var(--olive-600);
 
   /* Status colours. Kept separate from --primary: a licence that
      lapsed has to read as wrong at a glance, not as branding. */
@@ -145,7 +162,8 @@ button, input, select, textarea { font: inherit; }
   cursor: pointer;
   transition: background .15s, border-color .15s, transform .05s;
 }
-.btn:active { transform: translateY(1px); }
+.btn:hover { background: var(--primary-hover); }
+.btn:active { transform: translateY(1px); background: var(--primary-active); }
 .btn:disabled { opacity: .55; cursor: progress; }
 
 .btn-outline {
