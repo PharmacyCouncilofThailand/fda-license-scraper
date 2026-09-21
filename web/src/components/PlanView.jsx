@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import PlanTable from './PlanTable.jsx';
 import {
-  createPlan,
   deletePlan,
   downloadExport,
   getPlan,
-  listPlans,
   PasscodeError,
   patchPlanItem,
   removePlanItem,
@@ -16,8 +14,7 @@ import {
 } from '../lib/plans-api.js';
 import { orderForTrip } from '../lib/route.js';
 
-export default function PlanView() {
-  const [plans, setPlans] = useState([]);
+export default function PlanView({ planId, onPlansChanged }) {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,17 +32,13 @@ export default function PlanView() {
     }
   }, []);
 
-  const refreshList = useCallback(async () => {
-    try {
-      setPlans(await withPasscode(listPlans));
-    } catch (err) {
-      setError(err.message);
-    }
-  }, [withPasscode]);
-
   useEffect(() => {
-    refreshList();
-  }, [refreshList]);
+    if (!planId) {
+      setPlan(null);
+      return;
+    }
+    open(planId);
+  }, [planId]);
 
   async function open(id) {
     setError('');
@@ -63,22 +56,11 @@ export default function PlanView() {
     try {
       const next = await withPasscode(action);
       setPlan(next);
-      await refreshList();
+      onPlansChanged?.();
     } catch (err) {
       setError(err.message);
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function newPlan() {
-    // The plan is named by its letter; its date is set afterward with แก้ไขวันที่.
-    try {
-      const created = await withPasscode(() => createPlan({}));
-      await refreshList();
-      setPlan(created);
-    } catch (err) {
-      setError(err.message);
     }
   }
 
@@ -95,8 +77,8 @@ export default function PlanView() {
     if (!window.confirm('ลบแผนนี้ทั้งแผน?')) return;
     try {
       await withPasscode(() => deletePlan(id));
-      if (plan && plan.id === id) setPlan(null);
-      await refreshList();
+      setPlan(null);
+      onPlansChanged?.();
     } catch (err) {
       setError(err.message);
     }
@@ -128,34 +110,10 @@ export default function PlanView() {
 
   return (
     <div className="plan-view">
-      {/* The plan is chosen from a dropdown at the top right, not a side list. */}
-      <div className="plan-bar">
-        <b>แผนการตรวจ</b>
-        <div className="plan-pick">
-          <select
-            className="plan-select"
-            value={plan ? plan.id : ''}
-            onChange={(event) => event.target.value && open(event.target.value)}
-            aria-label="เลือกแผนการตรวจ"
-          >
-            <option value="" disabled>
-              {plans.length ? 'เลือกแผน' : 'ยังไม่มีแผน'}
-            </option>
-            {plans.map((p) => (
-              <option key={p.id} value={p.id}>
-                แผน {p.id} · {p.date || 'ยังไม่กำหนดวันที่'} · {p.total} ร้าน
-              </option>
-            ))}
-          </select>
-          <button type="button" className="link" disabled={busy} onClick={newPlan}>
-            + แผนใหม่
-          </button>
-        </div>
-      </div>
       <div className="plan-main">
         {error && <div className="error">{error}</div>}
         {!plan ? (
-          <div className="empty">เลือกแผนจากด้านบน หรือสร้างแผนใหม่</div>
+          <div className="empty">เลือกแผนจากแถบด้านบน หรือกด + แผนใหม่</div>
         ) : (
           <>
             <div className="plan-head">

@@ -49,6 +49,8 @@ export default function App() {
   queryRef.current = query;
 
   const [booting, setBooting] = useState(true);
+  // Which wizard step body is showing: 1 search, 2 plan, 3 inspect.
+  const [step, setStep] = useState(1);
 
   // Two screens is not a router's worth of dependency; the hash is enough.
   const [route, setRoute] = useState(() => window.location.hash || '#/');
@@ -249,29 +251,26 @@ export default function App() {
 
   if (booting) return <Preloader variant="screen" />;
 
-  if (route.startsWith('#/plans')) {
-    // #/plans, or #/plans/<planId>/<newCode> for one shop's record. Two
-    // shapes is still not a router's worth of dependency.
+  if (route.startsWith('#/plans/')) {
+    // #/plans/<planId>/<newCode> for one shop's record, full-screen.
     const [, , planId, encodedCode] = route.split('/');
-    return (
-      <>
-        <Sidebar route={route} />
-        <main className="app-main">
-          <div className="wrap">
-            {planId && encodedCode ? (
+    if (planId && encodedCode) {
+      return (
+        <>
+          <Sidebar />
+          <main className="app-main">
+            <div className="wrap">
               <RecordForm planId={planId} newCode={decodeURIComponent(encodedCode)} />
-            ) : (
-              <PlanView />
-            )}
-          </div>
-        </main>
-      </>
-    );
+            </div>
+          </main>
+        </>
+      );
+    }
   }
 
   return (
     <>
-      <Sidebar route={route} />
+      <Sidebar />
       <main className="app-main">
         <div className="wrap">
           <PlanBar
@@ -281,54 +280,76 @@ export default function App() {
             onPick={pickPlan}
             onNew={newPlan}
           />
-          <h1>ค้นหาร้านยา</h1>
-          <p className="sub">
-            ดึงข้อมูลสดจากระบบตรวจสอบการอนุญาตของ อย. แล้วกรองด้วยที่ตั้งก่อนแสดงผล
-          </p>
-
-          <SearchForm
-            areas={areas}
-            facets={data?.facets}
-            query={query}
-            busy={busy}
-            onQueryChange={changeQuery}
-            onSubmit={() => runSearch()}
-          />
-
-          {data?.incomplete && (
-            <div className="warn">
-              คำค้นนี้กว้างเกินไป ได้ข้อมูลมา {data.totalFound} รายการแล้วหยุดตามลิมิต
-              ผลลัพธ์จึงยังไม่ครบทั้งหมด — ระบุชื่อร้านให้เจาะจงขึ้น
-            </div>
-          )}
+          <nav className="wizard-tabs" aria-label="ขั้นตอน">
+            <button className={step === 1 ? 'active' : ''} onClick={() => setStep(1)}>
+              <span className="n">1</span> ค้นหา / เลือกร้าน
+            </button>
+            <button className={step === 2 ? 'active' : ''} onClick={() => setStep(2)}>
+              <span className="n">2</span> จัดแผน / เรียงเส้นทาง
+            </button>
+            <button className={step === 3 ? 'active' : ''} onClick={() => setStep(3)}>
+              <span className="n">3</span> ออกตรวจ / กรอกฟอร์ม
+            </button>
+          </nav>
 
           {error && <div className="error">{error}</div>}
 
-          {busy ? (
+          {step === 1 && (
             <>
-              <Preloader variant="inline" />
-              <SkeletonList />
-            </>
-          ) : (
-            <Toolbar data={data} onRefresh={() => runSearch({ refresh: true })} />
-          )}
+              <h1>ค้นหาร้านยา</h1>
+              <p className="sub">
+                ดึงข้อมูลสดจากระบบตรวจสอบการอนุญาตของ อย. แล้วกรองด้วยที่ตั้งก่อนแสดงผล
+              </p>
 
-          <ul>
-            {results.map((row) => (
-              <ResultCard
-                key={row.newCode || row.licenseNo}
-                row={row}
-                selected={row.newCode === selectedCode}
-                onSelect={() => setSelectedCode(row.newCode)}
-                previewState={previews[row.newCode]}
-                onTogglePreview={() => togglePreview(row)}
-                onOpenForm={() => openFormFor(row)}
-                formBusy={formBusy.has(row.newCode)}
-                planStatus={planStatus[row.newCode] || 'idle'}
-                onAddToPlan={() => addOneToPlan(row)}
+              <SearchForm
+                areas={areas}
+                facets={data?.facets}
+                query={query}
+                busy={busy}
+                onQueryChange={changeQuery}
+                onSubmit={() => runSearch()}
               />
-            ))}
-          </ul>
+
+              {data?.incomplete && (
+                <div className="warn">
+                  คำค้นนี้กว้างเกินไป ได้ข้อมูลมา {data.totalFound} รายการแล้วหยุดตามลิมิต
+                  ผลลัพธ์จึงยังไม่ครบทั้งหมด — ระบุชื่อร้านให้เจาะจงขึ้น
+                </div>
+              )}
+
+              {busy ? (
+                <>
+                  <Preloader variant="inline" />
+                  <SkeletonList />
+                </>
+              ) : (
+                <Toolbar data={data} onRefresh={() => runSearch({ refresh: true })} />
+              )}
+
+              <ul>
+                {results.map((row) => (
+                  <ResultCard
+                    key={row.newCode || row.licenseNo}
+                    row={row}
+                    selected={row.newCode === selectedCode}
+                    onSelect={() => setSelectedCode(row.newCode)}
+                    previewState={previews[row.newCode]}
+                    onTogglePreview={() => togglePreview(row)}
+                    onOpenForm={() => openFormFor(row)}
+                    formBusy={formBusy.has(row.newCode)}
+                    planStatus={planStatus[row.newCode] || 'idle'}
+                    onAddToPlan={() => addOneToPlan(row)}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+          {step === 2 && (
+            <PlanView planId={activePlan?.id || null} onPlansChanged={refreshPlans} />
+          )}
+          {step === 3 && (
+            <div className="empty">ขั้นตอนออกตรวจ (กำลังต่อในขั้นถัดไป)</div>
+          )}
         </div>
       </main>
     </>
