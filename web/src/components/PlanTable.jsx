@@ -73,7 +73,6 @@ function Pharmacists({ item, onPickLicence, onTypeLicence }) {
 export default function PlanTable({
   plan,
   onRemove,
-  onOpenForm,
   onPickLicence,
   onTypeLicence,
 }) {
@@ -124,10 +123,9 @@ export default function PlanTable({
                   onTypeLicence={onTypeLicence}
                 />
               </td>
+              {/* "กรอกฟอร์ม" (opens the on-site record wizard) is hidden for now
+                  — restore the button here when the inspection flow is back. */}
               <td className="actions" data-label="การทำงาน">
-                <button type="button" className="link" onClick={() => onOpenForm(item)}>
-                  กรอกฟอร์ม
-                </button>
                 <button type="button" className="link danger" onClick={() => onRemove(item)}>
                   เอาออก
                 </button>

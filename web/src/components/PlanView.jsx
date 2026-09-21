@@ -104,13 +104,6 @@ export default function PlanView() {
     }
   }
 
-  function openForm(item) {
-    // On-site: the touch wizard, which knows the plan and reports the shop
-    // done by itself. The static record page is still there for a shop that
-    // is not in any plan.
-    window.location.hash = `#/plans/${plan.id}/${encodeURIComponent(item.newCode)}`;
-  }
-
   function typeLicence(item, index) {
     const entered = window.prompt('เลข ภ.');
     if (entered === null) return;
@@ -191,7 +184,6 @@ export default function PlanView() {
             <PlanTable
               plan={plan}
               onRemove={(item) => mutate(() => removePlanItem(plan.id, item.newCode))}
-              onOpenForm={openForm}
               onPickLicence={(item, index, licenceNo) =>
                 licenceNo &&
                 mutate(() =>
