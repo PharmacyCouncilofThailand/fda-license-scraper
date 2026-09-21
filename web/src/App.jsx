@@ -6,6 +6,7 @@ import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
 import PlanBar from './components/PlanBar.jsx';
 import PlanView from './components/PlanView.jsx';
+import PlanInspect from './components/PlanInspect.jsx';
 import RecordForm from './components/RecordForm.jsx';
 import Preloader from './components/Preloader.jsx';
 import { SkeletonList } from './components/Skeleton.jsx';
@@ -281,13 +282,13 @@ export default function App() {
             onNew={newPlan}
           />
           <nav className="wizard-tabs" aria-label="ขั้นตอน">
-            <button className={step === 1 ? 'active' : ''} onClick={() => setStep(1)}>
+            <button type="button" className={step === 1 ? 'active' : ''} onClick={() => setStep(1)}>
               <span className="n">1</span> ค้นหา / เลือกร้าน
             </button>
-            <button className={step === 2 ? 'active' : ''} onClick={() => setStep(2)}>
+            <button type="button" className={step === 2 ? 'active' : ''} onClick={() => setStep(2)}>
               <span className="n">2</span> จัดแผน / เรียงเส้นทาง
             </button>
-            <button className={step === 3 ? 'active' : ''} onClick={() => setStep(3)}>
+            <button type="button" className={step === 3 ? 'active' : ''} onClick={() => setStep(3)}>
               <span className="n">3</span> ออกตรวจ / กรอกฟอร์ม
             </button>
           </nav>
@@ -347,9 +348,7 @@ export default function App() {
           {step === 2 && (
             <PlanView planId={activePlan?.id || null} onPlansChanged={refreshPlans} />
           )}
-          {step === 3 && (
-            <div className="empty">ขั้นตอนออกตรวจ (กำลังต่อในขั้นถัดไป)</div>
-          )}
+          {step === 3 && <PlanInspect planId={activePlan?.id || null} />}
         </div>
       </main>
     </>
