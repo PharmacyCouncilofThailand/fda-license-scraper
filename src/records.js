@@ -101,16 +101,37 @@ function splitAddress(address) {
   };
 }
 
+// อย. writes the unit into the value itself — "07.00-21.00 น." — and the form
+// prints its own "น." after the blank, so drop the bare unit rather than double
+// it. A "น." that is part of a word is left alone. Mirrors form.html's dropUnit.
+function dropDutyUnit(text) {
+  return String(text || '')
+    .replace(/(^|[\s\d])\s*น\.(?=\s|$)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Blanks whose value comes from อย.; the renderer sets these in bold. */
+const FDA_FIELDS = [
+  'placeName', 'shopNameAtCheck', 'licenseeName', 'licenseNo',
+  'houseNo', 'village', 'moo', 'soi', 'road', 'subdistrict', 'district', 'province',
+];
+
 /**
  * An empty draft, seeded with what the plan already knows.
  *
- * `dutyPharmacist` and `openHours` are deliberately left empty: item (2) is
- * about the pharmacist who was on duty when the inspection happened, and the
- * licence only says who is entitled to be. `form.html` leaves the same two
- * blanks for the same reason.
+ * Item (2) is about the pharmacist who was on duty when the inspection
+ * happened. When the licence names exactly one, that is unambiguous, so
+ * `dutyPharmacist` and `openHours` are filled; when it names several, the
+ * officer picks at the shop, so they are left empty. `form.html` seeds the
+ * same block the same way.
  */
 function blankRecord(planId, newCode, item) {
   const area = splitAddress(item.address);
+  const people = (item.pharmacists || []).filter((p) => p && p.name);
+  const single = people.length === 1;
+  const fda = [...FDA_FIELDS];
+  if (single) fda.push('dutyPharmacist', 'openHours');
   return {
     id: recordId(planId, newCode),
     planId,
@@ -121,13 +142,14 @@ function blankRecord(planId, newCode, item) {
       shopNameAtCheck: item.placeName || '',
       licenseeName: item.licenseeName || '',
       licenseNo: item.licenseNo || '',
-      dutyPharmacist: '',
-      openHours: '',
+      dutyPharmacist: single ? people[0].name : '',
+      openHours: single ? dropDutyUnit(people[0].openHours) : '',
       ...area,
     },
     checks: {},
     signatures: {},
     photos: [],
+    fda,
     createdAt: null,
     updatedAt: null,
   };

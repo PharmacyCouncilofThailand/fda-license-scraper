@@ -58,10 +58,12 @@ const PLAN = {
   assert.strictEqual(blank.values.licenseNo, 'กท 754/2526');
   assert.strictEqual(blank.values.subdistrict, 'สามเสนใน');
   assert.strictEqual(blank.values.district, 'พญาไท');
-  // The pharmacist blanks stay empty: the licence says who may be on duty,
-  // not who was there. Same rule the hand-off to form.html follows.
-  assert.strictEqual(blank.values.dutyPharmacist, '');
-  assert.strictEqual(blank.values.openHours, '');
+  // One pharmacist on the licence: fill the duty block. เวลาปฏิบัติการ drops
+  // the licence's own "น." so the form's printed "น." is not doubled. Both
+  // fields are marked อย.-sourced. Same rule the hand-off to form.html follows.
+  assert.strictEqual(blank.values.dutyPharmacist, 'ภญ. รัชดา อัศวรัตน์');
+  assert.strictEqual(blank.values.openHours, '09.00 - 13.00');
+  assert.ok(blank.fda.includes('dutyPharmacist') && blank.fda.includes('openHours'));
   assert.deepStrictEqual(blank.photos, []);
   assert.strictEqual(blank.updatedAt, null, 'ร่างที่ยังไม่เคยบันทึกต้องไม่มี updatedAt');
 

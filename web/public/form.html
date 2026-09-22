@@ -386,6 +386,9 @@
         appearance: none;
       }
       .blank.filled { background-color: var(--fill); }
+      /* Values pulled from อย. are set in bold, so the officer can tell them
+         apart from what was written in by hand at the shop. */
+      .blank.fda, .officer.fda { font-weight: 700; }
       input.blank, textarea.blank { color: #000; }
       .blank:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
       /* A value the paper cannot hold. The rule under it turns red too, but
@@ -1587,7 +1590,13 @@
         for (const button of document.querySelectorAll('.check')) {
           checks[button.dataset.name] = button.getAttribute('aria-pressed') === 'true';
         }
-        return { values, checks };
+        // Which blanks are อย.-sourced travels with the record, so the renderer
+        // bolds the same ones the screen does.
+        const fda = [];
+        for (const input of document.querySelectorAll('input.blank.fda, textarea.blank.fda')) {
+          fda.push(input.name);
+        }
+        return { values, checks, fda };
       }
 
       /**
@@ -1654,12 +1663,15 @@
       window.applyData = function applyData(data) {
         const values = (data && data.values) || {};
         const checks = (data && data.checks) || {};
+        const fda = new Set((data && data.fda) || []);
         for (const input of document.querySelectorAll('input.blank, textarea.blank, .officer')) {
           if (values[input.name] === undefined) continue;
           input.value = input.classList.contains('flow')
             ? tieBreaks(values[input.name])
             : values[input.name];
           input.classList.toggle('filled', Boolean(values[input.name]));
+          // Bold only a field that both came from อย. and actually has a value.
+          input.classList.toggle('fda', fda.has(input.name) && Boolean(values[input.name]));
           markOverflow(input);
         }
         for (const button of document.querySelectorAll('.check')) {
@@ -1754,10 +1766,29 @@
         };
       }
 
+      /** Blanks whose value comes straight from อย.; the renderer sets these in
+          bold. Item (2)'s duty pair is อย.-sourced only when the licence names
+          exactly one pharmacist — added to the list in fromRow when it is. */
+      const FDA_FIELDS = [
+        'placeName', 'shopNameAtCheck', 'houseNo', 'village', 'moo', 'soi',
+        'road', 'subdistrict', 'district', 'province', 'phone',
+        'licenseeName', 'operatorName', 'licenseNo',
+      ];
+
       /** Map one FDA row onto the form's blanks. */
       function fromRow(row) {
         const area = row.area || {};
-        const duty = dutyFromPharmacists(row.pharmacists);
+        const people = Array.isArray(row.pharmacists)
+          ? row.pharmacists.filter((p) => p && p.name)
+          : [];
+        const duty = dutyFromPharmacists(people);
+        // Item (2) — name, ภ. number and เวลาปฏิบัติการ — is about the
+        // pharmacist actually on duty. When the licence names exactly one, that
+        // is unambiguous, so fill the name and their duty hours. When it names
+        // several, the officer picks at the shop, so leave the block blank.
+        const single = people.length === 1;
+        const fda = [...FDA_FIELDS];
+        if (single) fda.push('dutyPharmacist', 'openHours');
 
         // วันที่ / เวลาที่เข้าตรวจ และเวลาขณะตรวจสอบ ไม่กรอกให้: the officer
         // writes them at the shop, and a clock reading from whenever the form
@@ -1779,15 +1810,11 @@
             licenseeName: row.licenseeName || '',
             operatorName: row.operatorName || '',
             licenseNo: row.licenseNo || '',
-            // Item (2) — name, ภ. number and เวลาทำการ — is one block about
-            // the pharmacist who was actually on duty at the inspection. The
-            // licence lists everyone entitled to be, which is not the same
-            // person, so the officer writes the whole block at the shop. The
-            // licence's names are shown in the status line to copy from.
-            dutyPharmacist: '',
-            openHours: '',
+            dutyPharmacist: single ? duty.name : '',
+            openHours: single ? duty.hours : '',
           },
           checks: {},
+          fda,
         };
       }
 
@@ -1804,10 +1831,17 @@
             planRef = { planId: row.planId, newCode: row.newCode };
           }
           window.applyData(fromRow(row));
-          const duty = dutyFromPharmacists(row.pharmacists);
+          const people = Array.isArray(row.pharmacists)
+            ? row.pharmacists.filter((p) => p && p.name)
+            : [];
+          const duty = dutyFromPharmacists(people);
           statusEl.textContent =
             `กรอกจาก: ${row.placeName || row.licenseNo || 'ข้อมูลร้าน'}` +
-            (duty.name ? ` — ผู้มีหน้าที่ปฏิบัติการตามใบอนุญาต: ${duty.name} (กรอกเอง)` : '');
+            (duty.name
+              ? people.length === 1
+                ? ` — ผู้มีหน้าที่ปฏิบัติการ: ${duty.name}`
+                : ` — ผู้มีหน้าที่ปฏิบัติการตามใบอนุญาต: ${duty.name} (มีหลายคน กรอกเอง)`
+              : '');
           localStorage.removeItem(HANDOFF_KEY);
         } catch (err) {
           statusEl.textContent = 'อ่านข้อมูลร้านไม่สำเร็จ — กรอกเองได้';
