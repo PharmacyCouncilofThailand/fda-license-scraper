@@ -117,6 +117,116 @@ function foldContinuations(values) {
   return folded;
 }
 
+/**
+ * Each check's label, read off the record page's own buttons, so the two files
+ * agree on the exact wording. Read once; if the page is not on disk the checks
+ * simply are not bolded rather than the whole download failing.
+ */
+const CHECK_LABELS = (() => {
+  for (const rel of [['..', 'public', 'form.html'], ['..', 'web', 'public', 'form.html']]) {
+    try {
+      const html = fs.readFileSync(path.join(__dirname, ...rel), 'utf8');
+      const map = {};
+      for (const m of html.matchAll(
+        /<button\b[^>]*\bclass="check"[^>]*\bdata-name="([^"]+)"[^>]*>([^<]*)<\/button>/g
+      )) {
+        map[m[1]] = m[2].trim();
+      }
+      if (Object.keys(map).length) return map;
+    } catch {
+      // try the next path
+    }
+  }
+  return {};
+})();
+
+const runText = (xml) =>
+  [...xml.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map((m) => m[1]).join('');
+
+/** Add bold to a whole run's formatting. */
+function boldRun(xml) {
+  if (/<w:b\/>/.test(xml)) return xml;
+  if (/<w:rPr>/.test(xml)) return xml.replace('<w:rPr>', '<w:rPr><w:b/><w:bCs/>');
+  return xml.replace(/(<w:r(?:\s[^>]*)?>)/, '$1<w:rPr><w:b/><w:bCs/></w:rPr>');
+}
+
+/** Bold only chars [from,to) of a single-text run, splitting it around them. */
+function boldPart(xml, from, to) {
+  const tm = /(<w:t(?:\s[^>]*)?>)([\s\S]*?)(<\/w:t>)/.exec(xml);
+  if (!tm) return boldRun(xml);
+  const text = tm[2];
+  const open = xml.slice(0, xml.indexOf('>') + 1); // <w:r ...>
+  const rPr = (/<w:rPr>[\s\S]*?<\/w:rPr>/.exec(xml) || [''])[0];
+  const boldRPr = rPr
+    ? rPr.replace('<w:rPr>', '<w:rPr><w:b/><w:bCs/>')
+    : '<w:rPr><w:b/><w:bCs/></w:rPr>';
+  // Split runs carry the spaces they were given, so preserve them explicitly.
+  const wt = (t) => `<w:t xml:space="preserve">${t}</w:t>`;
+  const run = (pr, t) => `${open}${pr}${wt(t)}</w:r>`;
+  const pre = text.slice(0, from);
+  const mid = text.slice(from, to);
+  const post = text.slice(to);
+  return (pre ? run(rPr, pre) : '') + run(boldRPr, mid) + (post ? run(rPr, post) : '');
+}
+
+/**
+ * Bold each check's option label, the way the record page sets every choice in
+ * section 3. The box itself is still a `{{chk:name}}` token here; the label is
+ * the run(s) that follow it, up to the next check. A label that ends partway
+ * through a run (the sentence carries straight on) splits that run so only the
+ * option is bold.
+ */
+function boldCheckLabels(xml, labels) {
+  const RUN = /<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g;
+  const TOKEN = /\{\{chk:([A-Za-z0-9_]+)\}\}/g;
+  let out = '';
+  let pos = 0;
+  let m;
+  while ((m = TOKEN.exec(xml))) {
+    const label = labels[m[1]];
+    const chkEnd = xml.indexOf('</w:r>', m.index) + 6;
+    out += xml.slice(pos, chkEnd);
+    pos = chkEnd;
+    if (!label) continue;
+
+    // Gather following runs until the label is fully present in their text.
+    const runs = [];
+    let concat = '';
+    let scan = pos;
+    RUN.lastIndex = pos;
+    let rm;
+    let guard = 0;
+    while ((rm = RUN.exec(xml)) && guard < 14) {
+      if (xml.slice(scan, rm.index).includes('{{chk:')) break; // next check reached
+      runs.push({ xml: rm[0], index: rm.index, start: concat.length });
+      concat += runText(rm[0]);
+      scan = rm.index + rm[0].length;
+      guard += 1;
+      if (concat.indexOf(label) !== -1) break;
+    }
+
+    const li = concat.indexOf(label);
+    if (li === -1) continue; // no match — leave these runs to be emitted later
+    const labelStart = li;
+    const labelEnd = li + label.length;
+    let cursor = pos;
+    for (const r of runs) {
+      out += xml.slice(cursor, r.index); // whitespace/markup between runs
+      const rStart = r.start;
+      const rEnd = r.start + runText(r.xml).length;
+      const from = Math.max(rStart, labelStart);
+      const to = Math.min(rEnd, labelEnd);
+      if (to <= from) out += r.xml;
+      else if (from === rStart && to === rEnd) out += boldRun(r.xml);
+      else out += boldPart(r.xml, from - rStart, to - rStart);
+      cursor = r.index + r.xml.length;
+    }
+    pos = cursor;
+  }
+  out += xml.slice(pos);
+  return out;
+}
+
 async function renderFormDocx(data) {
   const values = foldContinuations((data && data.values) || {});
   const checks = (data && data.checks) || {};
@@ -130,8 +240,9 @@ async function renderFormDocx(data) {
 
   const xml = layout
     .fillDocumentXml(
-      document.data
-        .toString('utf8')
+      // Bold the option labels while the {{chk:name}} tokens still mark where
+      // each one is, then swap the tokens for the ticked/empty box.
+      boldCheckLabels(document.data.toString('utf8'), CHECK_LABELS)
         .replace(/\{\{chk:([A-Za-z0-9_]+)\}\}/g, (_, name) => (checks[name] ? '☑' : '☐')),
       values,
       fda
