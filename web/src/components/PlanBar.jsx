@@ -12,7 +12,30 @@ export default function PlanBar({ activePlan, plans, busy, onPick, onNew }) {
   return (
     <div className="plan-cart" role="region" aria-label="แผนที่กำลังทำ">
       <span className="plan-cart-icon">
-        <span className="material-symbols-outlined" aria-hidden="true">shopping_basket</span>
+        {/* A record sheet, in the cart's own colour (currentColor) so it reads
+            as one piece with the pill it sits on. */}
+        <svg
+          className="plan-cart-sheet"
+          viewBox="-1 0 30 30"
+          width="22"
+          height="22"
+          aria-hidden="true"
+        >
+          <g
+            transform="translate(-188 -63)"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+          >
+            <path d="M207,64H189V92h26V72" />
+            <path d="M215,72h-8V64Z" />
+            <rect width="6" height="6" transform="translate(193 77)" strokeLinecap="square" strokeMiterlimit="10" />
+            <line x2="8" transform="translate(203 78)" strokeLinecap="square" strokeMiterlimit="10" />
+            <line x2="8" transform="translate(203 82)" strokeLinecap="square" strokeMiterlimit="10" />
+          </g>
+        </svg>
         {activePlan && (
           <span className="plan-cart-count" aria-label={`${count} ร้าน`}>{count}</span>
         )}
