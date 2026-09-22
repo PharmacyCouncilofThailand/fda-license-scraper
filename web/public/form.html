@@ -542,6 +542,11 @@
            nothing. */
         vertical-align: text-bottom;
       }
+      /* Item (2)'s เวลาทำการ ___ น. rides on the licence line as one nowrap
+         group. The line is nearly full, so the group clears it by only a
+         couple of points — trimming this blank's side padding keeps it on the
+         line instead of tipping the whole group onto a second one. */
+      textarea.blank[name="openHours"] { padding-left: 1px; padding-right: 1px; }
 
       /* The control that opens the officer picker: a labelled box standing in
          the sheet's left margin, level with the line it fills in. A bare ▾
