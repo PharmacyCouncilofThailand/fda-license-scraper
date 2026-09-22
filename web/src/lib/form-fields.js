@@ -86,6 +86,9 @@ export const FIELDS = [
   { name: 'seizedCount', step: 4, label: 'จำนวน (รายการ)', type: 'text' },
   { name: 'heldItems', step: 4, label: '(10) อายัด', type: 'text' },
   { name: 'heldCount', step: 4, label: 'จำนวน (รายการ)', type: 'text' },
+  { name: 'seizedItems2', step: 4, label: '(10) รายการยึด/อายัด (บรรทัดที่ 2)', type: 'text' },
+  { name: 'seizedItems3', step: 4, label: '(10) รายการยึด/อายัด (บรรทัดที่ 3)', type: 'text' },
+  { name: 'seizedItems4', step: 4, label: '(10) รายการยึด/อายัด (บรรทัดที่ 4)', type: 'text' },
   { name: 'endTime', step: 4, label: '(12) สิ้นสุดการตรวจเวลา (น.)', type: 'time' },
 
   // --- step 6: the signature block's name blanks ---------------------------

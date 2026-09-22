@@ -633,8 +633,9 @@
          paragraph's line-height and drags the whole line with it. */
       .check::before { content: "☐ "; }
       .check[aria-pressed="true"]::before { content: "☑ "; }
-      .check[aria-pressed="true"] { font-weight: 700; }
-      .check { color: #000; }
+      /* Section 3's choices (all the checks live there) read in bold, so the
+         officer's options stand out from the running text of the summary. */
+      .check { color: #000; font-weight: 700; }
       .check:focus-visible { outline: 2px solid var(--ring); }
 
       /* The council's signature block, straight off the template's own
@@ -864,7 +865,7 @@
 
       <p class="para ind-tab1">3. สรุปผลการตรวจสอบพบ ดังนี้<!-- 16 --></p>
 
-      <p class="para sm ind-993"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" data-tabs="2" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" data-tabs="4" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> พบ<input class="blank" name="personFound" data-tabs="5" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" data-tabs="6" /></p>
+      <p class="para sm ind-993"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" data-tabs="2" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" data-tabs="4" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> <br />พบ<input class="blank" name="personFound" data-tabs="5" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" data-tabs="6" /></p>
       <p class="para sm"><!-- 18 -->ทำหน้าที่ <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="roleLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="roleAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่ ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด<input class="blank" name="ruled1" hidden /><input class="blank" name="ruled2" hidden /><input class="blank" name="ruled3" hidden /></p>
 
       <p class="para sm ind-992 r142"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" data-tabs="20" /> <br />ได้จ่ายยา <input class="blank w-drug" name="drugDispensed" /> ให้จำนวน<input class="blank w-count" name="drugQuantity" /> ในราคา<input class="blank w-price" name="drugPrice" /> บาท <br />ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" data-tabs="3" /> Lot<input class="blank w-s" name="lot" data-tabs="2" /> <br />ผลิต<input class="blank w-date" name="mfgDate" /> ยาสิ้นอายุ<input class="blank w-date" name="expDate" /> <br />ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น<input class="blank" name="ruled4" hidden /></p>
@@ -898,6 +899,12 @@
       <p class="para sm"><input class="blank full" name="behaviour2" /></p>
 
       <p class="para sm gap ind-851"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<input class="blank w-eq" name="seizedItems" data-tabs="0" /> จำนวน <input class="blank w-eq" name="seizedCount" data-tabs="0" /> รายการ อายัด <input class="blank w-eq" name="heldItems" data-tabs="0" /> จำนวน <input class="blank w-eq" name="heldCount" data-tabs="0" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
+      <!-- Room to list what was seized/held: a browser will not wrap one input
+           across lines, so these are separate blanks that fold back into
+           `seizedItems` for the Word file (see CONTINUATIONS in docx-form.js). -->
+      <p class="para sm"><input class="blank full" name="seizedItems2" /></p>
+      <p class="para sm"><input class="blank full" name="seizedItems3" /></p>
+      <p class="para sm"><input class="blank full" name="seizedItems4" /></p>
 
       <p class="para sm gap ind-851"><!-- 34 -->(11) พนักงานเจ้าหน้าที่ได้แจ้งข้อมูลให้ทราบว่า กรณีที่เภสัชกรผู้มีหน้าที่ปฏิบัติการไม่อยู่ปฏิบัติหน้าที่ ให้ร้านปฏิบัติ<span class="tie">ตามกฎหมายว่าด้วยยา</span> และห้ามมิให้มีการจำหน่าย จ่าย แจก หรือส่งมอบ ยาประเภทยาอันตราย ยาควบคุมพิเศษ วัตถุที่ออกฤทธิ์<span class="tie">ต่อจิตและประสาท</span> หรือยาเสพติดให้โทษ โดยบุคคลที่ไม่ได้เป็นผู้ประกอบวิชาชีพเภสัชกรรม หากมีการฝ่าฝืนจะเป็นความผิดตาม<span class="tie">พระราชบัญญัติ</span>วิชาชีพเภสัชกรรม พ.ศ. 2537 โดย <button type="button" class="check" data-name="informPharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="informLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="informAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> <span class="tie">เข้าใจและรับทราบข้อมูลตามที่แจ้ง</span></p>
 

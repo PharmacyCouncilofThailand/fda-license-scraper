@@ -277,8 +277,19 @@ const pxToMm = (px) => px / 96 * 25.4;
         return total + groups;
       }, 0);
 
+    // Item (10)'s extra writing lines have no counterpart in the Word template
+    // (its item (10) is the four ยึด/อายัด blanks only) — a browser will not
+    // wrap one input across lines, so they are separate blanks on screen that
+    // fold back into `seizedItems` for the download (see CONTINUATIONS in
+    // src/docx-form.js). They are screen/PDF-only, so they do not count toward
+    // Word parity.
+    const SCREEN_ONLY_BLANKS = new Set(['seizedItems2', 'seizedItems3', 'seizedItems4']);
     const haveBlanks = await page.evaluate(
-      () => document.querySelectorAll('.sheet .blank').length
+      (skip) =>
+        [...document.querySelectorAll('.sheet .blank')].filter(
+          (node) => !skip.includes(node.name)
+        ).length,
+      [...SCREEN_ONLY_BLANKS]
     );
     assert.strictEqual(
       haveBlanks,

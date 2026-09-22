@@ -117,13 +117,13 @@ assert.deepStrictEqual(
 
 // The two numbers the design records. A change to either is a change to the
 // official form and has to be a deliberate edit here, not a surprise.
-assert.strictEqual(pageFields.size, 64, `กระดาษมีช่องกรอก ${pageFields.size} ช่อง ไม่ใช่ 64`);
+assert.strictEqual(pageFields.size, 67, `กระดาษมีช่องกรอก ${pageFields.size} ช่อง ไม่ใช่ 67`);
 assert.strictEqual(pageChecks.size, 25, `กระดาษมีช่องติ๊ก ${pageChecks.size} จุด ไม่ใช่ 25`);
 
 // The manifest's own entry counts, not just the set of names — a name listed
 // twice (a duplicate entry, or the same field under two different steps)
 // collapses into one name in a Set and would otherwise slip through silently.
-assert.strictEqual(fieldEntries.length, 64, `รายการ FIELDS มี ${fieldEntries.length} รายการ ไม่ใช่ 64 (มีชื่อซ้ำหรือไม่)`);
+assert.strictEqual(fieldEntries.length, 67, `รายการ FIELDS มี ${fieldEntries.length} รายการ ไม่ใช่ 67 (มีชื่อซ้ำหรือไม่)`);
 assert.strictEqual(checkEntries.length, 25, `รายการ CHECK_GROUPS มี ${checkEntries.length} ตัวเลือก ไม่ใช่ 25 (มีชื่อซ้ำหรือไม่)`);
 
 // Every field belongs to a step that actually renders fields. Steps 1-4 and 6

@@ -104,6 +104,7 @@ function escapeXml(value) {
 const CONTINUATIONS = {
   leaveProofNote: ['leaveProofNote2'],
   behaviour1: ['behaviour2', 'behaviour3', 'behaviour4', 'behaviour5', 'behaviour6'],
+  seizedItems: ['seizedItems2', 'seizedItems3', 'seizedItems4'],
 };
 
 function foldContinuations(values) {
