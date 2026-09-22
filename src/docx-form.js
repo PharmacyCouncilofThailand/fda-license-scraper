@@ -120,6 +120,9 @@ function foldContinuations(values) {
 async function renderFormDocx(data) {
   const values = foldContinuations((data && data.values) || {});
   const checks = (data && data.checks) || {};
+  // Values drawn from อย. are set in bold on screen; carry that into the Word
+  // file so the download reads the same way.
+  const fda = new Set(data && data.fda);
 
   const entries = zip.read(await loadTemplate());
   const document = entries.find((e) => e.name === 'word/document.xml');
@@ -130,7 +133,8 @@ async function renderFormDocx(data) {
       document.data
         .toString('utf8')
         .replace(/\{\{chk:([A-Za-z0-9_]+)\}\}/g, (_, name) => (checks[name] ? '☑' : '☐')),
-      values
+      values,
+      fda
     )
     // Any token the office adds mid-sentence, sharing its run with other text,
     // still gets filled — just without the padding or the tab arithmetic.
