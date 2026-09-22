@@ -1,15 +1,23 @@
 /**
- * The working plan, pinned to the top of every step: a dropdown switches the
- * active plan (A/B/C…) and a button starts a new one. Replaces the old
- * bottom-right cart — the plan is now always in view.
+ * The working plan as a cart pinned to the bottom-right corner: a basket icon
+ * carrying the shop count, a dropdown that switches the active plan (A/B/C…),
+ * and a button that starts a new one. Floats over every step so the plan is
+ * always to hand without taking a strip off the top of the page.
  */
 export default function PlanBar({ activePlan, plans, busy, onPick, onNew }) {
+  // The count is read from the live list so it stays right after shops are
+  // added or removed, even if the picked object was cached with an old total.
+  const count = plans.find((p) => p.id === activePlan?.id)?.total ?? 0;
+
   return (
-    <div className="planbar">
-      <span className="material-symbols-outlined" aria-hidden="true">checklist</span>
-      <b className="planbar-title">ระบบวางแผนออกตรวจร้านยา</b>
-      <span className="planbar-spacer" />
-      <label className="planbar-pick">
+    <div className="plan-cart" role="region" aria-label="แผนที่กำลังทำ">
+      <span className="plan-cart-icon">
+        <span className="material-symbols-outlined" aria-hidden="true">shopping_basket</span>
+        {activePlan && (
+          <span className="plan-cart-count" aria-label={`${count} ร้าน`}>{count}</span>
+        )}
+      </span>
+      <label className="plan-cart-pick">
         <span className="planbar-lbl">แผนที่ทำ</span>
         <select
           className="plan-select"

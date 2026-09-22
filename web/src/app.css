@@ -4,7 +4,9 @@
  */
 
 /* Page-specific only — palette, glass and controls live in theme.css. */
-.wrap { max-width: 980px; margin: 0 auto; }
+/* Room at the foot of the page so the floating plan cart never sits over the
+   last row or button of a step. */
+.wrap { max-width: 980px; margin: 0 auto; padding-bottom: 88px; }
 h1 { font-size: 24px; font-weight: 500; margin: 0 0 4px; }
 .sub { color: var(--muted-foreground); font-size: 14px; margin: 0 0 20px; }
 
@@ -603,23 +605,38 @@ button.link.danger { color: var(--danger-fg); }
   .plan-table .actions button, .plan-table .actions label { min-height: 44px; }
 }
 
-/* --- Wizard shell: top bar, step tabs, inspection list ------------------ */
-.planbar {
-  display: flex; align-items: center; gap: 8px;
+/* --- Wizard shell: the plan cart, step tabs, inspection list ------------- */
+/* The active plan rides in a cart floating at the bottom-right corner rather
+   than a strip across the top — always in reach, never in the way of the
+   page's own heading. */
+.plan-cart {
+  position: fixed; right: 20px; bottom: 20px; z-index: 40;
+  display: flex; align-items: center; gap: 10px;
   background: var(--primary); color: var(--primary-foreground);
-  padding: 10px 14px; border-radius: 1rem; margin-bottom: 12px;
+  padding: 10px 14px; border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(46, 46, 0, .28);
 }
-.planbar-title { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.planbar-spacer { flex: 1; }
+.plan-cart-icon { position: relative; display: inline-flex; }
+/* The shop count as a cart badge on the basket. */
+.plan-cart-count {
+  position: absolute; top: -6px; right: -8px;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  display: grid; place-items: center;
+  background: #fff; color: var(--olive-700);
+  font-size: 11px; font-weight: 700; line-height: 1; border-radius: 999px;
+}
+.plan-cart-pick { display: flex; align-items: center; }
 .planbar-lbl { opacity: .85; font-size: 13px; margin-right: 6px; }
-.planbar .plan-select {
+.plan-cart .plan-select {
+  min-width: 200px;
   background: rgba(255,255,255,.16); color: #fff; border: 0;
   padding: 6px 10px; border-radius: .6rem;
 }
-.planbar .plan-select option { color: #111827; }
+.plan-cart .plan-select option { color: #111827; }
 .planbar-new {
   background: #fff; color: var(--olive-700); border: 0;
   padding: 6px 12px; border-radius: .6rem; font-weight: 500; cursor: pointer;
+  white-space: nowrap;
 }
 .planbar-new:disabled { opacity: .6; cursor: default; }
 
@@ -695,6 +712,14 @@ button.link.danger { color: var(--danger-fg); }
 }
 
 @media (max-width: 560px) {
-  .planbar { flex-wrap: wrap; }
-  .planbar-title { font-size: 14px; }
+  /* On a phone the cart spans the width along the bottom so its dropdown and
+     button stay tappable instead of spilling off the right edge. */
+  .plan-cart {
+    left: 12px; right: 12px; bottom: 12px;
+    border-radius: 1rem; gap: 8px; padding: 8px 10px;
+  }
+  .plan-cart-pick { flex: 1; min-width: 0; }
+  .plan-cart .plan-select { min-width: 0; width: 100%; padding: 6px 8px; }
+  .planbar-lbl { display: none; }
+  .planbar-new { padding: 6px 8px; }
 }
