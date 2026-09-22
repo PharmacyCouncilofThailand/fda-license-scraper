@@ -683,6 +683,16 @@ button.link.danger { color: var(--danger-fg); }
   font-size: 13px; font-weight: 600;
 }
 .route-note { color: var(--warning-fg); font-size: 12px; }
+.route-leg {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-width: 74px; padding: 2px 8px; border-radius: 999px;
+  background: var(--olive-50); color: var(--olive-700);
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.route-total {
+  margin-top: 12px; padding: 10px 14px; border-radius: 1rem;
+  background: var(--olive-50); color: var(--olive-700); font-weight: 600;
+}
 
 @media (max-width: 560px) {
   .planbar { flex-wrap: wrap; }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getPlan } from '../lib/plans-api.js';
-import { googleMapsEmbedUrl, googleMapsUrl, orderForTrip } from '../lib/route.js';
+import { googleMapsEmbedUrl, googleMapsUrl, orderForTrip, tripLegs } from '../lib/route.js';
 
 /**
  * The map step: the plan's shops in trip order, with a button that opens the
@@ -28,6 +28,9 @@ export default function PlanRoute({ planId }) {
   const ordered = orderForTrip(plan.items);
   const url = googleMapsUrl(ordered);
   const embed = googleMapsEmbedUrl(ordered);
+  const legs = tripLegs(ordered);
+  const totalKm = legs.reduce((sum, l) => sum + (l.km ?? 0), 0);
+  const fmtKm = (km) => (km == null ? null : `${km.toFixed(1)} กม.`);
 
   return (
     <div className="plan-route">
@@ -54,6 +57,9 @@ export default function PlanRoute({ planId }) {
         </li>
         {ordered.map((item, i) => (
           <li key={item.newCode}>
+            <span className="route-leg">
+              {fmtKm(legs[i].km) ?? 'ไม่มีพิกัด'}
+            </span>
             <span className="route-pin">{i + 1}</span>
             <b>{item.placeName || '(ไม่ระบุชื่อ)'}</b>
             {item.lat == null || item.lng == null ? (
@@ -62,6 +68,9 @@ export default function PlanRoute({ planId }) {
           </li>
         ))}
       </ol>
+      {totalKm > 0 && (
+        <div className="route-total">รวมระยะทางโดยประมาณ {totalKm.toFixed(1)} กม.</div>
+      )}
     </div>
   );
 }

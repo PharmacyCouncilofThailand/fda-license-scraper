@@ -67,6 +67,26 @@ export function orderForTrip(items, origin = PHARMACY_COUNCIL) {
   return keyed.map((k) => k.item);
 }
 
+/**
+ * Per-leg distances along the trip, in order: Council→stop1, stop1→stop2, …
+ * Each leg is { from, to, km } where `from`/`to` are labels and `km` is the
+ * great-circle distance, or null when either end has no coordinates.
+ */
+export function tripLegs(items, origin = PHARMACY_COUNCIL) {
+  const legs = [];
+  let prev = { label: 'สภาเภสัชกรรม', lat: origin.lat, lng: origin.lng };
+  for (const it of items || []) {
+    const cur = { label: it.placeName || '(ไม่ระบุชื่อ)', lat: it.lat, lng: it.lng };
+    const km =
+      prev.lat == null || prev.lng == null || cur.lat == null || cur.lng == null
+        ? null
+        : haversineKm(prev, cur);
+    legs.push({ from: prev.label, to: cur.label, km });
+    prev = cur;
+  }
+  return legs;
+}
+
 /** A stop as a coordinate when known, otherwise its name/address text query. */
 function stopText(it) {
   return it.lat != null && it.lng != null
