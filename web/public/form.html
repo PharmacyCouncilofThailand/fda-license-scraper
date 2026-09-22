@@ -1587,6 +1587,17 @@
             field.style.width = '';
           } else if (finalBlank) {
             field.style.width = `${rest}px`;
+          } else if (wraps && field.value && trailWidth(field)) {
+            /* A filled blank closed by a unit — item (2)'s เวลาทำการ ___ น. —
+               is sized to its value, not to the grid. Sized to `rest` it would
+               shrink to the sliver left at the end of the line and wrap the
+               value across two lines; sized to the value it keeps the value on
+               one line, and when the value does not fit the room left it wraps
+               the whole box down to the next line (unit and all) rather than
+               splitting it. Capped at a full line so a very long value still
+               wraps within the sheet. */
+            const lineRoom = margin - origin - trailWidth(field) - 1;
+            field.style.width = `${Math.floor(Math.min(need, lineRoom))}px`;
           } else {
             field.style.width = `${Math.floor(Math.min(Math.max(ruled, need), rest))}px`;
           }
