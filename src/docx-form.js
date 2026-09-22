@@ -147,6 +147,9 @@ const runText = (xml) =>
 function boldRun(xml) {
   if (/<w:b\/>/.test(xml)) return xml;
   if (/<w:rPr>/.test(xml)) return xml.replace('<w:rPr>', '<w:rPr><w:b/><w:bCs/>');
+  // An empty, self-closing <w:rPr/> has no '<w:rPr>' to open, so grow it into a
+  // real one rather than inserting a second rPr beside it (invalid OOXML).
+  if (/<w:rPr\/>/.test(xml)) return xml.replace('<w:rPr/>', '<w:rPr><w:b/><w:bCs/></w:rPr>');
   return xml.replace(/(<w:r(?:\s[^>]*)?>)/, '$1<w:rPr><w:b/><w:bCs/></w:rPr>');
 }
 

@@ -1704,14 +1704,17 @@
         const checks = (data && data.checks) || {};
         const fda = new Set((data && data.fda) || []);
         for (const input of document.querySelectorAll('input.blank, textarea.blank, .officer')) {
-          if (values[input.name] === undefined) continue;
-          input.value = input.classList.contains('flow')
-            ? tieBreaks(values[input.name])
-            : values[input.name];
-          input.classList.toggle('filled', Boolean(values[input.name]));
-          // Bold only a field that both came from อย. and actually has a value.
-          input.classList.toggle('fda', fda.has(input.name) && Boolean(values[input.name]));
-          markOverflow(input);
+          if (values[input.name] !== undefined) {
+            input.value = input.classList.contains('flow')
+              ? tieBreaks(values[input.name])
+              : values[input.name];
+            input.classList.toggle('filled', Boolean(values[input.name]));
+            markOverflow(input);
+          }
+          // Bold only a field that both came from อย. and actually has a value —
+          // toggled for every blank so a field that is no longer อย.-sourced (or
+          // was cleared) loses its bold on a re-render.
+          input.classList.toggle('fda', fda.has(input.name) && Boolean(input.value));
         }
         for (const button of document.querySelectorAll('.check')) {
           setCheck(button, Boolean(checks[button.dataset.name]));

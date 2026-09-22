@@ -618,7 +618,7 @@ button.link.danger { color: var(--danger-fg); }
 }
 .plan-cart-icon { position: relative; display: inline-flex; }
 .plan-cart-sheet { display: block; }
-/* The shop count as a cart badge on the basket. */
+/* The shop count as a cart badge on the sheet icon. */
 .plan-cart-count {
   position: absolute; top: -6px; right: -8px;
   min-width: 18px; height: 18px; padding: 0 4px;

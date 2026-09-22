@@ -30,6 +30,9 @@ export default function PlanRoute({ planId }) {
   const embed = googleMapsEmbedUrl(ordered);
   const legs = tripLegs(ordered);
   const totalKm = legs.reduce((sum, l) => sum + (l.km ?? 0), 0);
+  // A leg with no coordinates counts as 0 above, so the total is only the
+  // stops we could measure — say so rather than pass it off as the whole route.
+  const someMissing = legs.some((l) => l.km == null);
   const fmtKm = (km) => (km == null ? null : `${km.toFixed(1)} กม.`);
 
   return (
@@ -57,9 +60,9 @@ export default function PlanRoute({ planId }) {
         </li>
         {ordered.map((item, i) => (
           <li key={item.newCode}>
-            <span className="route-leg">
-              {fmtKm(legs[i].km) ?? 'ไม่มีพิกัด'}
-            </span>
+            {/* The missing-coordinate case is spelled out by the route-note
+                below, so the leg badge just shows a dash rather than repeating it. */}
+            <span className="route-leg">{fmtKm(legs[i].km) ?? '—'}</span>
             <span className="route-pin">{i + 1}</span>
             <b>{item.placeName || '(ไม่ระบุชื่อ)'}</b>
             {item.lat == null || item.lng == null ? (
@@ -69,7 +72,10 @@ export default function PlanRoute({ planId }) {
         ))}
       </ol>
       {totalKm > 0 && (
-        <div className="route-total">รวมระยะทางโดยประมาณ {totalKm.toFixed(1)} กม.</div>
+        <div className="route-total">
+          รวมระยะทางโดยประมาณ {totalKm.toFixed(1)} กม.
+          {someMissing ? ' (เฉพาะจุดที่มีพิกัด)' : ''}
+        </div>
       )}
     </div>
   );

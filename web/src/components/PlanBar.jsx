@@ -1,8 +1,8 @@
 /**
- * The working plan as a cart pinned to the bottom-right corner: a basket icon
- * carrying the shop count, a dropdown that switches the active plan (A/B/C…),
- * and a button that starts a new one. Floats over every step so the plan is
- * always to hand without taking a strip off the top of the page.
+ * The working plan as a cart pinned to the bottom-right corner: a record-sheet
+ * icon carrying the shop count, a dropdown that switches the active plan
+ * (A/B/C…), and a button that starts a new one. Floats over every step so the
+ * plan is always to hand without taking a strip off the top of the page.
  */
 export default function PlanBar({ activePlan, plans, busy, onPick, onNew }) {
   // The count is read from the live list so it stays right after shops are
