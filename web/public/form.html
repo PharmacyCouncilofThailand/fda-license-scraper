@@ -386,6 +386,9 @@
         appearance: none;
       }
       .blank.filled { background-color: var(--fill); }
+      /* Values pulled from อย. are set in bold, so the officer can tell them
+         apart from what was written in by hand at the shop. */
+      .blank.fda, .officer.fda { font-weight: 700; }
       input.blank, textarea.blank { color: #000; }
       .blank:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
       /* A value the paper cannot hold. The rule under it turns red too, but
@@ -539,6 +542,11 @@
            nothing. */
         vertical-align: text-bottom;
       }
+      /* Item (2)'s เวลาทำการ ___ น. rides on the licence line as one nowrap
+         group. The line is nearly full, so the group clears it by only a
+         couple of points — trimming this blank's side padding keeps it on the
+         line instead of tipping the whole group onto a second one. */
+      textarea.blank[name="openHours"] { padding-left: 1px; padding-right: 1px; }
 
       /* The control that opens the officer picker: a labelled box standing in
          the sheet's left margin, level with the line it fills in. A bare ▾
@@ -630,8 +638,9 @@
          paragraph's line-height and drags the whole line with it. */
       .check::before { content: "☐ "; }
       .check[aria-pressed="true"]::before { content: "☑ "; }
-      .check[aria-pressed="true"] { font-weight: 700; }
-      .check { color: #000; }
+      /* Section 3's choices (all the checks live there) read in bold, so the
+         officer's options stand out from the running text of the summary. */
+      .check { color: #000; font-weight: 700; }
       .check:focus-visible { outline: 2px solid var(--ring); }
 
       /* The council's signature block, straight off the template's own
@@ -666,6 +675,22 @@
          84.91mm wide. */
       .signatures td { border: 0; padding: 0 1.9mm; vertical-align: bottom; }
       .rule { border-bottom: var(--rule); display: inline-block; width: 150pt; }
+      /* A signature drawn on the iPad sits on its rule rather than in the
+         line: absolute, so it takes no space and no measured rule moves. The
+         rule is the positioning context, which costs an inline-block nothing.
+         `.sheet` is already position: relative for the seal, but the rule is
+         closer and survives the screen's zoom without any arithmetic. */
+      .rule { position: relative; }
+      .rule > .signature {
+        position: absolute;
+        left: 0;
+        bottom: 1px;
+        width: 100%;
+        height: 2.6em;
+        object-fit: contain;
+        object-position: center bottom;
+        pointer-events: none;
+      }
       /* The officers who sign page 2. Fillable — the picker writes whoever was
          chosen here — but not a `blank`: the template prints these names as
          plain text, with no dotted rule under them and nothing for the tab
@@ -695,6 +720,15 @@
          floor so it stays signable if a label ever grows. */
       .sig { display: flex; align-items: baseline; gap: 3pt; }
       .sig .rule { flex: 1 1 auto; width: auto; min-width: 36pt; }
+
+      /* The appendix is not on Word's grid — there is no template page for it
+         — so it is plain block layout, sized to the same 210mm sheet. */
+      .photo-title { font-size: 16pt; font-weight: 700; text-align: center; margin: 0 0 4pt; }
+      .photo-sub { text-align: center; margin: 0 0 10pt; }
+      .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm 6mm; }
+      .photo-cell { break-inside: avoid; }
+      .photo-cell img { width: 100%; height: 62mm; object-fit: contain; border: 1px solid #000; }
+      .photo-cell figcaption { margin-top: 2mm; font-size: 13pt; text-align: center; }
 
       /*
        * The ภ. licence lookup, app chrome like the toolbar. It sits beside
@@ -791,9 +825,14 @@
     <!-- Licence lookup — screen only, see the print rules above. -->
     <!-- Everything below the bar scrolls inside this, not behind it. -->
     <div class="doc">
-    <div class="lookup glass-panel">
+    <div class="lookup glass-panel" id="lookup">
       <pharmacist-search></pharmacist-search>
     </div>
+    <script>
+      // In the app the เลข ภ. search lives in the sidebar, so hide this copy
+      // when the sheet is embedded (iframe). Standalone (own tab) keeps it.
+      if (window.self !== window.top) document.getElementById('lookup').style.display = 'none';
+    </script>
 
     <!-- ============================ PAGE 1 ============================ -->
     <!-- Paragraph numbers in the comments below are the template's own
@@ -827,11 +866,11 @@
       <p class="para sm ind-tab1"><!-- 12 -->1. ชื่อผู้รับอนุญาตของสถานที่ทำการ<input class="blank" name="licenseeName" data-tabs="9" /></p>
       <p class="para"><!-- 13 -->ชื่อผู้ดำเนินการกิจการ<input class="blank" name="operatorName" data-tabs="5" /> ใบอนุญาตขายยาแผนปัจจุบันเลขที่<input class="blank w-m" name="licenseNo" data-tabs="3" /></p>
       <p class="para sm ind-tab1"><!-- 14 -->2. ชื่อผู้มีหน้าที่ปฏิบัติการ<input class="blank" name="dutyPharmacist" data-tabs="10" /></p>
-      <p class="para sm"><!-- 15 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-s" name="dutyLicenseNo" data-tabs="2" /> หมดอายุวันที่ <input class="blank w-s" name="dutyLicenseExpiry" data-tabs="2" /> เวลาทำการ <textarea class="blank w-m" name="openHours" data-tabs="3" rows="1"></textarea> น.</p>
+      <p class="para sm"><!-- 15 -->ใบอนุญาตเป็นผู้ประกอบวิชาชีพเภสัชกรรม เลขที่ ภ. <input class="blank w-s" name="dutyLicenseNo" data-tabs="2" /> หมดอายุวันที่ <input class="blank w-s" name="dutyLicenseExpiry" data-tabs="2" /> <span class="tie">เวลาทำการ <textarea class="blank w-m" name="openHours" data-tabs="3" rows="1"></textarea> น.</span></p>
 
       <p class="para ind-tab1">3. สรุปผลการตรวจสอบพบ ดังนี้<!-- 16 --></p>
 
-      <p class="para sm ind-993"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" data-tabs="2" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" data-tabs="4" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> พบ<input class="blank" name="personFound" data-tabs="5" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" data-tabs="6" /></p>
+      <p class="para sm ind-993"><!-- 17 -->(1) ขณะตรวจสอบเวลา<input class="blank w-s" name="checkTime" data-tabs="2" /> น. ร้าน<input class="blank w-l" name="shopNameAtCheck" data-tabs="4" /> <button type="button" class="check" data-name="shopClosed" aria-pressed="false">ปิดทำการ</button> <button type="button" class="check" data-name="shopOpen" aria-pressed="false">เปิดทำการตามปกติ</button> <br />พบ<input class="blank" name="personFound" data-tabs="5" /> บัตรประจำตัวประชาชนเลขที่<input class="blank w-l" name="personIdCard" data-tabs="6" /></p>
       <p class="para sm"><!-- 18 -->ทำหน้าที่ <button type="button" class="check" data-name="rolePharmacist" aria-pressed="false">เภสัชกรผู้มีหน้าที่ปฏิบัติการ</button> <button type="button" class="check" data-name="roleLicensee" aria-pressed="false">ผู้รับอนุญาต</button> <button type="button" class="check" data-name="roleAgent" aria-pressed="false">ผู้แทนผู้รับอนุญาต</button> รับทราบการแสดงตัวของพนักงานเจ้าหน้าที่ ยินดีนำตรวจและให้บันทึกภาพขณะตรวจ พร้อมให้ข้อมูลรายละเอียด<input class="blank" name="ruled1" hidden /><input class="blank" name="ruled2" hidden /><input class="blank" name="ruled3" hidden /></p>
 
       <p class="para sm ind-992 r142"><!-- 19 -->(2) ก่อนการเข้าตรวจสอบ พนักงานเจ้าหน้าที่ <button type="button" class="check" data-name="noBuy" aria-pressed="false">ไม่ได้ขอซื้อยา</button> <button type="button" class="check" data-name="didBuy" aria-pressed="false">ขอซื้อยา</button>ซึ่ง<input class="blank" name="buyRequest" data-tabs="20" /> <br />ได้จ่ายยา <input class="blank w-drug" name="drugDispensed" /> ให้จำนวน<input class="blank w-count" name="drugQuantity" /> ในราคา<input class="blank w-price" name="drugPrice" /> บาท <br />ตรวจสอบบนแผง/กล่อง ระบุข้อความ “ยาอันตราย” Reg No.<input class="blank w-m" name="regNo" data-tabs="3" /> Lot<input class="blank w-s" name="lot" data-tabs="2" /> <br />ผลิต<input class="blank w-date" name="mfgDate" /> ยาสิ้นอายุ<input class="blank w-date" name="expDate" /> <br />ซึ่งเป็นยาที่ต้องจ่ายและส่งมอบโดยผู้ประกอบวิชาชีพเภสัชกรรมซึ่งเป็นผู้มีหน้าที่ปฏิบัติการเท่านั้น<input class="blank" name="ruled4" hidden /></p>
@@ -851,7 +890,7 @@
       <p class="para sm ind-992"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <textarea class="blank" name="curtainNote" data-tabs="15" rows="1"></textarea></p>
 
       <p class="para sm blank-line ind-left2268"><!-- 27 --></p>
-      <p class="para sm left ind-left2268"><!-- 28 -->ลงชื่อ <span class="rule blank"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
+      <p class="para sm left ind-left2268"><!-- 28 -->ลงชื่อ <span class="rule blank" data-sign="page1"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
       <p class="para sm left ind-left2268"><!-- 29 -->( <input class="blank w-l" name="signPage1Name" /> )</p>
     </div>
 
@@ -862,7 +901,13 @@
       <p class="para sm ind-tab1"><!-- 31 -->3. สรุปผลการตรวจสอบพบ (ต่อ)</p>
 
       <p class="para sm gap ind-992"><!-- 32 -->(9) พบพฤติกรรมของผู้ประกอบวิชาชีพเภสัชกรรมเพิ่มเติม ดังนี้ <input class="blank" name="behaviour1" data-tabs="19" /></p>
+      <!-- Room to note extra behaviour: a browser will not wrap one input across
+           lines, so these are separate blanks that fold back into `behaviour1`
+           for the Word file (see CONTINUATIONS in docx-form.js). -->
       <p class="para sm"><input class="blank full" name="behaviour2" /></p>
+      <p class="para sm"><input class="blank full" name="behaviour3" /></p>
+      <p class="para sm"><input class="blank full" name="behaviour4" /></p>
+      <p class="para sm"><input class="blank full" name="behaviour5" /></p>
 
       <p class="para sm gap ind-851"><!-- 33 -->(10) พนักงานเจ้าหน้าที่ได้ ยึด<input class="blank w-eq" name="seizedItems" data-tabs="0" /> จำนวน <input class="blank w-eq" name="seizedCount" data-tabs="0" /> รายการ อายัด <input class="blank w-eq" name="heldItems" data-tabs="0" /> จำนวน <input class="blank w-eq" name="heldCount" data-tabs="0" /> รายการเพื่อตรวจสอบและใช้เป็นหลักฐาน รายละเอียดตาม บัญชียึด อายัด และภาพถ่าย ตามเอกสารแนบท้าย</p>
 
@@ -897,13 +942,13 @@
           <tr>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="duty"></span> ผู้มีหน้าที่ปฏิบัติการ / เภสัชกร</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signDutyName" data-tabs="0" /> )</div>
               <div>&nbsp;</div>
             </td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer1"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer1" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -911,13 +956,13 @@
           <tr>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="licensee"></span> ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="blank w-m" name="signLicenseeName" data-tabs="0" /> )</div>
               <div>&nbsp;</div>
             </td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer2"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer2" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -926,7 +971,7 @@
             <td></td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer3"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer3" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -935,7 +980,7 @@
             <td></td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer4"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer4" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -944,7 +989,7 @@
             <td></td>
             <td>
 
-              <div class="sig">ลงชื่อ <span class="rule"></span> พนักงานเจ้าหน้าที่</div>
+              <div class="sig">ลงชื่อ <span class="rule" data-sign="officer5"></span> พนักงานเจ้าหน้าที่</div>
               <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <input class="officer" name="signOfficer5" /> )</div>
               <div>&nbsp;</div>
             </td>
@@ -952,6 +997,16 @@
         </tbody>
       </table>
     </div>
+
+    <!-- The appendix item (10) already refers to: "รายละเอียดตาม บัญชียึด
+         อายัด และภาพถ่าย ตามเอกสารแนบท้าย". It is hidden until applyData()
+         is given photos, so a record with none is the two-page record the
+         office has always issued. -->
+    <section class="sheet photos" id="photoSheet" hidden>
+      <h2 class="photo-title">ภาพถ่ายประกอบการตรวจ</h2>
+      <p class="photo-sub" id="photoSubtitle"></p>
+      <div class="photo-grid" id="photoGrid"></div>
+    </section>
 
     <dialog class="picker glass-panel" id="officersPicker">
       <form method="dialog">
@@ -969,6 +1024,7 @@
     </dialog>
     </div>
 
+    <script src="./officers.js"></script>
     <script>
       'use strict';
 
@@ -1000,17 +1056,11 @@
        * spaces, the last one after "และ". A name the list has not got is
        * typed into the picker's own box, or straight onto the blank.
        */
-      const NO_BREAK_SPACE = " ";
+      const NO_BREAK_SPACE = " ";
       const WORD_JOINER = "⁠";
-      const OFFICERS = [
-        'นายเทอดภูมิ พัชรสุนทรชัย',
-        'นางสาวอชิดา บุญเพียร',
-        'นางสาวศศิธร เจือโร่ง',
-        'นายศิริพงษ์ เจือโร่ง',
-        'นายณภัทร ไกยวงค์',
-        'นายเจษฎา จันทรประเสริฐ',
-        'นางสาวอัญพิชา แก้วสม',
-      ];
+      /* The office's list, from /officers.js — one copy, read by this page and
+         by the touch wizard. */
+      const OFFICERS = window.OFFICERS || [];
 
       /* Names are written into the blank tied together, so that a line
          break can only ever fall between one officer and the next:
@@ -1523,9 +1573,36 @@
              worth filling and is better off on its own line. Half the width
              of the text block is the line between the two. */
           const roomy = rest >= (margin - origin) / 2;
-          if (wraps && need > rest && !roomy) {
+          /* A blank that closes its paragraph with nothing after it runs all
+             the way to the right margin, the way the paper's do — so every
+             line ends flush on the right rather than some stopping a tab short
+             of the others. (A blank followed by a unit like "น." keeps the
+             room for it; that is trailWidth's job above.) */
+          let finalBlank = field.parentNode.lastElementChild === field;
+          if (finalBlank) {
+            for (let n = field.nextSibling; n; n = n.nextSibling) {
+              if (n.nodeType !== Node.TEXT_NODE || n.textContent.trim()) {
+                finalBlank = false;
+                break;
+              }
+            }
+          }
+          if (wraps && need > rest && !roomy && !trailWidth(field)) {
             field.classList.add('full-row');
             field.style.width = '';
+          } else if (finalBlank) {
+            field.style.width = `${rest}px`;
+          } else if (wraps && field.value && trailWidth(field)) {
+            /* A filled blank closed by a unit — item (2)'s เวลาทำการ ___ น. —
+               is sized to its value, not to the grid. Sized to `rest` it would
+               shrink to the sliver left at the end of the line and wrap the
+               value across two lines; sized to the value it keeps the value on
+               one line, and when the value does not fit the room left it wraps
+               the whole box down to the next line (unit and all) rather than
+               splitting it. Capped at a full line so a very long value still
+               wraps within the sheet. */
+            const lineRoom = margin - origin - trailWidth(field) - 1;
+            field.style.width = `${Math.floor(Math.min(need, lineRoom))}px`;
           } else {
             field.style.width = `${Math.floor(Math.min(Math.max(ruled, need), rest))}px`;
           }
@@ -1552,7 +1629,70 @@
         for (const button of document.querySelectorAll('.check')) {
           checks[button.dataset.name] = button.getAttribute('aria-pressed') === 'true';
         }
-        return { values, checks };
+        // Which blanks are อย.-sourced travels with the record, so the renderer
+        // bolds the same ones the screen does.
+        const fda = [];
+        for (const input of document.querySelectorAll('input.blank.fda, textarea.blank.fda')) {
+          fda.push(input.name);
+        }
+        return { values, checks, fda };
+      }
+
+      /**
+       * Signatures drawn on a touch screen, laid over the rules they belong
+       * to. A rule with nothing for it stays an empty rule to be signed with
+       * a pen — which is what happens to every one of them when the record is
+       * opened straight from the menu.
+       */
+      function applySignatures(signatures) {
+        for (const rule of document.querySelectorAll('[data-sign]')) {
+          const existing = rule.querySelector('.signature');
+          if (existing) existing.remove();
+          const source = signatures[rule.dataset.sign];
+          if (!source) continue;
+          const image = document.createElement('img');
+          image.className = 'signature';
+          image.alt = '';
+          image.src = source;
+          rule.append(image);
+        }
+      }
+
+      /**
+       * The photo appendix. The bytes arrive as data URLs — the server reads
+       * them out of the photo store and passes them in, so the page never
+       * fetches anything, the same way the seal and the font are already
+       * inlined for the PDF renderer.
+       */
+      function applyPhotos(photos) {
+        const sheet = document.getElementById('photoSheet');
+        const grid = document.getElementById('photoGrid');
+        grid.textContent = '';
+        if (!photos.length) {
+          sheet.hidden = true;
+          return;
+        }
+        const shop = document.querySelector('[name="placeName"]');
+        const when = document.querySelector('[name="inspectDate"]');
+        document.getElementById('photoSubtitle').textContent =
+          [shop && shop.value, when && when.value ? `ตรวจเมื่อวันที่ ${when.value}` : '']
+            .filter(Boolean)
+            .join(' · ');
+        photos.forEach((photo, index) => {
+          const cell = document.createElement('figure');
+          cell.className = 'photo-cell';
+          const image = document.createElement('img');
+          image.src = photo.src;
+          image.alt = '';
+          const caption = document.createElement('figcaption');
+          // textContent, never innerHTML: the caption is typed at the shop.
+          caption.textContent = photo.caption
+            ? `ภาพที่ ${index + 1} ${photo.caption}`
+            : `ภาพที่ ${index + 1}`;
+          cell.append(image, caption);
+          grid.append(cell);
+        });
+        sheet.hidden = false;
       }
 
       /**
@@ -1562,17 +1702,25 @@
       window.applyData = function applyData(data) {
         const values = (data && data.values) || {};
         const checks = (data && data.checks) || {};
+        const fda = new Set((data && data.fda) || []);
         for (const input of document.querySelectorAll('input.blank, textarea.blank, .officer')) {
-          if (values[input.name] === undefined) continue;
-          input.value = input.classList.contains('flow')
-            ? tieBreaks(values[input.name])
-            : values[input.name];
-          input.classList.toggle('filled', Boolean(values[input.name]));
-          markOverflow(input);
+          if (values[input.name] !== undefined) {
+            input.value = input.classList.contains('flow')
+              ? tieBreaks(values[input.name])
+              : values[input.name];
+            input.classList.toggle('filled', Boolean(values[input.name]));
+            markOverflow(input);
+          }
+          // Bold only a field that both came from อย. and actually has a value —
+          // toggled for every blank so a field that is no longer อย.-sourced (or
+          // was cleared) loses its bold on a re-render.
+          input.classList.toggle('fda', fda.has(input.name) && Boolean(input.value));
         }
         for (const button of document.querySelectorAll('.check')) {
           setCheck(button, Boolean(checks[button.dataset.name]));
         }
+        applySignatures((data && data.signatures) || {});
+        applyPhotos(((data && data.photos) || []).filter((photo) => photo && photo.src));
         window.layoutBlanks();
       };
 
@@ -1660,10 +1808,29 @@
         };
       }
 
+      /** Blanks whose value comes straight from อย.; the renderer sets these in
+          bold. Item (2)'s duty pair is อย.-sourced only when the licence names
+          exactly one pharmacist — added to the list in fromRow when it is. */
+      const FDA_FIELDS = [
+        'placeName', 'shopNameAtCheck', 'houseNo', 'village', 'moo', 'soi',
+        'road', 'subdistrict', 'district', 'province', 'phone',
+        'licenseeName', 'operatorName', 'licenseNo',
+      ];
+
       /** Map one FDA row onto the form's blanks. */
       function fromRow(row) {
         const area = row.area || {};
-        const duty = dutyFromPharmacists(row.pharmacists);
+        const people = Array.isArray(row.pharmacists)
+          ? row.pharmacists.filter((p) => p && p.name)
+          : [];
+        const duty = dutyFromPharmacists(people);
+        // Item (2) — name, ภ. number and เวลาปฏิบัติการ — is about the
+        // pharmacist actually on duty. When the licence names exactly one, that
+        // is unambiguous, so fill the name and their duty hours. When it names
+        // several, the officer picks at the shop, so leave the block blank.
+        const single = people.length === 1;
+        const fda = [...FDA_FIELDS];
+        if (single) fda.push('dutyPharmacist', 'openHours');
 
         // วันที่ / เวลาที่เข้าตรวจ และเวลาขณะตรวจสอบ ไม่กรอกให้: the officer
         // writes them at the shop, and a clock reading from whenever the form
@@ -1685,24 +1852,38 @@
             licenseeName: row.licenseeName || '',
             operatorName: row.operatorName || '',
             licenseNo: row.licenseNo || '',
-            dutyPharmacist: duty.name,
-            // Falls back to the shop's hours only when the licence lists no
-            // pharmacist at all, so the blank is not left empty for nothing.
-            openHours: duty.hours || (duty.name ? '' : row.openHours || ''),
+            dutyPharmacist: single ? duty.name : '',
+            openHours: single ? duty.hours : '',
           },
           checks: {},
+          fda,
         };
       }
+
+      /* A record opened from a plan reports itself back so the plan can tick
+         the shop off. Opened straight from the menu there is no plan, and this
+         stays null. */
+      let planRef = null;
 
       const handoff = localStorage.getItem(HANDOFF_KEY);
       if (handoff) {
         try {
           const row = JSON.parse(handoff);
+          if (row.planId && row.newCode) {
+            planRef = { planId: row.planId, newCode: row.newCode };
+          }
           window.applyData(fromRow(row));
-          const duty = dutyFromPharmacists(row.pharmacists);
+          const people = Array.isArray(row.pharmacists)
+            ? row.pharmacists.filter((p) => p && p.name)
+            : [];
+          const duty = dutyFromPharmacists(people);
           statusEl.textContent =
             `กรอกจาก: ${row.placeName || row.licenseNo || 'ข้อมูลร้าน'}` +
-            (duty.name ? ` — ผู้มีหน้าที่ปฏิบัติการ: ${duty.name}` : '');
+            (duty.name
+              ? people.length === 1
+                ? ` — ผู้มีหน้าที่ปฏิบัติการ: ${duty.name}`
+                : ` — ผู้มีหน้าที่ปฏิบัติการตามใบอนุญาต: ${duty.name} (มีหลายคน กรอกเอง)`
+              : '');
           localStorage.removeItem(HANDOFF_KEY);
         } catch (err) {
           statusEl.textContent = 'อ่านข้อมูลร้านไม่สำเร็จ — กรอกเองได้';
@@ -1855,6 +2036,7 @@
             ? `ดาวน์โหลด ${label} แล้ว — ${over.length} ช่องยาวเกินกระดาษ (${over.map((f) => f.name).join(', ')}) แสดงไม่ครบใน PDF`
             : `ดาวน์โหลด ${label} แล้ว`;
           if (over.length) statusEl.className = 'err';
+          await markInspected();
         } catch (err) {
           statusEl.className = 'err';
           statusEl.textContent = `${err.message} — ใช้ปุ่ม “พิมพ์ / บันทึกเอง” แทนได้`;
@@ -1862,6 +2044,30 @@
           icon.classList.remove('spinning');
           icon.textContent = iconWas;
           button.disabled = false;
+        }
+      }
+
+      /* Producing the file is the moment the inspection is written up, so the
+         plan learns it without anyone remembering to say so. Reported as
+         `auto`, which the plan lets a person's own decision outrank. */
+      async function markInspected() {
+        if (!planRef) return;
+        const code = sessionStorage.getItem('fda:plans:passcode');
+        try {
+          await fetch(
+            `${API_BASE}/api/plans/${planRef.planId}/items/${encodeURIComponent(planRef.newCode)}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(code ? { 'x-plans-passcode': code } : {}),
+              },
+              body: JSON.stringify({ status: 'done', statusSource: 'auto' }),
+            }
+          );
+        } catch {
+          // The record is already saved; failing to tick a box must not look
+          // like the record failed. The officer can tick it in the plan.
         }
       }
 

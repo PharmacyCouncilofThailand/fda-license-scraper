@@ -1,4 +1,14 @@
-export default function Sidebar() {
+// The wizard steps live in the sidebar menu (as the app's nav did originally),
+// not a top tab strip. Each item selects a step; on the full-screen record page
+// (no `step`) an item returns to the shell at that step via `onStep`.
+const STEPS = [
+  { n: 1, icon: 'search', label: 'ค้นหา' },
+  { n: 2, icon: 'checklist', label: 'จัดแผน' },
+  { n: 3, icon: 'map', label: 'แผนที่' },
+  { n: 4, icon: 'description', label: 'ฟอร์ม' },
+];
+
+export default function Sidebar({ step, onStep }) {
   return (
     <aside className="app-sidebar glass-panel-primary">
       <div className="brand">
@@ -11,19 +21,20 @@ export default function Sidebar() {
         </span>
       </div>
       <hr />
-      <span className="group-label">เมนู</span>
+      <span className="group-label">ขั้นตอน</span>
       <nav>
-        <a href="/" aria-current="page">
-          <span className="material-symbols-outlined sm fill">search</span>
-          ค้นหาร้านยา
-          <span className="dot" />
-        </a>
-        {/* The record is a static page on purpose — see web/public/form.html. */}
-        <a href="/form.html">
-          <span className="material-symbols-outlined sm">description</span>
-          บันทึกการตรวจ
-          <span className="dot" />
-        </a>
+        {STEPS.map((s) => (
+          <button
+            key={s.n}
+            type="button"
+            aria-current={step === s.n ? 'page' : undefined}
+            onClick={() => onStep?.(s.n)}
+          >
+            <span className="material-symbols-outlined sm" aria-hidden="true">{s.icon}</span>
+            {s.label}
+            <span className="dot" />
+          </button>
+        ))}
       </nav>
       <hr />
       {/* Carries its own heading, so no group-label here.

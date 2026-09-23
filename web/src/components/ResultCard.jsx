@@ -27,15 +27,24 @@ function StatusBadge({ status }) {
   );
 }
 
+const PLAN_LABEL = {
+  idle: '+ ใส่แผน',
+  busy: 'กำลังใส่…',
+  added: '✓ อยู่ในแผน',
+  error: '+ ใส่แผน (ลองใหม่)',
+};
+
 export default function ResultCard({
   row,
   selected,
   onSelect,
   previewState,
   onTogglePreview,
+  onOpenForm,
+  formBusy,
+  planStatus = 'idle',
+  onAddToPlan,
 }) {
-  const detail = previewState?.status === 'ready' ? previewState.detail : null;
-
   return (
     <li
       className={`glass-panel${selected ? ' selected' : ''}`}
@@ -46,16 +55,11 @@ export default function ResultCard({
         onSelect();
       }}
     >
-      <div className="card-head">
-        <input
-          type="radio"
-          name="pick"
-          checked={selected}
-          aria-label={`เลือก ${row.placeName || 'ร้านนี้'} เพื่อกรอกฟอร์ม`}
-          onChange={onSelect}
-        />
-        <div className="name">{row.placeName || '(ไม่ระบุชื่อสถานที่)'}</div>
-      </div>
+      {/* Radio and name share one hit target so tapping the name selects. */}
+      <label className="card-head">
+        <input type="radio" name="pick" checked={selected} onChange={onSelect} />
+        <span className="name">{row.placeName || '(ไม่ระบุชื่อสถานที่)'}</span>
+      </label>
 
       <div className="addr">{row.address || '-'}</div>
 
@@ -67,6 +71,19 @@ export default function ResultCard({
         <div className="actions">
           <button type="button" className="ghost" onClick={onTogglePreview}>
             {previewState?.open ? 'ซ่อน' : 'พรีวิว'}
+          </button>
+          <button type="button" className="ghost" disabled={formBusy} onClick={onOpenForm}>
+            {formBusy ? 'กำลังเปิด…' : 'กรอกฟอร์ม'}
+          </button>
+          {/* Cart-style: one tap files this shop into the working plan right
+              away — no separate tick-then-confirm step. */}
+          <button
+            type="button"
+            className="ghost"
+            disabled={planStatus === 'busy' || planStatus === 'added'}
+            onClick={onAddToPlan}
+          >
+            {PLAN_LABEL[planStatus]}
           </button>
           {row.detailUrl && (
             <a

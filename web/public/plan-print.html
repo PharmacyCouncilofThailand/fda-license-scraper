@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <title>แผนการตรวจ</title>
+    <style>
+      /* Landscape A4 with the office's usual 1.5cm margins. Chromium reads
+         this rule, not page.pdf()'s margin option — the same finding that
+         form.html records. */
+      @page { size: A4 landscape; margin: 15mm; }
+      body {
+        margin: 0;
+        background: #fff;
+        font-family: 'TH SarabunPSK', 'Sarabun', sans-serif;
+        font-size: 14pt;
+        color: #000;
+      }
+      h1 { font-size: 18pt; text-align: center; margin: 0 0 4pt; }
+      .date { text-align: center; margin: 0 0 10pt; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td {
+        border: 1px solid #000;
+        padding: 3pt 5pt;
+        vertical-align: top;
+        text-align: left;
+      }
+      th { text-align: center; }
+      /* Repeat the heading on every printed page and never split a shop's row. */
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; }
+      .num { width: 5%; text-align: center; }
+      .place { width: 22%; }
+      .licence { width: 11%; }
+      .address { width: 24%; }
+      .holder { width: 16%; }
+      .pharmacists { width: 22%; }
+      .line { display: block; }
+    </style>
+  </head>
+  <body>
+    <h1 id="title"></h1>
+    <p class="date" id="date"></p>
+    <table>
+      <thead>
+        <tr>
+          <th class="num">ลำดับที่</th>
+          <th class="place">ชื่อสถานที่</th>
+          <th class="licence">ประเภทใบอนุญาต</th>
+          <th class="address">สถานที่ตั้ง</th>
+          <th class="holder">ผู้รับอนุญาต</th>
+          <th class="pharmacists">ผู้มีหน้าที่ปฏิบัติการ</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <script>
+      const THAI_MONTHS = [
+        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+      ];
+
+      function thaiDate(date) {
+        const [year, month, day] = String(date || '').split('-');
+        const name = THAI_MONTHS[Number(month) - 1];
+        return name ? `${Number(day)} ${name} ${year}` : String(date || '');
+      }
+
+      function degrees(value, positive, negative) {
+        if (value == null || Number.isNaN(Number(value))) return '';
+        const abs = Math.abs(Number(value));
+        const d = Math.floor(abs);
+        const m = Math.floor((abs - d) * 60);
+        const s = ((abs - d) * 60 - m) * 60;
+        return `${d}°${String(m).padStart(2, '0')}'${s.toFixed(1)}"${
+          value >= 0 ? positive : negative
+        }`;
+      }
+
+      function lines(parent, values) {
+        for (const value of values) {
+          if (!value) continue;
+          const span = document.createElement('span');
+          span.className = 'line';
+          // textContent, never innerHTML: shop names carry quotes and angle
+          // brackets straight from the FDA's data.
+          span.textContent = value;
+          parent.append(span);
+        }
+      }
+
+      window.applyPlan = function applyPlan(plan) {
+        document.getElementById('title').textContent = plan.title || '';
+        document.getElementById('date').textContent = `วันที่ ${thaiDate(plan.date)}`;
+        const body = document.getElementById('rows');
+        body.textContent = '';
+        for (const item of plan.items || []) {
+          const tr = document.createElement('tr');
+          const cells = ['num', 'place', 'licence', 'address', 'holder', 'pharmacists'].map(
+            (name) => {
+              const td = document.createElement('td');
+              td.className = name;
+              tr.append(td);
+              return td;
+            }
+          );
+          cells[0].textContent = item.order;
+          const coords =
+            item.lat == null || item.lng == null
+              ? ''
+              : `${degrees(item.lat, 'N', 'S')} ${degrees(item.lng, 'E', 'W')}`;
+          lines(cells[1], [
+            item.placeName,
+            item.openHours ? `เวลาทำการ ${item.openHours}` : '',
+            coords,
+          ]);
+          lines(cells[2], [item.licenseType, item.licenseNo]);
+          lines(cells[3], [item.address]);
+          lines(cells[4], [item.licenseeName]);
+          const people = item.pharmacists || [];
+          const out = [];
+          people.forEach((person, i) => {
+            out.push(people.length > 1 ? `คนที่ ${i + 1} : ${person.name}` : person.name);
+            out.push(person.licenceNo ? `ภ. ${person.licenceNo}` : 'ภ.');
+          });
+          lines(cells[5], out);
+          body.append(tr);
+        }
+      };
+    </script>
+  </body>
+</html>

@@ -4,7 +4,9 @@
  */
 
 /* Page-specific only — palette, glass and controls live in theme.css. */
-.wrap { max-width: 980px; margin: 0 auto; }
+/* Room at the foot of the page so the floating plan cart never sits over the
+   last row or button of a step. */
+.wrap { max-width: 980px; margin: 0 auto; padding-bottom: 88px; }
 h1 { font-size: 24px; font-weight: 500; margin: 0 0 4px; }
 .sub { color: var(--muted-foreground); font-size: 14px; margin: 0 0 20px; }
 
@@ -83,7 +85,7 @@ li.selected {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent),
     var(--glass-shadow);
 }
-.card-head { display: flex; align-items: flex-start; gap: 11px; }
+.card-head { display: flex; align-items: flex-start; gap: 11px; cursor: pointer; }
 .card-head input[type="radio"] {
   margin: 3px 0 0;
   width: 18px;
@@ -94,43 +96,6 @@ li.selected {
 }
 .name { font-weight: 500; font-size: 16px; }
 
-/* The chosen shop, kept in view while the officer scrolls the results. */
-/* The bar rides over the results it is anchored above, so unlike every
-   other panel it is opaque — a translucent one let the card behind it show
-   through and the officer lost track of which shop was chosen. */
-.pickbar {
-  position: sticky;
-  bottom: 16px;
-  z-index: 20;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 15px 18px;
-  border-radius: 1rem;
-  font-size: 14px;
-  background: var(--card);
-  border: 1.5px solid var(--primary);
-  box-shadow:
-    0 0 0 4px rgba(115, 115, 0, .10),
-    0 18px 44px -12px rgba(15, 23, 42, .30);
-}
-/* a spine in the org colour, so the bar reads as one object at a glance */
-.pickbar::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 12px;
-  bottom: 12px;
-  width: 4px;
-  border-radius: 0 4px 4px 0;
-  background: var(--primary);
-}
-.pickbar .who { min-width: 0; }
-.pickbar .who b { font-weight: 600; display: block; font-size: 15px; }
-.pickbar .who small { color: var(--muted-foreground); }
-.pickbar .primary { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
 .addr { color: var(--muted-foreground); font-size: 14px; margin: 6px 0 12px; }
 .meta {
   display: flex;
@@ -473,13 +438,6 @@ a.detail:hover { text-decoration: underline; }
   to   { grid-template-rows: 1fr; opacity: 1; }
 }
 
-/* the bar arrives because a shop was picked */
-@keyframes pickbar-in {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
-}
-.pickbar { animation: pickbar-in .26s cubic-bezier(.2, .8, .3, 1) both; }
-
 /* the summary bar replacing the preloader */
 .toolbar { animation: rise-in .3s ease both; }
 
@@ -488,9 +446,281 @@ a.detail:hover { text-decoration: underline; }
   .wrap > .sub,
   .wrap > form,
   .toolbar,
-  .pickbar,
   .preview-reveal { animation: none; }
   #root ul li,
   #root ul li .card-head input[type="radio"] { transition: none; }
   #root ul li:hover { transform: none; box-shadow: var(--glass-shadow); }
+}
+
+/* --- แผนการตรวจ --------------------------------------------------------- */
+.plan-view { display: block; }
+.plan-select {
+  min-height: 40px;
+  min-width: 220px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  cursor: pointer;
+}
+/* The plan header is a card, and its actions are boxed into groups so exports,
+   trip-ordering and delete read as distinct parts, not one crowded row. */
+.plan-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  padding: 14px 16px; margin-bottom: 14px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
+}
+.plan-head h1 { margin: 0; font-size: 1.4rem; }
+.plan-head-info .sub { margin: 2px 0 0; }
+.plan-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* The table is six columns of Thai prose — let it scroll rather than squeeze
+   the page into a horizontal scrollbar of its own. */
+.plan-table-wrap { overflow-x: auto; }
+.plan-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.plan-table th, .plan-table td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  vertical-align: top;
+  text-align: left;
+}
+.plan-table td.num, .plan-table th:first-child { text-align: center; }
+.plan-table tr.done { opacity: .55; }
+.plan-table .coords { color: var(--muted-foreground); font-size: 12px; }
+.plan-table .person + .person { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+.plan-table .licence { color: var(--muted-foreground); }
+.plan-table .hours { color: var(--muted-foreground); font-size: 12px; }
+.plan-table .hours.differ { color: var(--danger-fg); font-weight: 600; }
+.plan-table .hours-differ { color: var(--danger-fg); font-size: 12px; margin-bottom: 4px; }
+.plan-table .actions { white-space: nowrap; }
+.plan-table .actions label { display: flex; align-items: center; gap: 4px; }
+/* A licence the register could not settle is not an error — it is a decision
+   waiting for an officer, so it reads as a prompt, not a failure. */
+.licence-pick, .licence-missing {
+  margin-top: 2px;
+  padding: 2px 6px;
+  border: 1px solid var(--warning-line);
+  border-radius: 6px;
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+button.link {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+button.link.danger { color: var(--danger-fg); }
+
+/* --- บันทึกการตรวจหน้างาน ------------------------------------------------ */
+/* Sized for a thumb on an iPad held in one hand at a shop counter: nothing
+   tappable is under 44px, and the two things that move — the save state and
+   the step buttons — never scroll out of reach. */
+.record-form { display: flex; flex-direction: column; gap: 12px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+.record-head { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 2;
+  background: var(--background); padding: 8px 0; }
+.record-head b { flex: 1; }
+.save-state { min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--secondary); font: inherit; cursor: pointer; }
+.save-state.saved { color: var(--success-fg); background: var(--success-bg); border-color: transparent; }
+.save-state.failed, .save-state.idle { color: var(--warning-fg); background: var(--warning-bg);
+  border-color: var(--warning-line); }
+.record-steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.record-steps button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--background); font: inherit; cursor: pointer; }
+.record-steps button.on { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+.record-step-title { margin-left: 8px; color: var(--muted-foreground); }
+.record-step { display: flex; flex-direction: column; gap: 14px; }
+.record-field { display: flex; flex-direction: column; gap: 4px; }
+.record-field span { color: var(--muted-foreground); font-size: 14px; }
+.record-field input, .record-field textarea {
+  min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--background); color: var(--foreground); font: inherit;
+}
+.record-checks { border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin: 0; }
+.record-checks legend { padding: 0 6px; color: var(--muted-foreground); font-size: 14px; }
+.check-option { display: block; width: 100%; min-height: 44px; margin-top: 6px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--background);
+  color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
+.check-option.on { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+.record-export { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.record-export button { min-height: 44px; padding: 0 16px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--background); font: inherit; cursor: pointer; }
+.record-nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--background);
+  border-top: 1px solid var(--border); }
+.record-nav button { flex: 1; min-height: 48px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--background); font: inherit; cursor: pointer; }
+.record-nav button:disabled { opacity: .45; }
+.photo-add { display: block; }
+.photo-add input { display: none; }
+.photo-add span { display: block; min-height: 48px; line-height: 48px; text-align: center;
+  border: 1px dashed var(--border); border-radius: 12px; cursor: pointer; }
+.photo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.photo-item { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.photo-item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; }
+.photo-loading { aspect-ratio: 4 / 3; display: grid; place-items: center;
+  background: var(--secondary); border-radius: 10px; color: var(--muted-foreground); }
+.photo-item input[type="text"] { min-height: 44px; padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--background); color: var(--foreground); font: inherit; }
+.photo-inpdf { display: flex; align-items: center; gap: 6px; }
+
+.signature-slot { display: flex; flex-direction: column; gap: 6px; padding: 10px;
+  border: 1px solid var(--border); border-radius: 12px; }
+.signature-slot > span { color: var(--muted-foreground); font-size: 14px; }
+.signature-preview { height: 56px; object-fit: contain; object-position: left bottom;
+  border-bottom: 1px solid var(--foreground); }
+.signature-empty { min-height: 56px; display: grid; place-items: center;
+  color: var(--muted-foreground); border-bottom: 1px dashed var(--border); }
+.signature-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.signature-actions button { min-height: 44px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--background); font: inherit; cursor: pointer; }
+/* Full-screen: a signature drawn in a thumbnail-sized box does not look like
+   the person's own. */
+.signature-sheet { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
+  gap: 10px; padding: 16px; background: var(--background); }
+.signature-canvas { flex: 1; width: 100%; border: 1px solid var(--border); border-radius: 12px;
+  background: #fff; touch-action: none; }
+
+/* Six columns of Thai prose do not fit a phone. Under 700px each row becomes
+   a card with the column name in front of each value — the same data, read
+   down instead of across. */
+@media (max-width: 700px) {
+  .plan-table thead { display: none; }
+  .plan-table, .plan-table tbody, .plan-table tr, .plan-table td { display: block; width: 100%; }
+  .plan-table tr { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; padding: 8px; }
+  .plan-table td { border: 0; padding: 4px 0; }
+  .plan-table td::before { content: attr(data-label); display: block; color: var(--muted-foreground);
+    font-size: 12px; }
+  .plan-table td.num { text-align: left; font-weight: 700; }
+  .plan-table .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .plan-table .actions button, .plan-table .actions label { min-height: 44px; }
+}
+
+/* --- Wizard shell: the plan cart, step tabs, inspection list ------------- */
+/* The active plan rides in a cart floating at the bottom-right corner rather
+   than a strip across the top — always in reach, never in the way of the
+   page's own heading. */
+.plan-cart {
+  position: fixed; right: 20px; bottom: 20px; z-index: 40;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--primary); color: var(--primary-foreground);
+  padding: 10px 14px; border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(46, 46, 0, .28);
+}
+.plan-cart-icon { position: relative; display: inline-flex; }
+.plan-cart-sheet { display: block; }
+/* The shop count as a cart badge on the sheet icon. */
+.plan-cart-count {
+  position: absolute; top: -6px; right: -8px;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  display: grid; place-items: center;
+  background: #fff; color: var(--olive-700);
+  font-size: 11px; font-weight: 700; line-height: 1; border-radius: 999px;
+}
+.plan-cart-pick { display: flex; align-items: center; }
+.planbar-lbl { opacity: .85; font-size: 13px; margin-right: 6px; }
+.plan-cart .plan-select {
+  min-width: 200px;
+  background: rgba(255,255,255,.16); color: #fff; border: 0;
+  padding: 6px 10px; border-radius: .6rem;
+}
+.plan-cart .plan-select option { color: #111827; }
+.planbar-new {
+  background: #fff; color: var(--olive-700); border: 0;
+  padding: 6px 12px; border-radius: .6rem; font-weight: 500; cursor: pointer;
+  white-space: nowrap;
+}
+.planbar-new:disabled { opacity: .6; cursor: default; }
+
+/* Step nav lives in the sidebar as buttons (see Sidebar.jsx). The base
+   .app-sidebar nav rules in theme.css style <a>; buttons need the reset plus
+   the same look, so they are spelled out here. */
+.app-sidebar nav button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 12px; border: 0; border-radius: .75rem;
+  background: transparent; color: inherit; font: inherit; font-size: 14px;
+  text-align: left; cursor: pointer;
+  transition: background .16s ease, color .16s ease, padding-left .16s ease;
+}
+.app-sidebar nav button:hover { background: var(--sidebar-accent); padding-left: 15px; }
+.app-sidebar nav button[aria-current="page"] {
+  background: color-mix(in srgb, var(--sidebar-primary) 12%, transparent);
+  color: var(--sidebar-primary); font-weight: 500;
+}
+.app-sidebar nav button .dot {
+  margin-left: auto; width: 6px; height: 6px; border-radius: 999px;
+  background: var(--sidebar-primary); opacity: 0;
+  transition: opacity .2s ease, transform .2s ease; transform: scale(.4);
+}
+.app-sidebar nav button[aria-current="page"] .dot { opacity: 1; transform: scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar nav button { transition: none; }
+  .app-sidebar nav button:hover { padding-left: 12px; }
+  .app-sidebar nav button .dot { transition: none; transform: scale(1); }
+}
+
+/* The form step embeds the original record sheet (form.html) full-width. */
+.form-frame {
+  width: 100%; height: calc(100dvh - 170px); min-height: 560px;
+  border: 1px solid var(--border); border-radius: 1rem; background: #fff;
+}
+
+/* Pick the inspection date from the native calendar. */
+.plan-date { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: var(--muted-foreground); }
+.plan-date input { color: var(--foreground); }
+.plan-date-be { color: var(--muted-foreground); font-size: 13px; }
+
+/* The map step: the day's stops and one button into Google Maps. */
+.plan-route-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.route-map {
+  width: 100%; height: 380px; margin-bottom: 14px;
+  border: 1px solid var(--border); border-radius: 1rem; background: #fff;
+}
+.route-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.route-list li {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 14px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 1rem;
+}
+.route-list .route-origin { background: var(--olive-50); }
+.route-pin {
+  display: grid; place-items: center; min-width: 34px; height: 26px; padding: 0 6px;
+  border-radius: 999px; background: var(--olive-100); color: var(--olive-700);
+  font-size: 13px; font-weight: 600;
+}
+.route-note { color: var(--warning-fg); font-size: 12px; }
+.route-leg {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-width: 74px; padding: 2px 8px; border-radius: 999px;
+  background: var(--olive-50); color: var(--olive-700);
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.route-total {
+  margin-top: 12px; padding: 10px 14px; border-radius: 1rem;
+  background: var(--olive-50); color: var(--olive-700); font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  /* On a phone the cart spans the width along the bottom so its dropdown and
+     button stay tappable instead of spilling off the right edge. */
+  .plan-cart {
+    left: 12px; right: 12px; bottom: 12px;
+    border-radius: 1rem; gap: 8px; padding: 8px 10px;
+  }
+  .plan-cart-pick { flex: 1; min-width: 0; }
+  .plan-cart .plan-select { min-width: 0; width: 100%; padding: 6px 8px; }
+  .planbar-lbl { display: none; }
+  .planbar-new { padding: 6px 8px; }
 }

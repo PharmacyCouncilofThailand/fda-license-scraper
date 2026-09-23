@@ -277,8 +277,18 @@ const pxToMm = (px) => px / 96 * 25.4;
         return total + groups;
       }, 0);
 
+    // Item (9)'s extra writing lines beyond what the Word template holds — a
+    // browser will not wrap one input across lines, so they are separate blanks
+    // on screen that fold back into `behaviour1` for the download (see
+    // CONTINUATIONS in src/docx-form.js). They are screen/PDF-only, so they do
+    // not count toward Word parity.
+    const SCREEN_ONLY_BLANKS = new Set(['behaviour3', 'behaviour4', 'behaviour5']);
     const haveBlanks = await page.evaluate(
-      () => document.querySelectorAll('.sheet .blank').length
+      (skip) =>
+        [...document.querySelectorAll('.sheet .blank')].filter(
+          (node) => !skip.includes(node.name)
+        ).length,
+      [...SCREEN_ONLY_BLANKS]
     );
     assert.strictEqual(
       haveBlanks,
@@ -472,6 +482,102 @@ const pxToMm = (px) => px / 96 * 25.4;
     assert.deepStrictEqual(moved, [], `พิมพ์แล้วบรรทัดขยับ: ${moved.join(', ')}`);
 
     console.log('ok — พิมพ์ลงช่องกรอกแล้วไม่มีบรรทัดใดขยับ');
+
+    // --- signatures and the appendix may not move the record ---------------
+    // The wizard draws signatures over the rules and appends a photo sheet.
+    // Both are additions to a page whose every line is on Word's own grid, so
+    // the test is not that they look right — it is that nothing else moved.
+    //
+    // layoutBlanks() is NOT idempotent on its first repeat: a second
+    // applyData(FIXTURE) call (the harness's setup already made the first, at
+    // line ~154) drifts two fields (buyRequest, dutyNote) even with no
+    // signatures involved — pre-existing, tracked separately. It DOES settle
+    // after that: a third call with the identical payload lands in the same
+    // place as the second. So this block first proves that settling — a
+    // third applyData(FIXTURE) must reproduce the second call's snapshot
+    // exactly — and only then applies the signatures and checks against that
+    // settled baseline. If this ever fails, the convergence assertion below
+    // tells you whether the drift is the pre-existing layout bug or an
+    // actual signature-placement regression, instead of leaving that to be
+    // rediscovered by hand.
+    const beforeSign = await page.evaluate((filled) => {
+      window.applyData(filled);
+      return [...document.querySelectorAll('.para, .blank, .tab, .rule')].map((el) => {
+        const box = el.getBoundingClientRect();
+        return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+      });
+    }, FIXTURE);
+
+    const settled = await page.evaluate((filled) => {
+      window.applyData(filled);
+      return [...document.querySelectorAll('.para, .blank, .tab, .rule')].map((el) => {
+        const box = el.getBoundingClientRect();
+        return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+      });
+    }, FIXTURE);
+
+    assert.deepStrictEqual(settled, beforeSign, 'หน้ากระดาษยังไม่นิ่งหลังเรียก applyData ซ้ำ (layoutBlanks ไม่ลู่เข้า)');
+
+    const signature =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    const afterSign = await page.evaluate((filled, png) => {
+      window.applyData({
+        ...filled,
+        signatures: {
+          page1: png, duty: png, licensee: png,
+          officer1: png, officer2: png, officer3: png, officer4: png, officer5: png,
+        },
+      });
+      return [...document.querySelectorAll('.para, .blank, .tab, .rule')].map((el) => {
+        const box = el.getBoundingClientRect();
+        return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+      });
+    }, FIXTURE, signature);
+
+    assert.deepStrictEqual(afterSign, beforeSign, 'ลายเซ็นทำให้บรรทัดในกระดาษขยับ');
+
+    const drawn = await page.evaluate(() => document.querySelectorAll('.rule > .signature').length);
+    assert.strictEqual(drawn, 8, `วางลายเซ็นได้ ${drawn} จุด ควรเป็น 8 จุด`);
+
+    console.log('ok — ลายเซ็นบนจอวางลงกระดาษได้ครบ 8 จุด โดยไม่มีบรรทัดใดขยับ');
+
+    // A record with no photos is the two-sheet record the office has always
+    // issued; four photos add one sheet and still move nothing on the first two.
+    // Read before applyData({ ...FIXTURE, photos }) runs below, so this is
+    // the settled two-call state (beforeSign/afterSign), untouched by the
+    // photos call and by the empty-checks drift that call would otherwise
+    // reintroduce — safe regardless of what the photos call does next.
+    const sheetsWithout = await page.evaluate(
+      () => [...document.querySelectorAll('.sheet')].filter((s) => !s.hidden).length
+    );
+    assert.strictEqual(sheetsWithout, 2, 'ไม่มีรูป กระดาษต้องมีสองแผ่น');
+
+    const dot =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    // Spread FIXTURE (same payload the baseline/signature calls used) so the
+    // only thing this varies versus beforeSign is photos — an empty
+    // { values: {}, checks: {} } would also clear every checkbox and blame
+    // the resulting reflow on the appendix instead.
+    const afterPhotos = await page.evaluate((filled, png) => {
+      window.applyData({
+        ...filled,
+        photos: [1, 2, 3, 4].map((n) => ({ src: png, caption: `ชั้นวางยาที่ ${n}` })),
+      });
+      return {
+        sheets: [...document.querySelectorAll('.sheet')].filter((s) => !s.hidden).length,
+        cells: document.querySelectorAll('.photo-cell').length,
+        boxes: [...document.querySelectorAll('.para, .blank, .tab, .rule')].map((el) => {
+          const box = el.getBoundingClientRect();
+          return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+        }),
+      };
+    }, FIXTURE, dot);
+
+    assert.strictEqual(afterPhotos.sheets, 3, 'มีรูปแล้วต้องมีแผ่นภาคผนวกเพิ่มมา');
+    assert.strictEqual(afterPhotos.cells, 4, 'จำนวนรูปในภาคผนวกไม่ตรง');
+    assert.deepStrictEqual(afterPhotos.boxes, beforeSign, 'ภาคผนวกทำให้บรรทัดในกระดาษขยับ');
+
+    console.log('ok — ภาคผนวกภาพถ่ายเพิ่มแผ่นที่สามโดยไม่แตะสองแผ่นแรก');
 
     // --- page height ------------------------------------------------------
     // fitSheet()/shrinkToFit() are gone; nothing may silently reintroduce a
