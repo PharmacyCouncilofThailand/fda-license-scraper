@@ -434,7 +434,7 @@ app.post('/api/form/docx', async (req, res, next) => {
 /**
  * GET /api/pharmacist?firstName=สมชาย&lastName=ใจดี
  * The pharmacist's ภ. licence number, from the Pharmacy Council register.
- * At least one of the two is required.
+ * Both are required — the council's form no longer searches one alone.
  */
 app.get('/api/pharmacist', async (req, res, next) => {
   try {

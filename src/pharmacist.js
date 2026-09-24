@@ -8,11 +8,10 @@
  * So this module posts the same form and reads the one table in that page
  * carrying `bordercolor="#66CC66"`.
  *
- * Two things about the upstream shape the design here. It matches exactly —
- * "สมชา" does not find "สมชาย" — so there is no point searching while the
- * user is still typing. And it searches one field at a time, first name or
- * surname, never both, so a search with both filled is two requests whose
- * results are intersected here.
+ * The upstream matches exactly — "สมชา" does not find "สมชาย" — so there is
+ * no point searching while the user is still typing. Since 2026-09 the form
+ * also only searches first name and surname together (mode 5, both required);
+ * the old one-field modes 2 and 3 now answer an empty table.
  */
 
 const config = require('./config');
@@ -120,20 +119,23 @@ function parseResultTable(html) {
   return rows.sort((a, b) => Number(a.licenseNo) - Number(b.licenseNo));
 }
 
-/** Search modes the council's form understands. We never use 1 (licence no). */
-const BY_FIRST_NAME = '2';
-const BY_LAST_NAME = '3';
+/** Search mode for first name + surname. 1 is by licence no, unused here. */
+const BY_FULL_NAME = '5';
 
 /**
- * One upstream search: one field, one exact term, rows back.
+ * One upstream search: both names, exact, rows back.
  *
  * Reading the body is inside the same guard as the request itself: the council
  * site can answer its headers and then stall, and the timeout that fires then
  * lands on `text()`, not on `fetch()`. Left outside, it escaped as a bare
  * TimeoutError and the API reported the council's outage as our own 500.
  */
-async function fetchByField(type, term) {
-  const body = new URLSearchParams({ txtfind_type: type, txtfind_id: term });
+async function fetchByName(firstName, lastName) {
+  const body = new URLSearchParams({
+    txtfind_type: BY_FULL_NAME,
+    txtfind_name: firstName,
+    txtfind_surname: lastName,
+  });
   let html;
   try {
     const response = await fetch(config.pharmacistSearchUrl, {
@@ -203,52 +205,26 @@ function pharmacistCacheStats() {
 }
 
 /**
- * Search by first name, surname, or both.
- *
- * With both filled the two searches are intersected: a row found by both is
- * the person being looked for, and the two leftover groups are what saves a
- * search when one of the two fields is misspelt — which is easy to do against
- * an upstream that matches exactly.
+ * Search by first name and surname — the council's form requires both.
+ * The `firstName`/`lastName` groups stay in the response, always empty, so it
+ * keeps the shape the UI reads.
  */
 async function searchPharmacists({ firstName, lastName } = {}) {
   const first = String(firstName || '').trim();
   const last = String(lastName || '').trim();
-  if (!first && !last) {
-    throw new ScrapeError('กรุณาระบุชื่อหรือนามสกุล', 400, 'MISSING_QUERY');
+  if (!first || !last) {
+    throw new ScrapeError('กรุณาระบุทั้งชื่อและนามสกุล', 400, 'MISSING_QUERY');
   }
 
   const key = cacheKey(first, last);
   const hit = getCached(key);
   if (hit) return { ...hit, cached: true };
 
-  const [firstRows, lastRows] = await Promise.all([
-    first ? fetchByField(BY_FIRST_NAME, first) : Promise.resolve([]),
-    last ? fetchByField(BY_LAST_NAME, last) : Promise.resolve([]),
-  ]);
-
-  const lastByLicence = new Set(lastRows.map((r) => r.licenseNo));
-  const bothRows = first && last ? firstRows.filter((r) => lastByLicence.has(r.licenseNo)) : [];
-  const bothByLicence = new Set(bothRows.map((r) => r.licenseNo));
-
-  const groups = {
-    both: bothRows,
-    firstName: firstRows.filter((r) => !bothByLicence.has(r.licenseNo)),
-    lastName: lastRows.filter((r) => !bothByLicence.has(r.licenseNo)),
-  };
-  const counts = {
-    both: groups.both.length,
-    firstName: groups.firstName.length,
-    lastName: groups.lastName.length,
-  };
-
+  const rows = await fetchByName(first, last);
   const result = {
     query: { firstName: first, lastName: last },
-    counts,
-    groups: {
-      both: groups.both.slice(0, MAX_ROWS_PER_GROUP),
-      firstName: groups.firstName.slice(0, MAX_ROWS_PER_GROUP),
-      lastName: groups.lastName.slice(0, MAX_ROWS_PER_GROUP),
-    },
+    counts: { both: rows.length, firstName: 0, lastName: 0 },
+    groups: { both: rows.slice(0, MAX_ROWS_PER_GROUP), firstName: [], lastName: [] },
   };
   setCached(key, result);
   return { ...result, cached: false };

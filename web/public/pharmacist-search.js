@@ -140,8 +140,7 @@
       this.last.placeholder = 'นามสกุล';
       this.last.autocomplete = 'off';
 
-      // Either field alone is a valid search, so both sit on one line and the
-      // button below spans them — nothing suggests one is the required one.
+      // The council needs both names, so they sit on one line as one query.
       const fields = el('div', 'ps-fields');
       fields.append(this.first, this.last);
 
@@ -198,8 +197,8 @@
     async search() {
       const firstName = this.first.value.trim();
       const lastName = this.last.value.trim();
-      if (!firstName && !lastName) {
-        this.say('กรุณากรอกชื่อหรือนามสกุลอย่างน้อยหนึ่งช่อง', 'ps-error');
+      if (!firstName || !lastName) {
+        this.say('กรุณากรอกทั้งชื่อและนามสกุล', 'ps-error');
         return;
       }
 
@@ -280,7 +279,7 @@
 
       this.output.innerHTML = '';
       // One filled group means one search term: no point labelling it.
-      const single = filled.length === 1 && !(data.query.firstName && data.query.lastName);
+      const single = filled.length === 1;
       if (single) {
         this.output.append(el('p', 'ps-note', `พบ ${data.counts[filled[0]]} รายชื่อ`));
       }
@@ -304,7 +303,7 @@
           el(
             'p',
             'ps-note',
-            `แสดง ${rows.length} จาก ${total} รายการ — ระบุอีกช่องเพื่อจำกัดผล`
+            `แสดง ${rows.length} จาก ${total} รายการ`
           )
         );
       }
