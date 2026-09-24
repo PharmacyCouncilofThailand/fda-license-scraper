@@ -18,6 +18,8 @@ const HANDOFF_KEY = 'fda:form:pending';
 // today, every further "+ ใส่แผน" tap goes to that same plan, cart-style,
 // until they switch it from the bar — no re-picking a plan every time.
 const ACTIVE_PLAN_KEY = 'fda:plan:active';
+// Wizard steps 1–4 by hash. Search is plain '#/' so old links still land there.
+const STEP_HASHES = ['#/', '#/plan', '#/map', '#/form'];
 
 export default function App() {
   const [areas, setAreas] = useState({});
@@ -50,9 +52,6 @@ export default function App() {
   queryRef.current = query;
 
   const [booting, setBooting] = useState(true);
-  // Which wizard step body is showing: 1 search, 2 plan, 3 inspect.
-  const [step, setStep] = useState(1);
-
   // Two screens is not a router's worth of dependency; the hash is enough.
   const [route, setRoute] = useState(() => window.location.hash || '#/');
   useEffect(() => {
@@ -60,6 +59,14 @@ export default function App() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  // Which wizard step body is showing: 1 search, 2 plan, 3 map, 4 form. Kept
+  // in the hash so the browser's back button and a reload return to the step
+  // the officer was on instead of dropping them back at search.
+  const step = Math.max(1, STEP_HASHES.indexOf(route) + 1);
+  const setStep = (n) => {
+    window.location.hash = STEP_HASHES[n - 1];
+  };
 
   useEffect(() => {
     fetchAreas()
@@ -175,8 +182,7 @@ export default function App() {
   // the plan", which is the จัดแผน step of the shell — not the old plans page.
   useEffect(() => {
     if (route === '#/plans') {
-      setStep(2);
-      window.location.hash = '#/';
+      window.location.replace(STEP_HASHES[1]);
     }
   }, [route]);
 
@@ -276,7 +282,7 @@ export default function App() {
     if (planId && encodedCode) {
       return (
         <>
-          <Sidebar onStep={(n) => { setStep(n); window.location.hash = '#/'; }} />
+          <Sidebar onStep={setStep} />
           <main className="app-main">
             <div className="wrap">
               <RecordForm planId={planId} newCode={decodeURIComponent(encodedCode)} />
