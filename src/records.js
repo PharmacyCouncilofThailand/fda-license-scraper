@@ -149,6 +149,7 @@ function blankRecord(planId, newCode, item) {
     checks: {},
     signatures: {},
     photos: [],
+    documents: [],
     fda,
     createdAt: null,
     updatedAt: null,
@@ -257,6 +258,33 @@ async function patchPhoto(planId, newCode, photoId, patch) {
   });
 }
 
+/* Scanned/photographed paper forms. Same lock and same own-route rule as
+   photos; the draft PUT never touches them because it spreads `base`. */
+function saveDocuments(planId, newCode, change) {
+  const id = recordId(planId, newCode);
+  return withLock(id, async () => {
+    const record = await readRecord(planId, newCode);
+    const documents = change(record.documents || []);
+    return store.save({ ...record, documents, createdAt: record.createdAt || new Date().toISOString() });
+  });
+}
+
+const addDocument = (planId, newCode, { id, type, name = '' }) =>
+  saveDocuments(planId, newCode, (docs) => [
+    ...docs,
+    { id, type, name: String(name), at: new Date().toISOString() },
+  ]);
+
+const removeDocument = (planId, newCode, docId) =>
+  saveDocuments(planId, newCode, (docs) => docs.filter((doc) => doc.id !== docId));
+
+const patchDocument = (planId, newCode, docId, patch) =>
+  saveDocuments(planId, newCode, (docs) =>
+    docs.map((doc) =>
+      doc.id === docId && patch.name !== undefined ? { ...doc, name: String(patch.name) } : doc
+    )
+  );
+
 module.exports = {
   SIGNATURE_SLOTS,
   safeEncodeCode,
@@ -267,4 +295,7 @@ module.exports = {
   addPhoto,
   removePhoto,
   patchPhoto,
+  addDocument,
+  removeDocument,
+  patchDocument,
 };

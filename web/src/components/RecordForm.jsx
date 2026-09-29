@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PhotoGrid from './PhotoGrid.jsx';
+import DocumentList from './DocumentList.jsx';
 import RecordStep from './RecordStep.jsx';
 import SignaturePad from './SignaturePad.jsx';
 import { STEPS } from '../lib/form-fields.js';
@@ -330,6 +331,18 @@ export default function RecordForm({ planId, newCode }) {
             // setSave: that pair means "there is a draft PUT waiting to go
             // out", and a photo edit never is one.
             setRecord((current) => ({ ...current, photos: next.photos, updatedAt: next.updatedAt }))
+          }
+        />
+      )}
+      {step === 5 && (
+        <DocumentList
+          planId={planId}
+          newCode={newCode}
+          record={record}
+          // Same contract as the photo routes: already saved, only the list
+          // and the version marker change.
+          onRecord={(next) =>
+            setRecord((current) => ({ ...current, documents: next.documents, updatedAt: next.updatedAt }))
           }
         />
       )}

@@ -572,6 +572,14 @@ button.link.danger { color: var(--danger-fg); }
 .photo-item input[type="text"] { min-height: 44px; padding: 6px 10px; border: 1px solid var(--border);
   border-radius: 10px; background: var(--background); color: var(--foreground); font: inherit; }
 .photo-inpdf { display: flex; align-items: center; gap: 6px; }
+.doc-title { margin: 20px 0 0; font-size: 18px; }
+.doc-hint { margin: 0; color: var(--muted-foreground); font-size: 14px; }
+.doc-open { padding: 0; border: 0; background: none; cursor: pointer; }
+.doc-open img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px;
+  border: 1px solid var(--border); display: block; }
+.doc-pdf { aspect-ratio: 3 / 4; display: grid; place-items: center; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--olive-50); color: var(--olive-700);
+  font-weight: 700; font-size: 22px; }
 
 .signature-slot { display: flex; flex-direction: column; gap: 6px; padding: 10px;
   border: 1px solid var(--border); border-radius: 12px; }
@@ -707,6 +715,29 @@ button.link.danger { color: var(--danger-fg); }
   background: var(--olive-50); color: var(--olive-700);
   font-size: 12px; font-weight: 600; white-space: nowrap;
 }
+.route-list li.route-stop { align-items: flex-start; }
+.route-list li.dragging { opacity: .55; border-style: dashed; }
+.route-handle {
+  touch-action: none; cursor: grab; user-select: none;
+  min-width: 32px; min-height: 44px; display: grid; place-items: center;
+  border: 0; background: none; color: var(--muted-foreground); font-size: 20px;
+}
+.route-body { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+.route-address { color: var(--muted-foreground); font-size: 14px; }
+.route-edited { color: var(--olive-700); font-size: 12px; }
+.route-actions { display: flex; gap: 6px; align-items: center; }
+.route-actions button {
+  min-width: 44px; min-height: 44px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--background); font: inherit; cursor: pointer;
+}
+.route-actions button:disabled { opacity: .4; cursor: default; }
+.route-edit { display: grid; gap: 8px; width: 100%; margin-top: 6px; }
+.route-edit label { display: grid; gap: 4px; font-size: 14px; color: var(--muted-foreground); }
+.route-edit textarea, .route-edit input {
+  min-height: 44px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--background); color: var(--foreground); font: inherit;
+}
+.route-edit-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .route-total {
   margin-top: 12px; padding: 10px 14px; border-radius: 1rem;
   background: var(--olive-50); color: var(--olive-700); font-weight: 600;

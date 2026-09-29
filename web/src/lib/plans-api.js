@@ -99,3 +99,16 @@ export async function downloadExport(id, kind) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+/** Run a plans call; on 401 ask for the office passcode once and retry. */
+export async function withPasscode(action) {
+  try {
+    return await action();
+  } catch (err) {
+    if (!(err instanceof PasscodeError)) throw err;
+    const entered = window.prompt('ใส่รหัสผ่านของสำนักงาน');
+    if (!entered) throw err;
+    setPasscode(entered);
+    return action();
+  }
+}

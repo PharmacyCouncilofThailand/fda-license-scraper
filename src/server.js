@@ -242,6 +242,69 @@ app.delete('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, r
   }
 });
 
+/* Scanned / photographed paper forms. Raw body like photos; the type is the
+   request's own Content-Type (JPEG or PDF only) and is remembered on the
+   record so the GET can answer with it. 4mb: Vercel refuses bodies over 4.5MB
+   before this code ever runs. */
+const docPath = '/api/plans/:id/items/:newCode/record/documents';
+
+app.post(
+  docPath,
+  express.raw({ type: Object.keys(photoStore.DOC_TYPES), limit: '4mb' }),
+  async (req, res, next) => {
+    try {
+      const type = String(req.headers['content-type'] || '').split(';')[0].trim();
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+        return res.status(400).json({ success: false, error: 'ไม่พบข้อมูลไฟล์' });
+      }
+      const { id } = await photoStore.putDoc(req.params.id, req.params.newCode, req.body, type);
+      const name = String(req.query.name || '').slice(0, 200);
+      const record = await records.addDocument(req.params.id, req.params.newCode, { id, type, name });
+      res.status(201).json({ success: true, id, record });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+async function findDoc(req) {
+  const record = await records.readRecord(req.params.id, req.params.newCode);
+  return (record.documents || []).find((doc) => doc.id === req.params.docId);
+}
+
+app.get(`${docPath}/:docId`, async (req, res, next) => {
+  try {
+    const doc = await findDoc(req);
+    const bytes = doc && (await photoStore.getDoc(req.params.id, req.params.newCode, doc.id, doc.type));
+    if (!bytes) return res.status(404).json({ success: false, error: 'ไม่พบเอกสารนี้' });
+    res.set({ 'Content-Type': doc.type, 'Cache-Control': 'private, max-age=3600' });
+    res.send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.patch(`${docPath}/:docId`, async (req, res, next) => {
+  try {
+    const record = await records.patchDocument(req.params.id, req.params.newCode, req.params.docId, req.body || {});
+    res.json({ success: true, record });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.delete(`${docPath}/:docId`, async (req, res, next) => {
+  try {
+    // Record first, bytes second — same reasoning as the photo delete.
+    const doc = await findDoc(req);
+    const record = await records.removeDocument(req.params.id, req.params.newCode, req.params.docId);
+    if (doc) await photoStore.delDoc(req.params.id, req.params.newCode, doc.id, doc.type);
+    res.json({ success: true, record });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Appendix photos are inlined as base64 data URLs into the page puppeteer
 // renders; past this many the page gets large and slow to print.
 const MAX_APPENDIX_PHOTOS = 20;

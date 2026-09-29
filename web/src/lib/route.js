@@ -128,3 +128,37 @@ export function googleMapsEmbedUrl(items, origin = PHARMACY_COUNCIL) {
   const daddr = stops.join(' to:');
   return `https://maps.google.com/maps?saddr=${encodeURIComponent(saddr)}&daddr=${encodeURIComponent(daddr)}&output=embed`;
 }
+
+/**
+ * A point from whatever the officer pastes: "13.84, 100.52", or a Google Maps
+ * link carrying `@lat,lng`, `q=`/`ll=`/`query=lat,lng` or `!3dlat!4dlng`.
+ * Returns `null` for an empty box (clear the point), `undefined` when the text
+ * holds no usable point — a `maps.app.goo.gl` short link among them, since
+ * following its redirect needs a server.
+ */
+export function parseLatLng(text) {
+  let s = String(text || '').trim();
+  try {
+    s = decodeURIComponent(s);
+  } catch {
+    // A stray "%" — read the text as typed.
+  }
+  if (!s) return null;
+  const patterns = [
+    /!3d(-?\d{1,3}(?:\.\d+)?)!4d(-?\d{1,3}(?:\.\d+)?)/,
+    /@(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/,
+    /[?&](?:q|ll|query|destination)=(-?\d{1,3}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)/,
+    /^(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)$/,
+  ];
+  for (const re of patterns) {
+    const m = re.exec(s);
+    if (!m) continue;
+    const lat = Number(m[1]);
+    const lng = Number(m[2]);
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng };
+  }
+  return undefined;
+}
+
+/** A short share link can't be read without following it. */
+export const isShortMapsLink = (text) => /maps\.app\.goo\.gl|goo\.gl\/maps/.test(String(text || ''));

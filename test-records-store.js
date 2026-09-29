@@ -271,6 +271,26 @@ const PLAN = {
   assert.strictEqual(starRead.values.inspectTime, '10.00');
   assert.strictEqual(starRead.updatedAt, starWritten.updatedAt);
 
+  // --- scanned documents ----------------------------------------------------
+  const pdf = Buffer.from('%PDF-1.4 fake');
+  const { id: docId } = await photos.putDoc('2569-08-27', 'A/1', pdf, 'application/pdf');
+  let withDoc = await records.addDocument('2569-08-27', 'A/1', { id: docId, type: 'application/pdf', name: 'หน้า 1' });
+  assert.deepStrictEqual(withDoc.documents.map((d) => [d.id, d.name, d.type]), [[docId, 'หน้า 1', 'application/pdf']]);
+  assert.deepStrictEqual(await photos.getDoc('2569-08-27', 'A/1', docId, 'application/pdf'), pdf);
+  // A document never answers as a photo, nor under the wrong type.
+  assert.strictEqual(await photos.getPhoto('2569-08-27', 'A/1', docId), null);
+  assert.strictEqual(await photos.getDoc('2569-08-27', 'A/1', docId, 'image/jpeg'), null);
+  await assert.rejects(() => photos.putDoc('2569-08-27', 'A/1', pdf, 'text/html'), /JPEG หรือ PDF/);
+  withDoc = await records.patchDocument('2569-08-27', 'A/1', docId, { name: 'บันทึกการตรวจ' });
+  assert.strictEqual(withDoc.documents[0].name, 'บันทึกการตรวจ');
+  // A draft write keeps documents it never mentions.
+  const afterDraft = await records.writeRecord('2569-08-27', 'A/1', { ...withDoc, documents: [] });
+  assert.strictEqual(afterDraft.documents.length, 1, 'บันทึกร่างต้องไม่ลบเอกสาร');
+  const noDoc = await records.removeDocument('2569-08-27', 'A/1', docId);
+  assert.deepStrictEqual(noDoc.documents, []);
+  assert.strictEqual(await photos.delDoc('2569-08-27', 'A/1', docId, 'application/pdf'), true);
+  assert.strictEqual(await photos.getDoc('2569-08-27', 'A/1', docId, 'application/pdf'), null);
+
   fs.rmSync(root, { recursive: true, force: true });
   console.log('ok — บันทึกการตรวจหน้างานเก็บ อ่าน และกันเขียนทับได้');
 })();
