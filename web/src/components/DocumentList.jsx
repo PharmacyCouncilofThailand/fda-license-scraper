@@ -98,6 +98,8 @@ export default function DocumentList({ planId, newCode, record, onRecord }) {
       const url = await documentObjectUrl(planId, newCode, doc.id);
       if (win) win.location.href = url;
       else window.location.href = url;
+      // The new tab has loaded it by then; free the bytes.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
       if (win) win.close();
       setError(err.message);

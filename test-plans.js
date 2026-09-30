@@ -165,6 +165,8 @@ const deps = {
   await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: 13.8 }), /ทั้งละติจูดและลองจิจูด/);
   await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: 95, lng: 100 }), /พิกัดไม่ถูกต้อง/);
   await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: 'x', lng: 100 }), /พิกัดไม่ถูกต้อง/);
+  await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: '', lng: '' }), /พิกัดไม่ถูกต้อง/);
+  await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: null, lng: 100 }), /พิกัดไม่ถูกต้อง/);
   const moved = await plans.patchItem(plan.id, 'A', { address: ' ซอยใหม่ 5 ', lat: '13.81', lng: 100.55 });
   const movedA = moved.items.find((i) => i.newCode === 'A');
   assert.deepStrictEqual([movedA.address, movedA.lat, movedA.lng, movedA.locationEdited], ['ซอยใหม่ 5', 13.81, 100.55, true]);

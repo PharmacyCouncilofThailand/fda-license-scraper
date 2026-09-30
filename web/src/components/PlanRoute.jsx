@@ -85,6 +85,11 @@ export default function PlanRoute({ planId }) {
     if (!planId) { setPlan(null); return undefined; }
     let live = true;
     setError('');
+    // Drop the old plan at once so nothing can reorder or edit it while the
+    // new one loads.
+    setPlan(null);
+    setItems([]);
+    setEditing(null);
     withPasscode(() => getPlan(planId))
       .then((p) => live && adopt(p))
       .catch((err) => live && setError(err.message));

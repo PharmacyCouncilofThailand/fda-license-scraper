@@ -247,19 +247,30 @@ app.delete('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, r
    record so the GET can answer with it. 4mb: Vercel refuses bodies over 4.5MB
    before this code ever runs. */
 const docPath = '/api/plans/:id/items/:newCode/record/documents';
+const docName = (value) => String(value ?? '').slice(0, 200);
 
 app.post(
   docPath,
   express.raw({ type: Object.keys(photoStore.DOC_TYPES), limit: '4mb' }),
   async (req, res, next) => {
     try {
-      const type = String(req.headers['content-type'] || '').split(';')[0].trim();
+      const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      if (!photoStore.DOC_TYPES[type]) {
+        return res.status(415).json({ success: false, error: 'รองรับเฉพาะไฟล์รูป JPEG หรือ PDF' });
+      }
       if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
         return res.status(400).json({ success: false, error: 'ไม่พบข้อมูลไฟล์' });
       }
       const { id } = await photoStore.putDoc(req.params.id, req.params.newCode, req.body, type);
-      const name = String(req.query.name || '').slice(0, 200);
-      const record = await records.addDocument(req.params.id, req.params.newCode, { id, type, name });
+      let record;
+      try {
+        record = await records.addDocument(req.params.id, req.params.newCode, { id, type, name: docName(req.query.name) });
+      } catch (err) {
+        // Nothing points at the bytes yet — take them back out rather than
+        // leave an orphan in the store.
+        await photoStore.delDoc(req.params.id, req.params.newCode, id, type).catch(() => {});
+        throw err;
+      }
       res.status(201).json({ success: true, id, record });
     } catch (err) {
       next(err);
@@ -277,7 +288,13 @@ app.get(`${docPath}/:docId`, async (req, res, next) => {
     const doc = await findDoc(req);
     const bytes = doc && (await photoStore.getDoc(req.params.id, req.params.newCode, doc.id, doc.type));
     if (!bytes) return res.status(404).json({ success: false, error: 'ไม่พบเอกสารนี้' });
-    res.set({ 'Content-Type': doc.type, 'Cache-Control': 'private, max-age=3600' });
+    // nosniff: the browser must take the stored type at its word, never
+    // guess its way from "image/jpeg" into running something as HTML.
+    res.set({
+      'Content-Type': doc.type,
+      'Cache-Control': 'private, max-age=3600',
+      'X-Content-Type-Options': 'nosniff',
+    });
     res.send(bytes);
   } catch (err) {
     next(err);
@@ -286,7 +303,13 @@ app.get(`${docPath}/:docId`, async (req, res, next) => {
 
 app.patch(`${docPath}/:docId`, async (req, res, next) => {
   try {
-    const record = await records.patchDocument(req.params.id, req.params.newCode, req.params.docId, req.body || {});
+    const patch = req.body || {};
+    const record = await records.patchDocument(
+      req.params.id,
+      req.params.newCode,
+      req.params.docId,
+      patch.name === undefined ? {} : { name: docName(patch.name) }
+    );
     res.json({ success: true, record });
   } catch (err) {
     next(err);

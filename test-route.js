@@ -20,6 +20,9 @@ const assert = require('assert');
     { lat: 13.8123, lng: 100.5456 }
   );
   assert.deepStrictEqual(parseLatLng('https://maps.google.com/?q=13.7,100.6'), { lat: 13.7, lng: 100.6 });
+  assert.deepStrictEqual(parseLatLng('https://maps.google.com/?q=13.7,+100.6'), { lat: 13.7, lng: 100.6 });
+  assert.deepStrictEqual(parseLatLng('https://maps.google.com/?q=13.7%2C100.6'), { lat: 13.7, lng: 100.6 });
+  assert.strictEqual(parseLatLng('50%'), undefined);
   assert.strictEqual(parseLatLng(''), null);
   assert.strictEqual(parseLatLng('   '), null);
   assert.strictEqual(parseLatLng('https://maps.app.goo.gl/abc123'), undefined);

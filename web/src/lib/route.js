@@ -137,7 +137,8 @@ export function googleMapsEmbedUrl(items, origin = PHARMACY_COUNCIL) {
  * following its redirect needs a server.
  */
 export function parseLatLng(text) {
-  let s = String(text || '').trim();
+  // A query string writes a space as "+", which decodeURIComponent leaves be.
+  let s = String(text || '').trim().replace(/\+/g, ' ');
   try {
     s = decodeURIComponent(s);
   } catch {

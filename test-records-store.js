@@ -281,6 +281,12 @@ const PLAN = {
   assert.strictEqual(await photos.getPhoto('2569-08-27', 'A/1', docId), null);
   assert.strictEqual(await photos.getDoc('2569-08-27', 'A/1', docId, 'image/jpeg'), null);
   await assert.rejects(() => photos.putDoc('2569-08-27', 'A/1', pdf, 'text/html'), /JPEG หรือ PDF/);
+  // The claimed type has to match the bytes: HTML dressed up as a JPEG is refused.
+  await assert.rejects(
+    () => photos.putDoc('2569-08-27', 'A/1', Buffer.from('<html><script>'), 'image/jpeg'),
+    /ไม่ตรงกับชนิดไฟล์/
+  );
+  await assert.rejects(() => photos.putDoc('2569-08-27', 'A/1', pdf, 'image/jpeg'), /ไม่ตรงกับชนิดไฟล์/);
   withDoc = await records.patchDocument('2569-08-27', 'A/1', docId, { name: 'บันทึกการตรวจ' });
   assert.strictEqual(withDoc.documents[0].name, 'บันทึกการตรวจ');
   // A draft write keeps documents it never mentions.

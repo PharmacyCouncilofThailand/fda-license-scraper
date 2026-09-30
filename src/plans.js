@@ -224,8 +224,11 @@ function applyLocationPatch(item, patch) {
     } else {
       const lat = Number(patch.lat);
       const lng = Number(patch.lng);
+      // Number('') and Number(null) are 0 — a point off the coast of Africa,
+      // not a missing one — so blanks are refused before they get that far.
+      const blank = (v) => v === null || String(v).trim() === '';
       const ok =
-        patch.lat !== null && patch.lng !== null &&
+        !blank(patch.lat) && !blank(patch.lng) &&
         Number.isFinite(lat) && Number.isFinite(lng) &&
         Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
       if (!ok) throw badRequest('พิกัดไม่ถูกต้อง');

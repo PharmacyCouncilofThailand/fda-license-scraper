@@ -179,8 +179,17 @@ function assertDocType(type) {
   return type;
 }
 
+// What the bytes must start with for each type — the Content-Type is only
+// the uploader's claim.
+const DOC_MAGIC = { 'image/jpeg': [0xff, 0xd8, 0xff], 'application/pdf': [0x25, 0x50, 0x44, 0x46] };
+
 async function putDoc(planId, newCode, buffer, type) {
   assertDocType(type);
+  if (!DOC_MAGIC[type].every((byte, i) => buffer[i] === byte)) {
+    const err = new Error('เนื้อไฟล์ไม่ตรงกับชนิดไฟล์ (รองรับเฉพาะ JPEG หรือ PDF)');
+    err.status = 415;
+    throw err;
+  }
   const id = crypto.randomBytes(12).toString('hex');
   await backend.put(docKey(planId, newCode, id, type), buffer, type);
   return { id };
