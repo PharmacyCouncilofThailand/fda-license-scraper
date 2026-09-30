@@ -7,6 +7,7 @@ import ResultCard from './components/ResultCard.jsx';
 import PlanBar from './components/PlanBar.jsx';
 import PlanView from './components/PlanView.jsx';
 import PlanRoute from './components/PlanRoute.jsx';
+import PlanDocuments from './components/PlanDocuments.jsx';
 import RecordForm from './components/RecordForm.jsx';
 import Preloader from './components/Preloader.jsx';
 import { SkeletonList } from './components/Skeleton.jsx';
@@ -18,8 +19,8 @@ const HANDOFF_KEY = 'fda:form:pending';
 // today, every further "+ ใส่แผน" tap goes to that same plan, cart-style,
 // until they switch it from the bar — no re-picking a plan every time.
 const ACTIVE_PLAN_KEY = 'fda:plan:active';
-// Wizard steps 1–4 by hash. Search is plain '#/' so old links still land there.
-const STEP_HASHES = ['#/', '#/plan', '#/map', '#/form'];
+// Wizard steps 1–5 by hash. Search is plain '#/' so old links still land there.
+const STEP_HASHES = ['#/', '#/plan', '#/map', '#/form', '#/docs'];
 
 export default function App() {
   const [areas, setAreas] = useState({});
@@ -367,6 +368,7 @@ export default function App() {
           {step === 4 && (
             <iframe className="form-frame" src="/form.html" title="แบบบันทึกการตรวจสถานที่" />
           )}
+          {step === 5 && <PlanDocuments planId={activePlan?.id || null} />}
         </div>
       </main>
     </>

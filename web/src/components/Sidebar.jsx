@@ -6,6 +6,7 @@ const STEPS = [
   { n: 2, icon: 'checklist', label: 'จัดแผน' },
   { n: 3, icon: 'map', label: 'แผนที่' },
   { n: 4, icon: 'description', label: 'ฟอร์ม' },
+  { n: 5, icon: 'folder', label: 'เอกสาร' },
 ];
 
 export default function Sidebar({ step, onStep }) {

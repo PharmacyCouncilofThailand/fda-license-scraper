@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { deleteDocument, documentObjectUrl, patchDocument, uploadDocument } from '../lib/records-api.js';
 import { downscale } from './PhotoGrid.jsx';
 
-/* The signed paper form, scanned or photographed at the shop. Kept apart from
-   the site photos: it is evidence, never printed into the generated PDF.
-   Photos of paper stay larger than site photos so handwriting reads. */
+/* One shop's signed paper forms, scanned or photographed after the visit.
+   Evidence only — never printed into the generated PDF. Photos of paper stay
+   larger than site photos so handwriting reads. */
 const DOC_EDGE = 2400;
 const DOC_QUALITY = 0.85;
 // Vercel refuses a request body over 4.5MB before the server sees it.
@@ -115,18 +115,13 @@ export default function DocumentList({ planId, newCode, record, onRecord }) {
   }
 
   return (
-    <div className="record-step">
-      <h3 className="doc-title">เอกสารที่สแกน / ถ่าย</h3>
-      <p className="doc-hint">
-        แบบบันทึกการตรวจที่ลงนามแล้ว — เก็บไว้เป็นหลักฐาน ไม่พิมพ์รวมใน PDF ที่ระบบสร้าง
-      </p>
+    <div className="doc-shop">
       <label className="photo-add">
         <input type="file" accept="image/*,application/pdf" multiple onChange={add} />
         <span>{busy ? 'กำลังอัปโหลด...' : '+ ถ่าย / สแกน / เลือกไฟล์ (รูป หรือ PDF)'}</span>
       </label>
 
       {error && <div className="error">{error}</div>}
-      {documents.length === 0 && <div className="empty">ยังไม่มีเอกสาร</div>}
 
       <div className="photo-list">
         {documents.map((doc, index) => (

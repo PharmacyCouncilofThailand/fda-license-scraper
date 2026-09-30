@@ -572,7 +572,17 @@ button.link.danger { color: var(--danger-fg); }
 .photo-item input[type="text"] { min-height: 44px; padding: 6px 10px; border: 1px solid var(--border);
   border-radius: 10px; background: var(--background); color: var(--foreground); font: inherit; }
 .photo-inpdf { display: flex; align-items: center; gap: 6px; }
-.doc-title { margin: 20px 0 0; font-size: 18px; }
+.plan-docs { display: grid; gap: 14px; }
+.doc-count { color: var(--olive-700); font-weight: 600; }
+.doc-card { display: grid; gap: 10px; padding: 14px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 1rem; }
+.doc-card header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.doc-card header div { flex: 1; min-width: 160px; }
+.doc-card header small { color: var(--muted-foreground); }
+.doc-shop { display: grid; gap: 10px; }
+.doc-badge { padding: 2px 10px; border-radius: 999px; font-size: 13px;
+  background: var(--secondary); color: var(--muted-foreground); }
+.doc-badge.done { background: var(--olive-100); color: var(--olive-700); font-weight: 600; }
 .doc-hint { margin: 0; color: var(--muted-foreground); font-size: 14px; }
 .doc-open { padding: 0; border: 0; background: none; cursor: pointer; }
 .doc-open img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px;
@@ -656,7 +666,7 @@ button.link.danger { color: var(--danger-fg); }
   display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 9px 12px; border: 0; border-radius: .75rem;
   background: transparent; color: inherit; font: inherit; font-size: 14px;
-  text-align: left; cursor: pointer;
+  text-align: left; cursor: pointer; white-space: nowrap;
   transition: background .16s ease, color .16s ease, padding-left .16s ease;
 }
 .app-sidebar nav button:hover { background: var(--sidebar-accent); padding-left: 15px; }
