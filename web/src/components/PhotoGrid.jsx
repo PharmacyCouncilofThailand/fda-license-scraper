@@ -7,15 +7,15 @@ import { deletePhoto, patchPhoto, photoObjectUrl, uploadPhoto } from '../lib/rec
 const MAX_EDGE = 1600;
 const QUALITY = 0.8;
 
-async function downscale(file) {
+export async function downscale(file, maxEdge = MAX_EDGE, quality = QUALITY) {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
   canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', QUALITY));
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
   // canvas.toBlob resolves null rather than rejecting when it can't encode
   // (a zero-size canvas, an exhausted memory budget) — treated as a normal
   // upload failure, same message the officer sees for a network error.

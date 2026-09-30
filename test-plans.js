@@ -161,6 +161,22 @@ const deps = {
   await assert.rejects(() => plans.patchItem(plan.id, 'NOPE', { status: 'done' }), /ไม่พบร้าน/);
   await assert.rejects(() => plans.addItems('2569-01-01', ['A'], deps), /ไม่พบแผน/);
 
+  // --- officer-edited location ----------------------------------------------
+  await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: 13.8 }), /ทั้งละติจูดและลองจิจูด/);
+  await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: 95, lng: 100 }), /พิกัดไม่ถูกต้อง/);
+  await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: 'x', lng: 100 }), /พิกัดไม่ถูกต้อง/);
+  await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: '', lng: '' }), /พิกัดไม่ถูกต้อง/);
+  await assert.rejects(() => plans.patchItem(plan.id, 'A', { lat: null, lng: 100 }), /พิกัดไม่ถูกต้อง/);
+  const moved = await plans.patchItem(plan.id, 'A', { address: ' ซอยใหม่ 5 ', lat: '13.81', lng: 100.55 });
+  const movedA = moved.items.find((i) => i.newCode === 'A');
+  assert.deepStrictEqual([movedA.address, movedA.lat, movedA.lng, movedA.locationEdited], ['ซอยใหม่ 5', 13.81, 100.55, true]);
+  // Re-reading from the FDA keeps the officer's fix.
+  const resynced = await plans.syncItem(plan.id, 'A', deps);
+  const resyncedA = resynced.items.find((i) => i.newCode === 'A');
+  assert.deepStrictEqual([resyncedA.address, resyncedA.lat, resyncedA.lng], ['ซอยใหม่ 5', 13.81, 100.55]);
+  const unpinned = await plans.patchItem(plan.id, 'A', { lat: null, lng: null });
+  assert.strictEqual(unpinned.items.find((i) => i.newCode === 'A').lat, null);
+
   fs.rmSync(dir, { recursive: true, force: true });
   console.log('ok — ตรรกะแผนการตรวจถูกต้อง');
 })();

@@ -106,3 +106,39 @@ export async function downloadRecordExport(planId, newCode, kind, filename) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+/* Scanned / photographed paper forms. Same shape as photos, but the type
+   (JPEG or PDF) travels as the body's Content-Type and the name rides the
+   query string — it is the officer's label, not anything sensitive. */
+export const uploadDocument = (planId, newCode, blob, type, name = '') =>
+  call(`${base(planId, newCode)}/documents?name=${encodeURIComponent(name)}`, {
+    method: 'POST',
+    headers: passcodeHeaders({ 'Content-Type': type }),
+    body: blob,
+  }).then((d) => ({ id: d.id, record: d.record }));
+
+export const patchDocument = (planId, newCode, docId, patch) =>
+  call(`${base(planId, newCode)}/documents/${docId}`, {
+    method: 'PATCH',
+    headers: passcodeHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(patch),
+  }).then((d) => d.record);
+
+export const deleteDocument = (planId, newCode, docId) =>
+  call(`${base(planId, newCode)}/documents/${docId}`, {
+    method: 'DELETE',
+    headers: passcodeHeaders(),
+  }).then((d) => d.record);
+
+/** Blob URL for a document, same reason as `photoObjectUrl`. */
+export async function documentObjectUrl(planId, newCode, docId) {
+  const response = await fetch(`${base(planId, newCode)}/documents/${docId}`, {
+    headers: passcodeHeaders(),
+  });
+  if (response.status === 401) {
+    clearPasscode();
+    throw new PasscodeError();
+  }
+  if (!response.ok) throw new Error('โหลดเอกสารไม่สำเร็จ');
+  return URL.createObjectURL(await response.blob());
+}

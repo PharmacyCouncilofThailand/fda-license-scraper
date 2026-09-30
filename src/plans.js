@@ -208,6 +208,38 @@ function applyPharmacistPatch(item, patch) {
   }
 }
 
+/* The officer's fix to where a shop is: the FDA's address text is often
+   stale and its pin is often missing. Coordinates come as a pair or not at
+   all — half a point routes nowhere. `locationEdited` tells `syncItem` not
+   to put the FDA's version back. */
+function applyLocationPatch(item, patch) {
+  const hasLat = patch.lat !== undefined;
+  const hasLng = patch.lng !== undefined;
+  if (patch.address === undefined && !hasLat && !hasLng) return;
+  if (hasLat !== hasLng) throw badRequest('ต้องระบุทั้งละติจูดและลองจิจูด');
+  if (hasLat) {
+    if (patch.lat === null && patch.lng === null) {
+      item.lat = null;
+      item.lng = null;
+    } else {
+      const lat = Number(patch.lat);
+      const lng = Number(patch.lng);
+      // Number('') and Number(null) are 0 — a point off the coast of Africa,
+      // not a missing one — so blanks are refused before they get that far.
+      const blank = (v) => v === null || String(v).trim() === '';
+      const ok =
+        !blank(patch.lat) && !blank(patch.lng) &&
+        Number.isFinite(lat) && Number.isFinite(lng) &&
+        Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+      if (!ok) throw badRequest('พิกัดไม่ถูกต้อง');
+      item.lat = lat;
+      item.lng = lng;
+    }
+  }
+  if (patch.address !== undefined) item.address = String(patch.address).trim();
+  item.locationEdited = true;
+}
+
 async function patchItem(id, newCode, patch = {}) {
   const plan = await mustGet(id);
   const item = plan.items.find((entry) => entry.newCode === newCode);
@@ -224,6 +256,7 @@ async function patchItem(id, newCode, patch = {}) {
     }
   }
   if (patch.note !== undefined) item.note = String(patch.note);
+  applyLocationPatch(item, patch);
   if (patch.pharmacists !== undefined) applyPharmacistPatch(item, patch.pharmacists);
   if (patch.order !== undefined) {
     const target = Math.max(1, Math.min(plan.items.length, Number(patch.order)));
@@ -270,6 +303,9 @@ async function syncItem(id, newCode, deps = realDeps()) {
     status: previous.status,
     statusSource: previous.statusSource,
     note: previous.note,
+    ...(previous.locationEdited
+      ? { address: previous.address, lat: previous.lat, lng: previous.lng, locationEdited: true }
+      : {}),
   };
   return store.save(plan);
 }

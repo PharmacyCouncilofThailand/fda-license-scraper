@@ -55,7 +55,7 @@ function assertPlanId(value) {
  * outright rather than sanitised — a value that is not a real plan id or
  * shop code is a bad request, not something to quietly repair.
  */
-function keyFor(planId, newCode, photoId) {
+function keyFor(planId, newCode, photoId, ext = 'jpg') {
   assertPlanId(planId);
   assertPart(photoId, 'รหัสรูปไม่ถูกต้อง');
   const safeCode = safeEncodeCode(newCode);
@@ -64,7 +64,7 @@ function keyFor(planId, newCode, photoId) {
     err.status = 400;
     throw err;
   }
-  return `${planId}/${safeCode}/${photoId}.jpg`;
+  return `${planId}/${safeCode}/${photoId}.${ext}`;
 }
 
 const BLOB_PREFIX = 'photos/';
@@ -106,11 +106,11 @@ const file = {
 
 const blob = {
   name: 'blob',
-  async put(key, buffer) {
+  async put(key, buffer, contentType = 'image/jpeg') {
     const { put } = blobApi();
     await put(`${BLOB_PREFIX}${key}`, buffer, {
       access: 'private',
-      contentType: 'image/jpeg',
+      contentType,
       addRandomSuffix: false,
       allowOverwrite: true,
       token: config.blobToken,
@@ -163,8 +163,50 @@ async function delPhoto(planId, newCode, photoId) {
   return backend.del(keyFor(planId, newCode, photoId));
 }
 
+/* Scanned/photographed paper forms: same backends, same privacy, one setting.
+   Keys sit under `_docs/`, which no plan id can start with (`assertPlanId`),
+   so a document can never land in — or be read as — a photo. */
+const DOC_TYPES = { 'image/jpeg': 'jpg', 'application/pdf': 'pdf' };
+const docKey = (planId, newCode, docId, type) =>
+  `_docs/${keyFor(planId, newCode, docId, DOC_TYPES[type])}`;
+
+function assertDocType(type) {
+  if (!DOC_TYPES[type]) {
+    const err = new Error('รองรับเฉพาะไฟล์รูป JPEG หรือ PDF');
+    err.status = 415;
+    throw err;
+  }
+  return type;
+}
+
+// What the bytes must start with for each type — the Content-Type is only
+// the uploader's claim.
+const DOC_MAGIC = { 'image/jpeg': [0xff, 0xd8, 0xff], 'application/pdf': [0x25, 0x50, 0x44, 0x46] };
+
+async function putDoc(planId, newCode, buffer, type) {
+  assertDocType(type);
+  if (!DOC_MAGIC[type].every((byte, i) => buffer[i] === byte)) {
+    const err = new Error('เนื้อไฟล์ไม่ตรงกับชนิดไฟล์ (รองรับเฉพาะ JPEG หรือ PDF)');
+    err.status = 415;
+    throw err;
+  }
+  const id = crypto.randomBytes(12).toString('hex');
+  await backend.put(docKey(planId, newCode, id, type), buffer, type);
+  return { id };
+}
+
+async function getDoc(planId, newCode, docId, type) {
+  if (!/^[0-9a-f]{24}$/.test(String(docId)) || !DOC_TYPES[type]) return null;
+  return backend.get(docKey(planId, newCode, docId, type));
+}
+
+async function delDoc(planId, newCode, docId, type) {
+  if (!/^[0-9a-f]{24}$/.test(String(docId)) || !DOC_TYPES[type]) return false;
+  return backend.del(docKey(planId, newCode, docId, type));
+}
+
 function backendName() {
   return backend.name;
 }
 
-module.exports = { putPhoto, getPhoto, delPhoto, backendName };
+module.exports = { putPhoto, getPhoto, delPhoto, putDoc, getDoc, delDoc, DOC_TYPES, backendName };

@@ -1,14 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import PlanTable from './PlanTable.jsx';
 import {
   deletePlan,
   downloadExport,
   getPlan,
-  PasscodeError,
   patchPlanItem,
   removePlanItem,
   reorderPlan,
-  setPasscode,
+  withPasscode,
   syncPlanItem,
   updatePlan,
 } from '../lib/plans-api.js';
@@ -31,19 +30,6 @@ export default function PlanView({ planId, onPlansChanged }) {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-
-  /** One retry after the passcode is entered — the API asks for it on 401. */
-  const withPasscode = useCallback(async (action) => {
-    try {
-      return await action();
-    } catch (err) {
-      if (!(err instanceof PasscodeError)) throw err;
-      const entered = window.prompt('ใส่รหัสผ่านของสำนักงาน');
-      if (!entered) throw err;
-      setPasscode(entered);
-      return action();
-    }
-  }, []);
 
   useEffect(() => {
     if (!planId) {
