@@ -26,6 +26,7 @@ const plansStore = require('./plans-store');
 const plans = require('./plans');
 const records = require('./records');
 const photoStore = require('./photo-store');
+const drive = require('./drive-store');
 const { renderPlanDocx } = require('./docx-plan');
 
 const app = express();
@@ -62,11 +63,13 @@ app.get('/health', (req, res) =>
  * it becomes real accounts when the system moves to the Pharmacy Council.
  * With no passcode set, nothing is asked — that is the local development case.
  */
-app.use('/api/plans', (req, res, next) => {
+function requirePasscode(req, res, next) {
   if (!config.plansPasscode) return next();
   if (req.get('x-plans-passcode') === config.plansPasscode) return next();
   res.status(401).json({ success: false, error: 'รหัสผ่านไม่ถูกต้อง' });
-});
+}
+app.use('/api/plans', requirePasscode);
+app.use('/api/drive', requirePasscode);
 
 app.get('/api/plans', async (req, res, next) => {
   try {
@@ -323,6 +326,89 @@ app.delete(`${docPath}/:docId`, async (req, res, next) => {
     const record = await records.removeDocument(req.params.id, req.params.newCode, req.params.docId);
     if (doc) await photoStore.delDoc(req.params.id, req.params.newCode, doc.id, doc.type);
     res.json({ success: true, record });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* The office drive (ไดรฟ์). Every route names its item by `?path=`, the
+   segments joined by `/`; drive-store validates each one. */
+const drivePath = (req) => String(req.query.path ?? '');
+
+app.get('/api/drive/list', async (req, res, next) => {
+  try {
+    res.json({ success: true, ...(await drive.list(drivePath(req))) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/drive/folder', async (req, res, next) => {
+  try {
+    await drive.mkdir(drivePath(req), req.query.name);
+    res.status(201).json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Any type, so the raw parser takes every body. 4mb: Vercel refuses bodies
+// over 4.5MB before this code ever runs.
+app.post('/api/drive/file', express.raw({ type: () => true, limit: '4mb' }), async (req, res, next) => {
+  try {
+    if (!Buffer.isBuffer(req.body)) {
+      return res.status(400).json({ success: false, error: 'ไม่พบข้อมูลไฟล์' });
+    }
+    const name = await drive.put(drivePath(req), req.query.name, req.body);
+    res.status(201).json({ success: true, name });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Only these open in the browser. Anything else — an uploaded .html or .svg
+// above all — is handed over as an attachment, so it never runs on our origin.
+const DRIVE_INLINE = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+};
+
+app.get('/api/drive/file', async (req, res, next) => {
+  try {
+    const bytes = await drive.get(drivePath(req));
+    if (!bytes) return res.status(404).json({ success: false, error: 'ไม่พบไฟล์นี้' });
+    const name = drivePath(req).split('/').pop();
+    const type = DRIVE_INLINE[name.split('.').pop().toLowerCase()];
+    res.set({
+      'Content-Type': type || 'application/octet-stream',
+      'Content-Disposition': `${type ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(name)}`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.patch('/api/drive/rename', async (req, res, next) => {
+  try {
+    const name = await drive.rename(drivePath(req), (req.body || {}).name);
+    res.json({ success: true, name });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.delete('/api/drive', async (req, res, next) => {
+  try {
+    const gone = await drive.remove(drivePath(req));
+    if (!gone) return res.status(404).json({ success: false, error: 'ไม่พบรายการนี้' });
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }
