@@ -84,6 +84,10 @@ module.exports = {
   photosDir: process.env.PHOTOS_DIR || path.join(__dirname, '..', 'data', 'photos'),
   recordsDir: process.env.RECORDS_DIR || path.join(__dirname, '..', 'data', 'records'),
 
+  // The office drive (ไดรฟ์) on the `file` backend. On a Council server this
+  // is where the NAS share is mounted, which is the whole NAS integration.
+  driveDir: process.env.DRIVE_DIR || path.join(__dirname, '..', 'data', 'drive'),
+
   // How many rows one keyword may bring back, and how many of them get their
   // detail record fetched. The portal answers a search in one JSON response,
   // so there are no pages to walk any more — this is only a memory guard.
