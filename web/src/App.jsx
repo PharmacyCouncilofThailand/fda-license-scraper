@@ -8,6 +8,7 @@ import PlanBar from './components/PlanBar.jsx';
 import PlanView from './components/PlanView.jsx';
 import PlanRoute from './components/PlanRoute.jsx';
 import PlanDocuments from './components/PlanDocuments.jsx';
+import Drive from './components/Drive.jsx';
 import RecordForm from './components/RecordForm.jsx';
 import Preloader from './components/Preloader.jsx';
 import { SkeletonList } from './components/Skeleton.jsx';
@@ -276,6 +277,27 @@ export default function App() {
   }
 
   if (booting) return <Preloader variant="screen" />;
+
+  if (route === '#/drive' || route.startsWith('#/drive/')) {
+    // #/drive/<segment>/<segment>… — the open folder, one encoded segment each.
+    const parts = route.slice('#/drive'.length).split('/').filter(Boolean).map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    });
+    return (
+      <>
+        <Sidebar onStep={setStep} drive />
+        <main className="app-main">
+          <div className="wrap">
+            <Drive parts={parts} />
+          </div>
+        </main>
+      </>
+    );
+  }
 
   if (route.startsWith('#/plans/')) {
     // #/plans/<planId>/<newCode> for one shop's record, full-screen.

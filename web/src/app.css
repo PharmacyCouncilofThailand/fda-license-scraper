@@ -765,3 +765,38 @@ button.link.danger { color: var(--danger-fg); }
   .planbar-lbl { display: none; }
   .planbar-new { padding: 6px 8px; }
 }
+
+/* --- ไดรฟ์ ------------------------------------------------------------------ */
+.drive { min-height: 60vh; border-radius: 1rem; outline: 2px dashed transparent; outline-offset: 6px; }
+/* The whole page is the drop target; the outline says so while a file hovers. */
+.drive.dragging { outline-color: var(--primary); background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.drive-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.drive-crumbs { font-size: 15px; overflow-wrap: anywhere; }
+.drive-crumbs a { color: var(--primary); }
+.drive-error { white-space: pre-line; }
+.drive-empty {
+  padding: 40px 16px; text-align: center; color: var(--muted-foreground);
+  border: 1px dashed var(--border); border-radius: 1rem;
+}
+.drive-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.drive-table th, .drive-table td {
+  padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle;
+}
+.drive-table th { color: var(--muted-foreground); font-weight: 500; }
+.drive-table .drive-num { text-align: right; white-space: nowrap; color: var(--muted-foreground); }
+.drive-table .drive-date { white-space: nowrap; color: var(--muted-foreground); }
+.drive-table .drive-actions { text-align: right; white-space: nowrap; }
+.drive-name {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 32px;
+  padding: 0; border: 0; background: none; font: inherit; color: inherit;
+  text-align: left; cursor: pointer; text-decoration: none; overflow-wrap: anywhere;
+}
+.drive-name:hover { color: var(--primary); text-decoration: underline; }
+.drive-name .material-symbols-outlined { color: var(--olive-700); flex: none; }
+@media (max-width: 640px) {
+  .drive-table .drive-date { display: none; }
+  .drive-table .drive-actions { white-space: normal; }
+}

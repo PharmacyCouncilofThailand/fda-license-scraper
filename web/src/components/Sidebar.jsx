@@ -9,7 +9,7 @@ const STEPS = [
   { n: 5, icon: 'folder', label: 'เอกสาร' },
 ];
 
-export default function Sidebar({ step, onStep }) {
+export default function Sidebar({ step, onStep, drive = false }) {
   return (
     <aside className="app-sidebar glass-panel-primary">
       <div className="brand">
@@ -36,6 +36,20 @@ export default function Sidebar({ step, onStep }) {
             <span className="dot" />
           </button>
         ))}
+      </nav>
+      <hr />
+      {/* The office drive is not a plan step, so it sits in its own group. */}
+      <span className="group-label">ไฟล์</span>
+      <nav>
+        <button
+          type="button"
+          aria-current={drive ? 'page' : undefined}
+          onClick={() => { window.location.hash = '#/drive'; }}
+        >
+          <span className="material-symbols-outlined sm" aria-hidden="true">cloud</span>
+          ไดรฟ์
+          <span className="dot" />
+        </button>
       </nav>
       <hr />
       {/* Carries its own heading, so no group-label here.
