@@ -54,7 +54,12 @@ app.use('/api', (req, res, next) => {
 });
 
 app.get('/health', (req, res) =>
-  res.json({ ok: true, plansStore: plansStore.backendName(), photoStore: photoStore.backendName() })
+  res.json({
+    ok: true,
+    plansStore: plansStore.backendName(),
+    photoStore: photoStore.backendName(),
+    driveStore: drive.backendName(),
+  })
 );
 
 /*
