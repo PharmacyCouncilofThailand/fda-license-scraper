@@ -9,7 +9,13 @@ const STEPS = [
   { n: 5, icon: 'folder', label: 'เอกสาร' },
 ];
 
-export default function Sidebar({ step, onStep, drive = false }) {
+// Pages outside the plan steps, each its own hash.
+const PAGES = [
+  { hash: '#/dashboard', icon: 'monitoring', label: 'ภาพรวม' },
+  { hash: '#/drive', icon: 'cloud', label: 'ไดรฟ์' },
+];
+
+export default function Sidebar({ step, onStep, page = '' }) {
   return (
     <aside className="app-sidebar glass-panel-primary">
       <div className="brand">
@@ -38,18 +44,21 @@ export default function Sidebar({ step, onStep, drive = false }) {
         ))}
       </nav>
       <hr />
-      {/* The office drive is not a plan step, so it sits in its own group. */}
-      <span className="group-label">ไฟล์</span>
+      {/* Not plan steps, so they sit in their own group. */}
+      <span className="group-label">ข้อมูล</span>
       <nav>
-        <button
-          type="button"
-          aria-current={drive ? 'page' : undefined}
-          onClick={() => { window.location.hash = '#/drive'; }}
-        >
-          <span className="material-symbols-outlined sm" aria-hidden="true">cloud</span>
-          ไดรฟ์
-          <span className="dot" />
-        </button>
+        {PAGES.map((p) => (
+          <button
+            key={p.hash}
+            type="button"
+            aria-current={page === p.hash ? 'page' : undefined}
+            onClick={() => { window.location.hash = p.hash; }}
+          >
+            <span className="material-symbols-outlined sm" aria-hidden="true">{p.icon}</span>
+            {p.label}
+            <span className="dot" />
+          </button>
+        ))}
       </nav>
       <hr />
       {/* Carries its own heading, so no group-label here.

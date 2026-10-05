@@ -27,6 +27,8 @@ const plans = require('./plans');
 const records = require('./records');
 const photoStore = require('./photo-store');
 const drive = require('./drive-store');
+const recordsStore = require('./records-store');
+const { buildStats } = require('./stats');
 const { renderPlanDocx } = require('./docx-plan');
 
 const app = express();
@@ -75,6 +77,18 @@ function requirePasscode(req, res, next) {
 }
 app.use('/api/plans', requirePasscode);
 app.use('/api/drive', requirePasscode);
+app.use('/api/stats', requirePasscode);
+
+// The dashboard. Reads every plan and every record — ponytail: fine for an
+// office's few hundred inspections a year; cache it if that ever grows slow.
+app.get('/api/stats', async (req, res, next) => {
+  try {
+    const [allPlans, allRecords] = await Promise.all([plansStore.list(), recordsStore.list()]);
+    res.json({ success: true, ...buildStats(allPlans, allRecords) });
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.get('/api/plans', async (req, res, next) => {
   try {

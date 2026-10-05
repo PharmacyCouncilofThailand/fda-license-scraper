@@ -9,6 +9,7 @@ import PlanView from './components/PlanView.jsx';
 import PlanRoute from './components/PlanRoute.jsx';
 import PlanDocuments from './components/PlanDocuments.jsx';
 import Drive from './components/Drive.jsx';
+import Dashboard from './components/Dashboard.jsx';
 import RecordForm from './components/RecordForm.jsx';
 import Preloader from './components/Preloader.jsx';
 import { SkeletonList } from './components/Skeleton.jsx';
@@ -289,10 +290,23 @@ export default function App() {
     });
     return (
       <>
-        <Sidebar onStep={setStep} drive />
+        <Sidebar onStep={setStep} page="#/drive" />
         <main className="app-main">
           <div className="wrap">
             <Drive parts={parts} />
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (route === '#/dashboard') {
+    return (
+      <>
+        <Sidebar onStep={setStep} page="#/dashboard" />
+        <main className="app-main">
+          <div className="wrap">
+            <Dashboard />
           </div>
         </main>
       </>

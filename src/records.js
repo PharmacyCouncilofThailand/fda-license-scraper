@@ -298,4 +298,5 @@ module.exports = {
   addDocument,
   removeDocument,
   patchDocument,
+  splitAddress,
 };

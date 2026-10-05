@@ -800,3 +800,49 @@ button.link.danger { color: var(--danger-fg); }
   .drive-table .drive-date { display: none; }
   .drive-table .drive-actions { white-space: normal; }
 }
+
+/* --- ภาพรวม ------------------------------------------------------------------ */
+.dash { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.dash h1, .dash .sub { margin-bottom: 0; }
+.dash h2 { font-size: 16px; font-weight: 500; margin: 0 0 8px; }
+.dash-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 12px; }
+.dash-tile { min-width: 0; overflow-wrap: anywhere; }
+.dash-tile {
+  display: grid; gap: 2px; padding: 14px 16px; border-radius: 1rem;
+  background: var(--card); border: 1px solid var(--border);
+}
+.dash-tile span { color: var(--muted-foreground); font-size: 13px; }
+.dash-tile b { font-size: 30px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.dash-tile small { color: var(--muted-foreground); font-size: 12.5px; }
+.dash-chart {
+  margin: 0; padding: 14px 16px; border-radius: 1rem;
+  background: var(--card); border: 1px solid var(--border);
+}
+.dash-chart figcaption { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.dash-chart figcaption small { color: var(--muted-foreground); }
+.dash-legend { margin-left: auto; display: flex; gap: 14px; font-size: 13px; color: var(--muted-foreground); }
+.dash-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dash-legend i { width: 10px; height: 10px; border-radius: 3px; }
+.dash-legend .done, .dash-bar-stack .done { background: var(--olive-700); }
+.dash-legend .todo, .dash-bar-stack .todo { background: var(--olive-400); }
+.dash-bars {
+  display: flex; align-items: flex-end; gap: 10px; height: 220px; margin-top: 12px;
+  padding-bottom: 2px; border-bottom: 1px solid var(--border); overflow-x: auto;
+}
+.dash-bar { flex: 1 0 44px; max-width: 72px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.dash-bar-value { font-size: 12px; color: var(--foreground); font-variant-numeric: tabular-nums; }
+/* Not-yet on top, done anchored on the baseline; 2px card-coloured gap
+   between them, rounded only at the data end. */
+.dash-bar-stack { width: 100%; max-width: 36px; min-height: 4px; display: flex; flex-direction: column; gap: 2px; }
+.dash-bar-stack > div { min-height: 2px; }
+.dash-bar-stack > div:first-child { border-radius: 4px 4px 0 0; }
+.dash-bar-label { font-size: 12px; color: var(--muted-foreground); white-space: nowrap; }
+.dash-table-view { margin-top: 10px; font-size: 13px; }
+.dash-table-view summary { cursor: pointer; color: var(--primary); }
+.dash-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 6px; }
+.dash-table th, .dash-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.dash-table th { color: var(--muted-foreground); font-weight: 500; }
+.dash-num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dash-num small { color: var(--muted-foreground); }
+.dash-progress { display: block; width: 100%; min-width: 80px; height: 8px; border-radius: 999px; background: var(--olive-100); overflow: hidden; }
+.dash-progress span { display: block; height: 100%; border-radius: 999px; background: var(--olive-700); }
