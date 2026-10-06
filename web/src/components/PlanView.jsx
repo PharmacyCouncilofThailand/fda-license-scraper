@@ -32,21 +32,26 @@ export default function PlanView({ planId, onPlansChanged }) {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  // Which export is being rendered ('docx' | 'pdf'), for its button label.
+  const [exporting, setExporting] = useState('');
 
   useEffect(() => {
-    if (!planId) {
-      setPlan(null);
-      return;
-    }
+    // The previous plan must not stay on screen while another one loads.
+    setPlan(null);
+    if (!planId) return;
     open(planId);
   }, [planId]);
 
   async function open(id) {
     setError('');
+    setLoading(true);
     try {
       setPlan(await withPasscode(() => getPlan(id)));
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -66,7 +71,10 @@ export default function PlanView({ planId, onPlansChanged }) {
   }
 
   function saveDate(value) {
-    // `value` is the picker's Gregorian yyyy-mm-dd, or '' when cleared.
+    // `value` is the picker's Gregorian yyyy-mm-dd, or '' when cleared. Typing
+    // a date by keyboard passes through partial years (0002-…) on the way to
+    // 2026; only a whole, plausible year is saved.
+    if (value && !/^(19|20|21)\d{2}-\d{2}-\d{2}$/.test(value)) return;
     mutate(() => updatePlan(plan.id, { date: toStored(value) }));
   }
 
@@ -98,19 +106,35 @@ export default function PlanView({ planId, onPlansChanged }) {
 
   async function exportPlan(kind) {
     setError('');
+    setExporting(kind);
     try {
       await withPasscode(() => downloadExport(plan.id, kind));
     } catch (err) {
       setError(err.message);
+    } finally {
+      setExporting('');
     }
   }
 
   return (
     <div className="plan-view">
       <div className="plan-main">
-        {error && <div className="error" role="alert" aria-live="polite">{error}</div>}
+        {error && (
+          <div className="error" role="alert" aria-live="polite">
+            {error}{' '}
+            {!plan && planId && (
+              <button type="button" className="link-btn" onClick={() => open(planId)}>
+                ลองใหม่
+              </button>
+            )}
+          </div>
+        )}
         {!plan ? (
-          <div className="empty">เลือกแผนจากแถบด้านบน หรือกด + แผนใหม่</div>
+          loading ? (
+            <div className="empty" role="status" aria-live="polite">กำลังโหลดแผน…</div>
+          ) : (
+            !error && <div className="empty">เลือกแผนจากแถบมุมขวาล่าง หรือกด + แผนใหม่</div>
+          )
         ) : (
           <>
             <div className="plan-head">
@@ -123,7 +147,6 @@ export default function PlanView({ planId, onPlansChanged }) {
                     name="planDate"
                     autoComplete="off"
                     value={toInput(plan.date)}
-                    disabled={busy}
                     onChange={(event) => saveDate(event.target.value)}
                   />
                   {plan.date && <span className="plan-date-be">พ.ศ. {plan.date}</span>}
@@ -132,11 +155,11 @@ export default function PlanView({ planId, onPlansChanged }) {
               <div className="plan-head-actions">
                 {/* Export the plan as the office's Word / PDF record —
                     separate buttons, not one boxed pair. */}
-                <Button variant="outline" disabled={busy} onClick={() => exportPlan('docx')}>
-                  <FileText /> ส่งออก Word
+                <Button variant="outline" disabled={busy || Boolean(exporting)} onClick={() => exportPlan('docx')}>
+                  <FileText /> {exporting === 'docx' ? 'กำลังส่งออก…' : 'ส่งออก Word'}
                 </Button>
-                <Button variant="outline" disabled={busy} onClick={() => exportPlan('pdf')}>
-                  <FileDown /> ส่งออก PDF
+                <Button variant="outline" disabled={busy || Boolean(exporting)} onClick={() => exportPlan('pdf')}>
+                  <FileDown /> {exporting === 'pdf' ? 'กำลังส่งออก…' : 'ส่งออก PDF'}
                 </Button>
                 {/* Reorder the plan for the day's trip: by on-duty start time
                     first, then by distance from the Pharmacy Council (see

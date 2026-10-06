@@ -161,6 +161,8 @@
       });
 
       this.output = el('div', 'ps-output');
+      // Searching, results and errors all land here; announce them.
+      this.output.setAttribute('aria-live', 'polite');
       /*
        * A <details>, because on a phone the sidebar is a bar across the top of
        * the window and a search that is always open pushes the page down. Open

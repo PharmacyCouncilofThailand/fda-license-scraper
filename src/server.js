@@ -133,7 +133,7 @@ if (config.authMode === 'header') {
     const fromGateway =
       !config.authProxySecret || sameSecret(req.get('x-auth-proxy-secret'), config.authProxySecret);
     if (!user || !fromGateway) {
-      return res.status(401).json({ success: false, error: 'กรุณาเข้าสู่ระบบผ่านระบบของสภาเภสัชกรรมก่อน' });
+      return res.status(401).json({ success: false, code: 'SIGN_IN', error: 'กรุณาเข้าสู่ระบบผ่านระบบของสภาเภสัชกรรมก่อน' });
     }
     req.user = user;
     next();
@@ -159,7 +159,7 @@ function requirePasscode(req, res, next) {
   if (!config.plansPasscode) return next();
   const given = req.get('x-plans-passcode');
   if (given && sameSecret(given, config.plansPasscode)) return next();
-  const refuse = () => res.status(401).json({ success: false, error: 'รหัสผ่านไม่ถูกต้อง' });
+  const refuse = () => res.status(401).json({ success: false, code: 'PASSCODE', error: 'รหัสผ่านไม่ถูกต้อง' });
   // A request with no passcode at all is the page asking before the prompt,
   // not a guess — only a wrong one counts.
   if (!given) return refuse();
@@ -187,12 +187,14 @@ app.use('/api/stats', requirePasscode);
  * ภาพรวม dashboard that counts them — are held back for a later update
  * (FEATURE_DOCS=1 turns them on). The page asks /api/features which menus to
  * show; with the feature off its routes answer 404 as if they did not exist.
+ * The per-shop record now holds only those documents (the on-site record page
+ * was removed), so the whole /record path is gated with them.
  */
 app.get('/api/features', (req, res) => res.json({ success: true, docs: config.features.docs }));
 if (!config.features.docs) {
   const off = (req, res) => res.status(404).json({ success: false, error: 'ส่วนนี้ยังไม่เปิดใช้งาน' });
   app.use(['/api/drive', '/api/stats'], off);
-  app.use(/^\/api\/plans\/[^/]+\/items\/[^/]+\/record\/documents(\/|$)/, off);
+  app.use(/^\/api\/plans\/[^/]+\/items\/[^/]+\/record(\/|$)/, off);
 }
 
 // The dashboard. Reads every plan and every record — ponytail: fine for an
@@ -312,78 +314,10 @@ app.get('/api/plans/:id/items/:newCode/record', async (req, res, next) => {
   }
 });
 
-app.put('/api/plans/:id/items/:newCode/record', async (req, res, next) => {
-  try {
-    const record = await records.writeRecord(req.params.id, req.params.newCode, req.body || {});
-    res.json({ success: true, record });
-  } catch (err) {
-    // A stale write is answered with the version that won, so the page can
-    // show the officer both and let them choose.
-    if (err.status === 409) {
-      return res.status(409).json({ success: false, error: err.message, current: err.current });
-    }
-    next(err);
-  }
-});
-
-/* The camera's own bytes, posted raw. `express.raw` is mounted on this one
-   route rather than globally: every other route on this server speaks JSON,
-   and a body parser that accepts images everywhere is a body parser waiting
-   to swallow something it should have rejected. */
-app.post(
-  '/api/plans/:id/items/:newCode/record/photos',
-  express.raw({ type: 'image/jpeg', limit: '5mb' }),
-  async (req, res, next) => {
-    try {
-      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
-        return res.status(400).json({ success: false, error: 'ไม่พบข้อมูลรูปภาพ' });
-      }
-      const { id } = await photoStore.putPhoto(req.params.id, req.params.newCode, req.body);
-      const record = await records.addPhoto(req.params.id, req.params.newCode, { id });
-      res.status(201).json({ success: true, id, record });
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-app.get('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
-  try {
-    const bytes = await photoStore.getPhoto(req.params.id, req.params.newCode, req.params.photoId);
-    if (!bytes) return res.status(404).json({ success: false, error: 'ไม่พบรูปนี้' });
-    res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=3600' });
-    res.send(bytes);
-  } catch (err) {
-    next(err);
-  }
-});
-
-app.patch('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
-  try {
-    const record = await records.patchPhoto(req.params.id, req.params.newCode, req.params.photoId, req.body || {});
-    res.json({ success: true, record });
-  } catch (err) {
-    next(err);
-  }
-});
-
-app.delete('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
-  try {
-    // Record first, bytes second: if delPhoto fails after this, the record
-    // no longer references the id and we're left with an orphaned blob
-    // nobody points at — not a record pointing at bytes that are gone.
-    const record = await records.removePhoto(req.params.id, req.params.newCode, req.params.photoId);
-    await photoStore.delPhoto(req.params.id, req.params.newCode, req.params.photoId);
-    res.json({ success: true, record });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/* Scanned / photographed paper forms. Raw body like photos; the type is the
-   request's own Content-Type (JPEG or PDF only) and is remembered on the
-   record so the GET can answer with it. 4mb: Vercel refuses bodies over 4.5MB
-   before this code ever runs. */
+/* Scanned / photographed paper forms, posted raw. The type is the request's
+   own Content-Type (JPEG or PDF only) and is remembered on the record so the
+   GET can answer with it. 4mb: Vercel refuses bodies over 4.5MB before this
+   code ever runs. */
 const docPath = '/api/plans/:id/items/:newCode/record/documents';
 const docName = (value) => String(value ?? '').slice(0, 200);
 
@@ -544,89 +478,6 @@ app.delete('/api/drive', async (req, res, next) => {
     const gone = await drive.remove(drivePath(req));
     if (!gone) return res.status(404).json({ success: false, error: 'ไม่พบรายการนี้' });
     res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Appendix photos are inlined as base64 data URLs into the page puppeteer
-// renders; past this many the page gets large and slow to print.
-const MAX_APPENDIX_PHOTOS = 20;
-
-/*
- * The record's own PDF, made from the stored draft rather than from a body
- * the page posts. The photo bytes are read here and passed in as data URLs:
- * the page puppeteer opens is a file:// page with no passcode and no session,
- * so it could not fetch them itself even if we wanted it to.
- *
- * Refuses to export (409) rather than silently drop a photo: one marked for
- * the appendix whose bytes are gone names itself so the officer can remove it
- * or re-photograph it, and more than MAX_APPENDIX_PHOTOS marked at once is
- * refused with the count and the limit.
- */
-async function recordForExport(planId, newCode) {
-  const record = await records.readRecord(planId, newCode);
-  const marked = (record.photos || []).filter((photo) => photo.inPdf);
-  if (marked.length > MAX_APPENDIX_PHOTOS) {
-    const err = new Error(
-      `มีรูปภาพผนวกท้ายทั้งหมด ${marked.length} รูป เกินจำนวนที่ส่งออกได้สูงสุด ${MAX_APPENDIX_PHOTOS} รูป`
-    );
-    err.status = 409;
-    throw err;
-  }
-  const photos = [];
-  for (const [index, photo] of (record.photos || []).entries()) {
-    if (!photo.inPdf) continue;
-    const bytes = await photoStore.getPhoto(planId, newCode, photo.id);
-    if (!bytes) {
-      const label = photo.caption ? `"${photo.caption}"` : `ภาพที่ ${index + 1}`;
-      const err = new Error(
-        `ไม่พบไฟล์รูป ${label} กรุณานำออกจากบันทึกหรือถ่ายใหม่ก่อนออกเอกสาร`
-      );
-      err.status = 409;
-      throw err;
-    }
-    photos.push({
-      src: `data:image/jpeg;base64,${bytes.toString('base64')}`,
-      caption: photo.caption || '',
-    });
-  }
-  return {
-    values: record.values || {},
-    checks: record.checks || {},
-    signatures: record.signatures || {},
-    photos,
-  };
-}
-
-app.post('/api/plans/:id/items/:newCode/record/pdf', async (req, res, next) => {
-  try {
-    const data = await recordForExport(req.params.id, req.params.newCode);
-    const pdf = await renderFormPdf(data);
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': disposition(data.values, 'pdf'),
-    });
-    res.send(Buffer.from(pdf));
-  } catch (err) {
-    next(err);
-  }
-});
-
-/* The Word file carries the text and nothing else: no photographs and no
-   signatures. It exists to be edited afterwards, and embedding media in a
-   .docx means writing relationships and drawing XML for a file that is not
-   the one the office sends. */
-app.post('/api/plans/:id/items/:newCode/record/docx', async (req, res, next) => {
-  try {
-    const { values, checks } = await recordForExport(req.params.id, req.params.newCode);
-    const docx = await renderFormDocx({ values, checks });
-    res.set({
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'Content-Disposition': disposition(values, 'docx'),
-    });
-    res.send(Buffer.from(docx));
   } catch (err) {
     next(err);
   }

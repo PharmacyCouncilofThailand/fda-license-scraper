@@ -14,7 +14,7 @@ form {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  border-radius: 1rem;
+  border-radius: var(--radius-card);
   padding: 14px;
 }
 /* The search row's sizing only. Unscoped, the 240px basis also hit every
@@ -62,7 +62,7 @@ select:disabled { opacity: 0.55; }
 .warn {
   margin: 0 0 10px;
   padding: 11px 14px;
-  border-radius: .75rem;
+  border-radius: var(--radius-control);
   border: 1px solid var(--warning-line);
   background: var(--warning-bg);
   color: var(--warning-fg);
@@ -71,7 +71,7 @@ select:disabled { opacity: 0.55; }
 .error {
   margin: 18px 0 10px;
   padding: 12px 15px;
-  border-radius: .75rem;
+  border-radius: var(--radius-control);
   background: var(--danger-bg);
   color: var(--danger-fg);
   font-size: 14px;
@@ -79,7 +79,7 @@ select:disabled { opacity: 0.55; }
 
 ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 li {
-  border-radius: min(1.5rem, 24px);
+  border-radius: var(--radius-panel);
   padding: 16px 18px;
   cursor: pointer;
 }
@@ -120,7 +120,7 @@ li.selected {
   color: var(--foreground);
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 1rem;
+  border-radius: var(--radius-card);
   cursor: pointer;
   transition: border-color .15s, color .15s, transform .05s;
 }
@@ -136,7 +136,7 @@ a.detail:hover { text-decoration: underline; }
   color: var(--primary-foreground);
   background: var(--primary);
   border: 0;
-  border-radius: 1rem;
+  border-radius: var(--radius-card);
   cursor: pointer;
   transition: transform .05s;
 }
@@ -146,7 +146,7 @@ a.detail:hover { text-decoration: underline; }
 .preview {
   margin-top: 14px;
   padding: 13px 15px;
-  border-radius: .75rem;
+  border-radius: var(--radius-control);
   background: var(--secondary);
   font-size: 14px;
 }
@@ -206,7 +206,7 @@ a.detail:hover { text-decoration: underline; }
 .map {
   margin-top: 12px;
   border: 1px solid var(--border);
-  border-radius: .75rem;
+  border-radius: var(--radius-control);
   overflow: hidden;
 }
 .map iframe {
@@ -284,7 +284,7 @@ a.detail:hover { text-decoration: underline; }
   place-content: center;
   justify-items: center;
   gap: 18px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: var(--ground);
 }
 .preloader-seal {
   width: 76px;
@@ -307,7 +307,7 @@ a.detail:hover { text-decoration: underline; }
   gap: 14px;
   margin: 18px 0 10px;
   padding: 16px 18px 18px;
-  border-radius: min(1.5rem, 24px);
+  border-radius: var(--radius-panel);
 }
 .preloader-text { min-width: 0; }
 .preloader-text b { display: block; font-weight: 500; font-size: 15px; }
@@ -361,7 +361,7 @@ a.detail:hover { text-decoration: underline; }
 }
 
 .skeleton-card {
-  border-radius: min(1.5rem, 24px);
+  border-radius: var(--radius-panel);
   padding: 16px 18px;
   display: grid;
   gap: 10px;
@@ -379,7 +379,7 @@ a.detail:hover { text-decoration: underline; }
 
 /* detail preview */
 .preview .skeleton.line { height: 13px; margin-bottom: 8px; }
-.preview .skeleton.block { height: 120px; border-radius: .75rem; }
+.preview .skeleton.block { height: 120px; border-radius: var(--radius-control); }
 
 /* results arriving */
 @keyframes result-in {
@@ -426,7 +426,7 @@ a.detail:hover { text-decoration: underline; }
 }
 #root ul li:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 34px 0 rgba(115, 115, 0, .10);
+  box-shadow: var(--shadow-hover);
 }
 #root ul li.selected:hover { transform: none; }
 #root ul li .card-head input[type="radio"] { transition: transform .15s ease; }
@@ -469,7 +469,7 @@ a.detail:hover { text-decoration: underline; }
   min-width: 220px;
   padding: 6px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--background);
   color: var(--foreground);
   font: inherit;
@@ -481,7 +481,7 @@ a.detail:hover { text-decoration: underline; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex-wrap: wrap;
   padding: 14px 16px; margin-bottom: 14px;
-  background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card);
 }
 .plan-head h1 { margin: 0; font-size: 1.4rem; }
 .plan-head-info .sub { margin: 2px 0 0; }
@@ -529,63 +529,21 @@ button.link {
 }
 button.link.danger { color: var(--danger-fg); }
 
-/* --- บันทึกการตรวจหน้างาน ------------------------------------------------ */
-/* Sized for a thumb on an iPad held in one hand at a shop counter: nothing
-   tappable is under 44px, and the two things that move — the save state and
-   the step buttons — never scroll out of reach. */
-.record-form { display: flex; flex-direction: column; gap: 12px;
-  padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-.record-head { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 2;
-  background: var(--background); padding: 8px 0; }
-.record-head b { flex: 1; }
-.save-state { min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border);
-  background: var(--secondary); font: inherit; cursor: pointer; }
-.save-state.saved { color: var(--success-fg); background: var(--success-bg); border-color: transparent; }
-.save-state.failed, .save-state.idle { color: var(--warning-fg); background: var(--warning-bg);
-  border-color: var(--warning-line); }
-.record-steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.record-steps button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border);
-  background: var(--background); font: inherit; cursor: pointer; }
-.record-steps button.on { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
-.record-step-title { margin-left: 8px; color: var(--muted-foreground); }
-.record-step { display: flex; flex-direction: column; gap: 14px; }
-.record-field { display: flex; flex-direction: column; gap: 4px; }
-.record-field span { color: var(--muted-foreground); font-size: 14px; }
-.record-field input, .record-field textarea {
-  min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px;
-  background: var(--background); color: var(--foreground); font: inherit;
-}
-.record-checks { border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin: 0; }
-.record-checks legend { padding: 0 6px; color: var(--muted-foreground); font-size: 14px; }
-.check-option { display: block; width: 100%; min-height: 44px; margin-top: 6px; padding: 8px 12px;
-  border: 1px solid var(--border); border-radius: 10px; background: var(--background);
-  color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
-.check-option.on { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
-.record-export { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.record-export button { min-height: 44px; padding: 0 16px; border-radius: 10px;
-  border: 1px solid var(--border); background: var(--background); font: inherit; cursor: pointer; }
-.record-nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--background);
-  border-top: 1px solid var(--border); }
-.record-nav button { flex: 1; min-height: 48px; border-radius: 12px; border: 1px solid var(--border);
-  background: var(--background); font: inherit; cursor: pointer; }
-.record-nav button:disabled { opacity: .45; }
 .photo-add { display: block; }
 .photo-add input { display: none; }
 .photo-add span { display: block; min-height: 48px; line-height: 48px; text-align: center;
-  border: 1px dashed var(--border); border-radius: 12px; cursor: pointer; }
+  border: 1px dashed var(--border); border-radius: var(--radius-control); cursor: pointer; }
 .photo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 .photo-item { margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.photo-item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; }
+.photo-item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius-control); }
 .photo-loading { aspect-ratio: 4 / 3; display: grid; place-items: center;
-  background: var(--secondary); border-radius: 10px; color: var(--muted-foreground); }
-.photo-item input[type="text"] { min-height: 44px; padding: 6px 10px; border: 1px solid var(--border);
-  border-radius: 10px; background: var(--background); color: var(--foreground); font: inherit; }
-.photo-inpdf { display: flex; align-items: center; gap: 6px; }
+  background: var(--secondary); border-radius: var(--radius-control); color: var(--muted-foreground); }
+.photo-item input[type="text"] { min-height: var(--tap); padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-control); background: var(--input-bg); color: var(--foreground); font: inherit; }
 .plan-docs { display: grid; gap: 14px; }
 .doc-count { color: var(--olive-700); font-weight: 600; }
 .doc-card { display: grid; gap: 10px; padding: 14px; background: var(--card);
-  border: 1px solid var(--border); border-radius: 1rem; }
+  border: 1px solid var(--border); border-radius: var(--radius-card); }
 .doc-card header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .doc-card header div { flex: 1; min-width: 160px; }
 .doc-card header small { color: var(--muted-foreground); }
@@ -595,31 +553,14 @@ button.link.danger { color: var(--danger-fg); }
 .doc-badge.done { background: var(--olive-100); color: var(--olive-700); font-weight: 600; }
 .doc-hint { margin: 0; color: var(--muted-foreground); font-size: 14px; }
 .doc-open { padding: 0; border: 0; background: none; cursor: pointer; }
-.doc-open img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px;
+.doc-open img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--radius-control);
   border: 1px solid var(--border); display: block; }
 .doc-pdf { aspect-ratio: 3 / 4; display: grid; place-content: center; justify-items: center;
-  gap: 6px; border-radius: 10px; border: 1px solid var(--border);
+  gap: 6px; border-radius: var(--radius-control); border: 1px solid var(--border);
   background: var(--olive-50); color: var(--olive-700); }
 .doc-pdf .material-symbols-outlined { font-size: 56px; }
 .doc-pdf small { font-size: 13px; color: var(--muted-foreground); }
 .doc-open:hover .doc-pdf, .doc-open:focus-visible .doc-pdf { background: var(--olive-100); }
-
-.signature-slot { display: flex; flex-direction: column; gap: 6px; padding: 10px;
-  border: 1px solid var(--border); border-radius: 12px; }
-.signature-slot > span { color: var(--muted-foreground); font-size: 14px; }
-.signature-preview { height: 56px; object-fit: contain; object-position: left bottom;
-  border-bottom: 1px solid var(--foreground); }
-.signature-empty { min-height: 56px; display: grid; place-items: center;
-  color: var(--muted-foreground); border-bottom: 1px dashed var(--border); }
-.signature-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.signature-actions button { min-height: 44px; padding: 0 14px; border-radius: 10px;
-  border: 1px solid var(--border); background: var(--background); font: inherit; cursor: pointer; }
-/* Full-screen: a signature drawn in a thumbnail-sized box does not look like
-   the person's own. */
-.signature-sheet { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
-  gap: 10px; padding: 16px; background: var(--background); }
-.signature-canvas { flex: 1; width: 100%; border: 1px solid var(--border); border-radius: 12px;
-  background: #fff; touch-action: none; }
 
 /* Six columns of Thai prose do not fit a phone. Under 700px each row becomes
    a card with the column name in front of each value — the same data, read
@@ -627,7 +568,7 @@ button.link.danger { color: var(--danger-fg); }
 @media (max-width: 700px) {
   .plan-table thead { display: none; }
   .plan-table, .plan-table tbody, .plan-table tr, .plan-table td { display: block; width: 100%; }
-  .plan-table tr { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; padding: 8px; }
+  .plan-table tr { border: 1px solid var(--border); border-radius: var(--radius-control); margin-bottom: 12px; padding: 8px; }
   .plan-table td { border: 0; padding: 4px 0; }
   .plan-table td::before { content: attr(data-label); display: block; color: var(--muted-foreground);
     font-size: 12px; }
@@ -645,7 +586,7 @@ button.link.danger { color: var(--danger-fg); }
   display: flex; align-items: center; gap: 10px;
   background: var(--primary); color: var(--primary-foreground);
   padding: 10px 14px; border-radius: 999px;
-  box-shadow: 0 8px 24px rgba(46, 46, 0, .28);
+  box-shadow: var(--shadow-float);
 }
 .plan-cart-icon { position: relative; display: inline-flex; }
 .plan-cart-sheet { display: block; }
@@ -654,20 +595,20 @@ button.link.danger { color: var(--danger-fg); }
   position: absolute; top: -6px; right: -8px;
   min-width: 18px; height: 18px; padding: 0 4px;
   display: grid; place-items: center;
-  background: #fff; color: var(--olive-700);
+  background: var(--primary-foreground); color: var(--olive-700);
   font-size: 11px; font-weight: 700; line-height: 1; border-radius: 999px;
 }
 .plan-cart-pick { display: flex; align-items: center; }
 .planbar-lbl { opacity: .85; font-size: 13px; margin-right: 6px; }
 .plan-cart .plan-select {
   min-width: 200px;
-  background: rgba(255,255,255,.16); color: #fff; border: 0;
-  padding: 6px 10px; border-radius: .6rem;
+  background: color-mix(in srgb, var(--primary-foreground) 16%, transparent); color: var(--primary-foreground); border: 0;
+  padding: 6px 10px; border-radius: var(--radius-control);
 }
-.plan-cart .plan-select option { color: #111827; }
+.plan-cart .plan-select option { color: var(--foreground); }
 .planbar-new {
-  background: #fff; color: var(--olive-700); border: 0;
-  padding: 6px 12px; border-radius: .6rem; font-weight: 500; cursor: pointer;
+  background: var(--primary-foreground); color: var(--olive-700); border: 0;
+  padding: 6px 12px; border-radius: var(--radius-control); font-weight: 500; cursor: pointer;
   white-space: nowrap;
 }
 .planbar-new:disabled { opacity: .6; cursor: default; }
@@ -677,7 +618,7 @@ button.link.danger { color: var(--danger-fg); }
    the same look, so they are spelled out here. */
 .app-sidebar nav button {
   display: flex; align-items: center; gap: 10px; width: 100%;
-  padding: 9px 12px; border: 0; border-radius: .75rem;
+  padding: 9px 12px; border: 0; border-radius: var(--radius-control);
   background: transparent; color: inherit; font: inherit; font-size: 14px;
   text-align: left; cursor: pointer; white-space: nowrap;
   transition: background .16s ease, color .16s ease, padding-left .16s ease;
@@ -701,8 +642,8 @@ button.link.danger { color: var(--danger-fg); }
 
 /* The form step embeds the original record sheet (form.html) full-width. */
 .form-frame {
-  width: 100%; height: calc(100dvh - 170px); min-height: 560px;
-  border: 1px solid var(--border); border-radius: 1rem; background: #fff;
+  width: 100%; height: calc(100dvh - 170px); min-height: min(560px, 80dvh);
+  border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--card);
 }
 
 /* Pick the inspection date from the native calendar. */
@@ -717,13 +658,13 @@ button.link.danger { color: var(--danger-fg); }
 }
 .route-map {
   width: 100%; height: 380px; margin-bottom: 14px;
-  border: 1px solid var(--border); border-radius: 1rem; background: #fff;
+  border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--card);
 }
 .route-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .route-list li {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 12px 14px; background: var(--card);
-  border: 1px solid var(--border); border-radius: 1rem;
+  border: 1px solid var(--border); border-radius: var(--radius-card);
 }
 .route-list .route-origin { background: var(--olive-50); }
 .route-pin {
@@ -750,19 +691,19 @@ button.link.danger { color: var(--danger-fg); }
 .route-edited { color: var(--olive-700); font-size: 12px; }
 .route-actions { display: flex; gap: 6px; align-items: center; }
 .route-actions button {
-  min-width: 44px; min-height: 44px; border-radius: 10px;
+  min-width: 44px; min-height: 44px; border-radius: var(--radius-control);
   border: 1px solid var(--border); background: var(--background); font: inherit; cursor: pointer;
 }
 .route-actions button:disabled { opacity: .4; cursor: default; }
 .route-edit { display: grid; gap: 8px; width: 100%; margin-top: 6px; }
 .route-edit label { display: grid; gap: 4px; font-size: 14px; color: var(--muted-foreground); }
 .route-edit textarea, .route-edit input {
-  min-height: 44px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px;
-  background: var(--background); color: var(--foreground); font: inherit;
+  min-height: 44px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-control);
+  background: var(--input-bg); color: var(--foreground); font: inherit;
 }
 .route-edit-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .route-total {
-  margin-top: 12px; padding: 10px 14px; border-radius: 1rem;
+  margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-card);
   background: var(--olive-50); color: var(--olive-700); font-weight: 600;
 }
 
@@ -771,7 +712,7 @@ button.link.danger { color: var(--danger-fg); }
      button stay tappable instead of spilling off the right edge. */
   .plan-cart {
     left: 12px; right: 12px; bottom: 12px;
-    border-radius: 1rem; gap: 8px; padding: 8px 10px;
+    border-radius: var(--radius-card); gap: 8px; padding: 8px 10px;
   }
   .plan-cart-pick { flex: 1; min-width: 0; }
   .plan-cart .plan-select { min-width: 0; width: 100%; padding: 6px 8px; }
@@ -780,7 +721,7 @@ button.link.danger { color: var(--danger-fg); }
 }
 
 /* --- ไดรฟ์ ------------------------------------------------------------------ */
-.drive { min-height: 60vh; border-radius: 1rem; outline: 2px dashed transparent; outline-offset: 6px; }
+.drive { min-height: 60vh; border-radius: var(--radius-card); outline: 2px dashed transparent; outline-offset: 6px; }
 /* The whole page is the drop target; the outline says so while a file hovers. */
 .drive.dragging { outline-color: var(--primary); background: color-mix(in srgb, var(--primary) 5%, transparent); }
 .drive-bar {
@@ -792,7 +733,7 @@ button.link.danger { color: var(--danger-fg); }
 .drive-error { white-space: pre-line; }
 .drive-empty {
   padding: 40px 16px; text-align: center; color: var(--muted-foreground);
-  border: 1px dashed var(--border); border-radius: 1rem;
+  border: 1px dashed var(--border); border-radius: var(--radius-card);
 }
 .drive-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .drive-table th, .drive-table td {
@@ -821,14 +762,14 @@ button.link.danger { color: var(--danger-fg); }
 .dash-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 12px; }
 .dash-tile { min-width: 0; overflow-wrap: anywhere; }
 .dash-tile {
-  display: grid; gap: 2px; padding: 14px 16px; border-radius: 1rem;
+  display: grid; gap: 2px; padding: 14px 16px; border-radius: var(--radius-card);
   background: var(--card); border: 1px solid var(--border);
 }
 .dash-tile span { color: var(--muted-foreground); font-size: 13px; }
 .dash-tile b { font-size: 30px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .dash-tile small { color: var(--muted-foreground); font-size: 12.5px; }
 .dash-chart {
-  margin: 0; padding: 14px 16px; border-radius: 1rem;
+  margin: 0; padding: 14px 16px; border-radius: var(--radius-card);
   background: var(--card); border: 1px solid var(--border);
 }
 .dash-chart figcaption { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
@@ -836,8 +777,8 @@ button.link.danger { color: var(--danger-fg); }
 .dash-legend { margin-left: auto; display: flex; gap: 14px; font-size: 13px; color: var(--muted-foreground); }
 .dash-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .dash-legend i { width: 10px; height: 10px; border-radius: 3px; }
-.dash-legend .done, .dash-bar-stack .done { background: var(--olive-700); }
-.dash-legend .todo, .dash-bar-stack .todo { background: var(--olive-400); }
+.dash-legend .done, .dash-bar-stack .done { background: var(--chart-1); }
+.dash-legend .todo, .dash-bar-stack .todo { background: color-mix(in srgb, var(--chart-1) 45%, var(--card)); }
 .dash-bars {
   display: flex; align-items: flex-end; gap: 10px; height: 220px; margin-top: 12px;
   padding-bottom: 2px; border-bottom: 1px solid var(--border); overflow-x: auto;
@@ -861,8 +802,8 @@ button.link.danger { color: var(--danger-fg); }
 .dash-progress span { display: block; height: 100%; border-radius: 999px; background: var(--olive-700); }
 /* --- Search interactivity: stats bars, toast, cart drop, key hints ------- */
 .stats {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px 24px; padding: 14px 16px; margin: 0 0 12px; border-radius: 1rem;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 14px 24px; padding: 14px 16px; margin: 0 0 12px; border-radius: var(--radius-card);
   animation: rise-in .3s ease .05s both;
 }
 .stats-title { font-size: 12.5px; color: var(--muted-foreground); margin-bottom: 6px; }
@@ -892,7 +833,7 @@ button.link.danger { color: var(--danger-fg); }
 kbd {
   display: inline-block; min-width: 1.4em; padding: 0 5px; text-align: center;
   font: 11px/1.6 ui-monospace, monospace; border: 1px solid var(--border);
-  border-bottom-width: 2px; border-radius: 4px; background: #fff;
+  border-bottom-width: 2px; border-radius: 4px; background: var(--card);
 }
 
 .card-head[draggable="true"] { cursor: grab; }
@@ -900,7 +841,7 @@ kbd {
 .plan-cart { transition: transform .18s ease, box-shadow .18s ease; }
 .plan-cart.drop-over {
   transform: scale(1.06);
-  box-shadow: 0 0 0 4px var(--olive-200), 0 12px 30px rgba(46, 46, 0, .35);
+  box-shadow: 0 0 0 4px var(--olive-200), var(--shadow-float);
 }
 .plan-cart-count.bump { animation: cart-bump .45s cubic-bezier(.3, 1.6, .5, 1); }
 @keyframes cart-bump { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
@@ -908,8 +849,8 @@ kbd {
 .toast {
   position: fixed; right: 20px; bottom: 84px; z-index: 41;
   max-width: min(360px, calc(100vw - 40px));
-  padding: 10px 14px; border-radius: .75rem; font-size: 13.5px;
-  background: var(--olive-900); color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+  padding: 10px 14px; border-radius: var(--radius-control); font-size: 13.5px;
+  background: var(--olive-900); color: var(--primary-foreground); box-shadow: var(--shadow-float);
   animation: rise-in .25s ease both;
 }
 
@@ -919,3 +860,35 @@ kbd {
 }
 /* Touch screens have no keys to press and no drag onto the cart. */
 @media (hover: none) { .kbd-hint { display: none; } }
+
+/* --- Touch ------------------------------------------------------------------
+   Phones and iPads: everything a finger presses is at least --tap tall, and
+   the small text-style actions get padding and room between them so ลบ is
+   not one slip away from เปลี่ยนชื่อ. Mouse layouts are left as they are. */
+@media (pointer: coarse) {
+  button.link, .link-btn, .find-licence, .licence-missing, .ghost,
+  .stats-bar, .planbar-new, .plan-cart .plan-select, .drive-name {
+    min-height: var(--tap);
+  }
+  button.link, .link-btn { display: inline-flex; align-items: center; padding: 0 10px; }
+  .find-licence, .licence-missing { padding: 6px 12px; }
+  select.licence-pick { min-height: var(--tap); }
+  .stats-group { display: grid; gap: 4px; }
+  .actions, td.actions, .drive-actions, .photo-item { gap: 8px; }
+}
+.route-handle { min-width: var(--tap); }
+
+/* The step menu as a top bar (under 900px): the steps wrap onto as many rows
+   as they need. One unwrappable row of five labelled steps is wider than a
+   phone and pushed the whole page sideways. */
+@media (max-width: 899px) {
+  .app-sidebar nav button {
+    white-space: normal; justify-content: center; min-height: var(--tap);
+  }
+  .app-sidebar nav button:hover { padding-left: 12px; }
+}
+
+.copy-detail { margin-top: 10px; }
+.skeleton.line.w45 { width: 45%; }
+.skeleton.line.w60 { width: 60%; }
+.skeleton.line.w70 { width: 70%; }

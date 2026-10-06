@@ -81,6 +81,8 @@ export default function PlanRoute({ planId }) {
     setItems(next.items);
   }
 
+  // Bumped by "ลองใหม่" to run the load again.
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!planId) { setPlan(null); return undefined; }
     let live = true;
@@ -94,7 +96,7 @@ export default function PlanRoute({ planId }) {
       .then((p) => live && adopt(p))
       .catch((err) => live && setError(err.message));
     return () => { live = false; };
-  }, [planId]);
+  }, [planId, attempt]);
 
   /** Show the new order now, save it, and put the old one back if that fails. */
   async function saveOrder(next, before = items) {
@@ -173,11 +175,18 @@ export default function PlanRoute({ planId }) {
     if (changed) saveOrder(items, before);
   }
 
-  if (!planId) return <div className="empty">เลือกแผนจากแถบด้านบนก่อน</div>;
+  if (!planId) return <div className="empty">เลือกแผนจากแถบมุมขวาล่างก่อน</div>;
   if (!plan) {
-    return error
-      ? <div className="error" role="alert" aria-live="polite">{error}</div>
-      : <div className="empty" role="status" aria-live="polite">กำลังโหลด…</div>;
+    return error ? (
+      <div className="error" role="alert" aria-live="polite">
+        {error}{' '}
+        <button type="button" className="link-btn" onClick={() => setAttempt((n) => n + 1)}>
+          ลองใหม่
+        </button>
+      </div>
+    ) : (
+      <div className="empty" role="status" aria-live="polite">กำลังโหลด…</div>
+    );
   }
   if (!items.length) return <div className="empty">ยังไม่มีร้านในแผนนี้</div>;
 

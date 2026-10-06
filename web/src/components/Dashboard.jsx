@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiBase } from '../api.js';
-import { clearPasscode, PasscodeError, passcodeHeaders, withPasscode } from '../lib/plans-api.js';
+import { passcodeHeaders, refuseIfUnauthorized, withPasscode } from '../lib/plans-api.js';
 
 const MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
@@ -15,10 +15,7 @@ const percent = (done, total) => (total ? Math.round((done / total) * 100) : 0);
 
 async function fetchStats() {
   const response = await fetch(`${apiBase}/api/stats`, { headers: passcodeHeaders() });
-  if (response.status === 401) {
-    clearPasscode();
-    throw new PasscodeError();
-  }
+  await refuseIfUnauthorized(response);
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.success === false) {
     throw new Error(data.error || data.message || `ระบบตอบกลับผิดปกติ (HTTP ${response.status})`);
@@ -93,11 +90,22 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  function load() {
+    setError('');
     withPasscode(fetchStats).then(setStats, (err) => setError(err.message));
-  }, []);
+  }
+  useEffect(load, []);
 
-  if (error) return <div className="error" role="alert">{error}</div>;
+  if (error) {
+    return (
+      <div className="error" role="alert">
+        {error}{' '}
+        <button type="button" className="link-btn" onClick={load}>
+          ลองใหม่
+        </button>
+      </div>
+    );
+  }
   if (!stats) return <div className="empty" role="status">กำลังโหลด…</div>;
 
   return (

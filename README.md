@@ -1,6 +1,13 @@
-# FDA License Scraper API
+# ตรวจร้านยา — สภาเภสัชกรรม
 
-Backend API (Express) over the Thai FDA licence-check portal
+A web tool for the Pharmacy Council's inspecting officers: search licensed
+pharmacies straight from the FDA, file them into an inspection plan, route
+the trip on a map, and fill in and print the official inspection record
+(บันทึกการตรวจสอบการประกอบวิชาชีพของผู้ประกอบวิชาชีพเภสัชกรรม).
+
+For installing on a Council machine see [`deploy/council/README.md`](deploy/council/README.md).
+
+Under it is a backend API (Express) over the Thai FDA licence-check portal
 (`porta.fda.moph.go.th/fda_search_center_new`): it calls the portal's own JSON
 API, filters drug-establishment results by province, and returns JSON.
 
@@ -68,8 +75,14 @@ template lives.
 | `PLANS_STORE` | `blob` when `BLOB_READ_WRITE_TOKEN` is set, else `file` | ที่เก็บแผนการตรวจ — `blob` สำหรับ Vercel, `file` สำหรับเซิร์ฟเวอร์ที่เขียนดิสก์ได้ |
 | `PLANS_DIR` | `data/plans` | โฟลเดอร์เก็บแผน เมื่อใช้ `PLANS_STORE=file` |
 | `PLANS_PASSCODE` | *(ไม่ตั้ง)* | รหัสผ่านของสำนักงานสำหรับ `/api/plans/*` ไม่ตั้ง = ไม่กั้น |
-| `RECORDS_DIR` | `data/records` | โฟลเดอร์เก็บบันทึกการตรวจหน้างาน เมื่อใช้ `PLANS_STORE=file` |
-| `PHOTOS_DIR` | `data/photos` | โฟลเดอร์เก็บรูปถ่ายหน้างาน เมื่อใช้ `PLANS_STORE=file` |
+| `RECORDS_DIR` | `data/records` | โฟลเดอร์เก็บรายการเอกสารที่สแกนรายร้าน เมื่อใช้ `PLANS_STORE=file` |
+| `PHOTOS_DIR` | `data/photos` | โฟลเดอร์เก็บไฟล์เอกสารที่สแกน เมื่อใช้ `PLANS_STORE=file` |
+| `DRIVE_DIR` | `data/drive` | โฟลเดอร์ของหน้า ไดรฟ์ เมื่อใช้ `PLANS_STORE=file` |
+| `FEATURE_DOCS` | `0` | `1` เปิด ไดรฟ์ / เอกสาร / ภาพรวม (ปิดไว้จนกว่าจะพร้อม) |
+| `AUTH_MODE` | `passcode` | `header` = ล็อกอินผ่าน gateway ของสภา — ดู `deploy/council/README.md` |
+| `AUTH_USER_HEADER` | `x-remote-user` | header ที่ gateway ส่งชื่อผู้ใช้มา (`AUTH_MODE=header`) |
+| `AUTH_PROXY_SECRET` | *(ไม่ตั้ง)* | ค่าลับที่ gateway ใส่ใน `x-auth-proxy-secret` |
+| `TRUST_PROXY` | `1` บน Vercel, ไม่งั้น `0` | จำนวน proxy หน้าเว็บ (ใช้หา IP สำหรับจำกัดความถี่) |
 
 `npm install` normally downloads its own Chromium. If a proxy blocks that, the
 app falls back to an installed Chrome or Edge (`src/config.js` → `findChrome()`),
@@ -241,73 +254,25 @@ cold start.
 
 ## Web UI
 
-The search page is a React app (Vite, no router — it is one screen). Its state
-is what the officer is doing: the keyword, the three area filters, the results,
-which shop is picked, and which previews are open.
+A React app (Vite) in `web/`, built into `public/`, which Express serves. The
+sidebar is a step wizard, each step its own hash so back/reload keep the
+place:
 
-```
-web/
-  index.html            the page shell — fonts, theme.css, #root
-  src/App.jsx           search state, and the one fetch that drives it
-  src/api.js            every call to the Express API
-  src/components/       Sidebar · SearchForm · Toolbar · ResultCard · Preview · PickBar · Preloader
-  src/app.css           search-page styles
-  public/               copied out verbatim: form.html, theme.css, logo.png
-```
+| Step | Hash | What it does |
+| --- | --- | --- |
+| ค้นหา | `#/` | search shops by name, filter by จังหวัด → อำเภอ → ตำบล, preview a shop (licensee, pharmacists, map), add it to the plan |
+| จัดแผน | `#/plan` | the active plan: date, licence numbers, sort for the trip, export Word / PDF |
+| แผนที่ | `#/map` | the trip from the Council, per-leg distance, reorder, fix an address or point |
+| ฟอร์ม | `#/form` | the official record sheet (`form.html`) embedded |
+| เอกสาร · ภาพรวม · ไดรฟ์ | `#/docs` `#/dashboard` `#/drive` | held back behind `FEATURE_DOCS` |
 
-Tailwind v4 and shadcn/ui are wired in (`@tailwindcss/vite`, `components.json`
-with `style: radix-rhea`, `baseColor: neutral`). The palette is **not**
-duplicated into Tailwind: `src/index.css` only maps the variables that
-`public/theme.css` already defines, through `@theme inline`, so `bg-primary`
-and `--primary` are the same value and form.html keeps the same colours.
-Changing the org colour is still the four lines at the top of `theme.css`.
+The active plan lives in the cart at the bottom-right of every step. The
+เลข ภ. lookup (`web/public/pharmacist-search.js`) sits in the sidebar.
 
-Generated components land in `src/components/ui/`; the pick bar's action is a
-shadcn `Button` and the result tags are `Badge`s. The status badge overrides
-the variant colour on purpose — across a list of hundreds it has to read as
-right or wrong, not as brand.
-
-The preloader has two variants because the app has two waits: a sub-second
-cover while the area tree loads, and the search itself — about a second now
-that the portal answers over its API, where the old scrape took 7 to 92
-seconds. The second one still counts the seconds; it simply rarely gets past
-one.
-
-The inspection form stays a plain static page. It is a print document, it has
-to render identically in the officer's browser and in the headless Chromium
-that makes the PDF, and React would only add a build step between those two.
-
-
-`GET /` serves a one-page search UI from `public/index.html`:
-
-- **ช่องชื่อร้านยา** — the only thing that reaches the FDA site.
-- **จังหวัด → อำเภอ/เขต → ตำบล/แขวง** — three cascading dropdowns, fully
-  selectable *before* the first search. They are backed by `data/areas.json`
-  (77 provinces / 927 districts / 7,420 subdistricts, 210 KB), generated once
-  from the `thai-address-database` package — the package is not a runtime
-  dependency. After a search, options that have shops get a count appended,
-  e.g. `เมืองเชียงใหม่ (9)`.
-- **พรีวิว** per row — fetches that one establishment's detail pop-up through
-  `/api/fda/detail` and shows ชื่อผู้รับอนุญาต / ผู้ดำเนินกิจการ / เวลาเปิด-ปิด
-  inline in the card, plus a **map**. Loaded once per row, then toggled.
-
-  The coordinates come from the FDA detail page itself: its "map :" link is a
-  Google Maps URL carrying `query=<lat>,<lng>`. Records the FDA never geocoded
-  carry `0,0` or no link at all, so anything outside Thailand's bounding box is
-  treated as "no location" and the card offers a Google Maps search on the
-  address text instead. When coordinates exist the map is an OpenStreetMap
-  embed — no API key, no geocoding service, nothing to sign up for — with
-  "เปิดใน Google Maps" and "เปิดใน OpenStreetMap" links beside it.
-- **คัดลอก** per row (plain text) and **คัดลอกทั้งหมด** in the toolbar
-  (tab-separated, pastes straight into Excel or Google Sheets).
-- **เปิดแท็บใหม่ ↗** per row — the original FDA detail page.
-
-Changing any dropdown re-filters immediately: results are cached by keyword,
-so narrowing the area costs nothing.
-
-Opening `public/index.html` straight from disk works too (the API sends
-`Access-Control-Allow-Origin: *` and the page falls back to
-`http://localhost:3000`), but serving it from the app is the normal path.
+Colours, fonts and radii are tokens in `web/public/theme.css`; `src/index.css`
+maps them into Tailwind through `@theme inline`, so `bg-primary` and
+`--primary` are one value. The record sheet stays a plain static page so the
+browser and the PDF renderer lay it out identically.
 
 ## Inspection form
 
@@ -404,17 +369,6 @@ each rule runs. The comparison allows a few spaces either way, since the
 office's own lines disagree with each other by that much, but no blank may
 carry more tabs than theirs or than the blank form's. Both Word files stay out
 of the repository, so it skips with a message when they are absent.
-
-### ตรวจหน้างาน
-
-เปิดแผนการตรวจบนไอแพด แตะร้าน แล้วกรอกบันทึกทีละขั้น (`#/plans/<วันที่>/<newCode>`)
-ระบบบันทึกร่างขึ้นเซิร์ฟเวอร์เองทุกครั้งที่หยุดพิมพ์ ถ่ายรูปและเซ็นชื่อได้ในหน้าเดียวกัน
-กด "สร้าง PDF" แล้วร้านจะถูกติ๊กว่าตรวจแล้วในแผนโดยอัตโนมัติ
-
-ต้องมีอินเทอร์เน็ตขณะตรวจ — ระบบไม่ทำงานแบบออฟไลน์โดยตั้งใจ (ดู
-`docs/superpowers/specs/2026-09-08-onsite-inspection-design.md`)
-
-รูปถ่ายและลายเซ็นออกเฉพาะใน PDF ไฟล์ Word มีแต่ข้อความ
 
 ## Endpoint
 

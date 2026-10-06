@@ -133,8 +133,17 @@ async function createPlan({ date = '', title } = {}) {
   if (value && !DATE_RE.test(value)) {
     throw badRequest('วันที่ต้องเป็นรูปแบบ พ.ศ. เช่น 2569-08-27');
   }
-  const existing = await store.list();
-  const id = nextPlanId(existing.map((plan) => plan.id));
+  // A deleted plan's letter is not handed out again while its scanned
+  // documents are still stored under it — a new plan "A" must not inherit the
+  // old plan A's records.
+  const [existing, records] = await Promise.all([
+    store.list(),
+    require('./records-store').list().catch(() => []),
+  ]);
+  const id = nextPlanId([
+    ...existing.map((plan) => plan.id),
+    ...records.map((record) => String(record.id || '').split('__')[0]),
+  ]);
   const now = new Date().toISOString();
   return store.save({
     id,
@@ -297,6 +306,18 @@ async function syncItem(id, newCode, deps = realDeps()) {
   if (index === -1) throw notFound('ไม่พบร้านนี้ในแผน');
   const previous = plan.items[index];
   const fresh = await buildItem(previous, deps);
+  // A ภ. number the officer picked or typed is theirs; the FDA re-read must
+  // not put the blank or the ambiguous list back over it.
+  for (const person of fresh.pharmacists || []) {
+    const before = (previous.pharmacists || []).find(
+      (old) => old.name === person.name && old.licenceSource === 'manual' && old.licenceNo
+    );
+    if (before) {
+      person.licenceNo = before.licenceNo;
+      person.licenceSource = 'manual';
+      person.candidates = [];
+    }
+  }
   plan.items[index] = {
     ...fresh,
     order: previous.order,

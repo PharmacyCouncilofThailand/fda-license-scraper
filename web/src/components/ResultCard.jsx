@@ -18,8 +18,8 @@ function StatusBadge({ status }) {
       className={cn(
         'border-transparent',
         active
-          ? 'bg-[var(--success-bg)] text-[var(--success-fg)]'
-          : 'bg-[var(--danger-bg)] text-[var(--danger-fg)]'
+          ? 'bg-success text-success-foreground'
+          : 'bg-danger text-danger-foreground'
       )}
     >
       {status || '-'}
@@ -110,7 +110,7 @@ export default function ResultCard({
 
       {previewState?.open && (
         <div className="preview-reveal">
-          <Preview row={row} state={previewState} />
+          <Preview row={row} state={previewState} onRetry={onTogglePreview} />
         </div>
       )}
     </li>

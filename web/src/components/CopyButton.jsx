@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { copyText } from '../lib/format.js';
 
 /** A ghost button that confirms the copy in place, then goes back to its label. */
-export default function CopyButton({ label, text, className = 'ghost', style }) {
+export default function CopyButton({ label, text, className = 'ghost' }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef(null);
 
@@ -16,7 +16,7 @@ export default function CopyButton({ label, text, className = 'ghost', style }) 
   }
 
   return (
-    <button type="button" className={className} style={style} onClick={handle}>
+    <button type="button" className={className} onClick={handle}>
       {copied ? 'คัดลอกแล้ว ✓' : label}
     </button>
   );

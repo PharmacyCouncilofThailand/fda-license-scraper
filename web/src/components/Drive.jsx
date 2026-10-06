@@ -197,7 +197,14 @@ export default function Drive({ parts }) {
         </div>
       </div>
 
-      {error && <div className="error drive-error" role="alert" aria-live="polite">{error}</div>}
+      {error && (
+        <div className="error drive-error" role="alert" aria-live="polite">
+          {error}{' '}
+          <button type="button" className="link-btn" onClick={() => load()}>
+            ลองใหม่
+          </button>
+        </div>
+      )}
 
       {!listing && !error && <div className="empty" role="status">กำลังโหลด…</div>}
       {empty && <div className="empty drive-empty">โฟลเดอร์นี้ว่าง — กด “อัปโหลด” หรือลากไฟล์มาวาง</div>}

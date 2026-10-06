@@ -1,6 +1,6 @@
 /* The office drive (ไดรฟ์). Same office passcode as the plans. */
 import { apiBase } from '../api.js';
-import { clearPasscode, PasscodeError, passcodeHeaders } from './plans-api.js';
+import { passcodeHeaders, refuseIfUnauthorized } from './plans-api.js';
 
 async function call(route, params, options = {}) {
   const query = new URLSearchParams(params).toString();
@@ -8,10 +8,7 @@ async function call(route, params, options = {}) {
     ...options,
     headers: passcodeHeaders(options.headers),
   });
-  if (response.status === 401) {
-    clearPasscode();
-    throw new PasscodeError();
-  }
+  await refuseIfUnauthorized(response);
   return response;
 }
 
