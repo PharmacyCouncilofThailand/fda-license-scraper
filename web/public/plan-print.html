@@ -4,42 +4,62 @@
     <meta charset="utf-8" />
     <title>แผนการตรวจ</title>
     <style>
-      /* Landscape A4 with the office's usual 1.5cm margins. Chromium reads
-         this rule, not page.pdf()'s margin option — the same finding that
-         form.html records. */
-      @page { size: A4 landscape; margin: 15mm; }
+      /* Laid out after the office's own plan (แผนการตรวจ 27 สค 69.docx), the
+         same as the Word export: TH SarabunPSK carried with the page so the
+         PDF never falls back to whatever the server has, a 16pt title and date
+         over a short rule, a 15pt bold heading row, 14pt cells centred
+         vertically, landscape A4 with 2cm top/bottom and 1.6cm side margins.
+         Chromium reads this @page rule, not page.pdf()'s margin option. */
+      @font-face {
+        font-family: 'TH SarabunPSK';
+        src: url("./fonts/THSarabunPSK.ttf") format("truetype");
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: 'TH SarabunPSK';
+        src: url("./fonts/THSarabunPSK-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+      @page { size: A4 landscape; margin: 20mm 16mm; }
       body {
         margin: 0;
         background: #fff;
-        font-family: 'TH SarabunPSK', 'Sarabun', sans-serif;
+        font-family: 'TH SarabunPSK', sans-serif;
         font-size: 14pt;
+        line-height: 1.15;
         color: #000;
       }
-      h1 { font-size: 18pt; text-align: center; margin: 0 0 4pt; }
-      .date { text-align: center; margin: 0 0 10pt; }
-      table { width: 100%; border-collapse: collapse; }
+      h1 { font-size: 16pt; font-weight: 700; text-align: center; margin: 0; }
+      .date { font-size: 16pt; text-align: center; margin: 0; }
+      /* The short rule under the date: four of Word's 1.27cm default tabs. */
+      .rule { width: 50.8mm; margin: 0 auto 32pt; border-bottom: 1px solid #000; height: 16pt; }
+      /* Column widths in the original's own proportions (twips / 15304). */
+      table { width: 100%; border-collapse: collapse; table-layout: fixed; }
       th, td {
         border: 1px solid #000;
-        padding: 3pt 5pt;
-        vertical-align: top;
+        padding: 0 5pt;
+        vertical-align: middle;
         text-align: left;
       }
-      th { text-align: center; }
+      th { text-align: center; font-size: 15pt; font-weight: 700; height: 10mm; }
+      th.licence { font-size: 14pt; }
       /* Repeat the heading on every printed page and never split a shop's row. */
       thead { display: table-header-group; }
       tr { break-inside: avoid; }
-      .num { width: 5%; text-align: center; }
-      .place { width: 22%; }
-      .licence { width: 11%; }
-      .address { width: 24%; }
-      .holder { width: 16%; }
-      .pharmacists { width: 22%; }
+      .num { width: 5.27%; text-align: center; }
+      td.num { font-weight: 700; }
+      .place { width: 23.41%; }
+      .licence { width: 10.19%; text-align: center; }
+      .address { width: 22.23%; }
+      .holder { width: 14.82%; text-align: center; }
+      .pharmacists { width: 24.08%; text-align: center; }
       .line { display: block; }
     </style>
   </head>
   <body>
     <h1 id="title"></h1>
     <p class="date" id="date"></p>
+    <div class="rule"></div>
     <table>
       <thead>
         <tr>
@@ -76,6 +96,7 @@
         }`;
       }
 
+      /* A line is a string, or [bold, rest] for "คนที่ 1 : name". */
       function lines(parent, values) {
         for (const value of values) {
           if (!value) continue;
@@ -83,7 +104,13 @@
           span.className = 'line';
           // textContent, never innerHTML: shop names carry quotes and angle
           // brackets straight from the FDA's data.
-          span.textContent = value;
+          if (Array.isArray(value)) {
+            const strong = document.createElement('b');
+            strong.textContent = value[0];
+            span.append(strong, document.createTextNode(value[1]));
+          } else {
+            span.textContent = value;
+          }
           parent.append(span);
         }
       }
@@ -119,7 +146,7 @@
           const people = item.pharmacists || [];
           const out = [];
           people.forEach((person, i) => {
-            out.push(people.length > 1 ? `คนที่ ${i + 1} : ${person.name}` : person.name);
+            out.push(people.length > 1 ? [`คนที่ ${i + 1}`, ` : ${person.name}`] : person.name);
             out.push(person.licenceNo ? `ภ. ${person.licenceNo}` : 'ภ.');
           });
           lines(cells[5], out);
