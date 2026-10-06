@@ -230,7 +230,14 @@ a.detail:hover { text-decoration: underline; }
 }
 
 @media (max-width: 560px) {
-  .actions { margin-left: 0; width: 100%; }
+  /* Three equal buttons and the source link on its own row, so Thai labels
+     are never broken mid-word ("พรี/วิว"). */
+  .actions {
+    margin-left: 0; width: 100%;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+  }
+  .actions .ghost { justify-content: center; text-align: center; padding: 6px 8px; min-height: 40px; }
+  .actions a.detail { grid-column: 1 / -1; text-align: center; padding: 4px 0; }
   .preview dl { grid-template-columns: 1fr; gap: 2px; }
   .preview dt { margin-top: 6px; }
 }
@@ -846,3 +853,63 @@ button.link.danger { color: var(--danger-fg); }
 .dash-num small { color: var(--muted-foreground); }
 .dash-progress { display: block; width: 100%; min-width: 80px; height: 8px; border-radius: 999px; background: var(--olive-100); overflow: hidden; }
 .dash-progress span { display: block; height: 100%; border-radius: 999px; background: var(--olive-700); }
+/* --- Search interactivity: stats bars, toast, cart drop, key hints ------- */
+.stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px 24px; padding: 14px 16px; margin: 0 0 12px; border-radius: 1rem;
+  animation: rise-in .3s ease .05s both;
+}
+.stats-title { font-size: 12.5px; color: var(--muted-foreground); margin-bottom: 6px; }
+.stats-bar {
+  display: grid; grid-template-columns: minmax(0, 7.5rem) 1fr auto; align-items: center;
+  gap: 10px; width: 100%; padding: 5px 6px; border: 0; border-radius: .5rem;
+  background: transparent; font: inherit; font-size: 13px; color: inherit;
+  text-align: left; cursor: pointer; transition: background .15s ease, opacity .15s ease;
+}
+.stats-bar:hover { background: var(--olive-50); }
+.stats-bar.on { background: var(--olive-100); font-weight: 500; }
+.stats-bar.dim { opacity: .45; }
+.stats-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats-track { height: 8px; border-radius: 999px; background: var(--muted); overflow: hidden; }
+.stats-fill {
+  display: block; height: 100%; border-radius: inherit; background: var(--primary);
+  transform-origin: left; animation: bar-grow .5s cubic-bezier(.4, 0, .2, 1) both;
+}
+.stats-fill.ok { background: var(--success-fg); }
+.stats-fill.bad { background: var(--danger-fg); }
+.stats-shown { grid-column: 1 / -1; font-size: 13px; color: var(--muted-foreground); }
+.stats-shown strong { color: var(--foreground); font-weight: 500; }
+.stats-count { font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+@keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.kbd-hint { font-size: 12px; color: var(--muted-foreground); margin: 0 0 10px; }
+kbd {
+  display: inline-block; min-width: 1.4em; padding: 0 5px; text-align: center;
+  font: 11px/1.6 ui-monospace, monospace; border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: 4px; background: #fff;
+}
+
+.card-head[draggable="true"] { cursor: grab; }
+.card-head[draggable="true"]:active { cursor: grabbing; }
+.plan-cart { transition: transform .18s ease, box-shadow .18s ease; }
+.plan-cart.drop-over {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px var(--olive-200), 0 12px 30px rgba(46, 46, 0, .35);
+}
+.plan-cart-count.bump { animation: cart-bump .45s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes cart-bump { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
+
+.toast {
+  position: fixed; right: 20px; bottom: 84px; z-index: 41;
+  max-width: min(360px, calc(100vw - 40px));
+  padding: 10px 14px; border-radius: .75rem; font-size: 13.5px;
+  background: var(--olive-900); color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+  animation: rise-in .25s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats, .stats-fill, .plan-cart-count.bump, .toast { animation: none; }
+  .plan-cart, .stats-bar { transition: none; }
+}
+/* Touch screens have no keys to press and no drag onto the cart. */
+@media (hover: none) { .kbd-hint { display: none; } }
