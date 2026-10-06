@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { FileDown, FileText, Route, Trash2 } from 'lucide-react';
 import PlanTable from './PlanTable.jsx';
+import { Button } from '@/components/ui/button';
 import {
   deletePlan,
   downloadExport,
@@ -130,32 +132,26 @@ export default function PlanView({ planId, onPlansChanged }) {
               <div className="plan-head-actions">
                 {/* Export the plan as the office's Word / PDF record —
                     separate buttons, not one boxed pair. */}
-                <button type="button" disabled={busy} onClick={() => exportPlan('docx')}>
-                  ส่งออก Word
-                </button>
-                <button type="button" disabled={busy} onClick={() => exportPlan('pdf')}>
-                  ส่งออก PDF
-                </button>
+                <Button variant="outline" disabled={busy} onClick={() => exportPlan('docx')}>
+                  <FileText /> ส่งออก Word
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={() => exportPlan('pdf')}>
+                  <FileDown /> ส่งออก PDF
+                </Button>
                 {/* Reorder the plan for the day's trip: by on-duty start time
                     first, then by distance from the Pharmacy Council (see
                     ../lib/route.js), and persist the new order so the exports
                     carry it. */}
-                <button
-                  type="button"
+                <Button
                   disabled={busy}
                   title="เรียงตามเวลาทำการก่อน แล้วระยะทางจากสภาเภสัชกรรม"
                   onClick={sortTrip}
                 >
-                  จัดลำดับตามเวลา/เส้นทาง
-                </button>
-                <button
-                  type="button"
-                  className="link danger"
-                  disabled={busy}
-                  onClick={() => removePlan(plan.id)}
-                >
-                  ลบแผน
-                </button>
+                  <Route /> จัดลำดับตามเวลา/เส้นทาง
+                </Button>
+                <Button variant="destructive" disabled={busy} onClick={() => removePlan(plan.id)}>
+                  <Trash2 /> ลบแผน
+                </Button>
               </div>
             </div>
             <PlanTable

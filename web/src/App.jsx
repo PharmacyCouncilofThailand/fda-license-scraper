@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar.jsx';
 import SearchForm from './components/SearchForm.jsx';
 import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
+import ResultStats from './components/ResultStats.jsx';
 import PlanBar from './components/PlanBar.jsx';
 import PlanView from './components/PlanView.jsx';
 import PlanRoute from './components/PlanRoute.jsx';
@@ -45,6 +46,16 @@ export default function App() {
   const [plans, setPlans] = useState([]);
   // newCode -> true while its "กรอกฟอร์ม" is fetching the licensee detail.
   const [formBusy, setFormBusy] = useState(() => new Set());
+  // Client-side narrowing from the stats bars: { status, licenseType }.
+  const [statsFilter, setStatsFilter] = useState({});
+  // One short confirmation at a time, e.g. after a shop lands in the plan.
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  function showToast(text) {
+    clearTimeout(toastTimer.current);
+    setToast({ text, id: Date.now() });
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  }
 
   const pending = useRef(null);
   // The query a search should use, so a dropdown change can re-run immediately
@@ -91,6 +102,7 @@ export default function App() {
     setSelectedCode(null);
     setPlanStatus({});
     setPreviews({});
+    setStatsFilter({});
     setData(null);
 
     try {
@@ -146,6 +158,11 @@ export default function App() {
   }
 
   const results = data?.results || [];
+  const visible = results.filter(
+    (r) =>
+      (!statsFilter.status || (r.status || '-') === statsFilter.status) &&
+      (!statsFilter.licenseType || (r.licenseType || '-') === statsFilter.licenseType)
+  );
 
   /** One retry after the passcode is entered — the API asks for it on 401. */
   async function withPasscode(action) {
@@ -225,6 +242,9 @@ export default function App() {
   /* Cart-style: one tap files this row into the working plan right away —
      no separate tick-then-confirm step. */
   async function addOneToPlan(row) {
+    // Keyboard and drag reach here too, past the button's disabled state.
+    const current = planStatus[row.newCode];
+    if (current === 'busy' || current === 'added') return;
     setPlanStatus((s) => ({ ...s, [row.newCode]: 'busy' }));
     try {
       const planId = await ensureActivePlan();
@@ -246,6 +266,9 @@ export default function App() {
         ...s,
         [row.newCode]: result.added.length ? 'added' : 'error',
       }));
+      if (result.added.length) {
+        showToast(`ใส่ "${row.placeName || row.licenseNo}" ลงแผน ${planId} แล้ว`);
+      }
       await refreshPlans();
     } catch (err) {
       setError(err.message);
@@ -256,6 +279,10 @@ export default function App() {
   /* Handing the whole row to the record page: the FDA's detail call does not
      answer the shop's name, licence number or address. */
   async function openFormFor(row) {
+    // Opened synchronously so a popup blocker sees the tap even when the
+    // detail fetch below is slow, then pointed at the form once it is ready.
+    const win = window.open('', '_blank');
+    if (win) win.opener = null;
     let extra = previews[row.newCode]?.status === 'ready' ? previews[row.newCode].detail : null;
     if (!extra && row.newCode) {
       setFormBusy((s) => new Set(s).add(row.newCode));
@@ -272,7 +299,57 @@ export default function App() {
       }
     }
     localStorage.setItem(HANDOFF_KEY, JSON.stringify({ ...row, ...extra }));
-    window.open('/form.html', '_blank', 'noopener');
+    if (win) win.location.href = new URL('/form.html', location.href).href;
+    else window.open('/form.html', '_blank', 'noopener');
+  }
+
+  /* Keyboard on the search step: / focuses the search box, j/k or ↑/↓ walk
+     the list, p previews, a files into the plan, f opens the form. One
+     long-lived listener reads the latest state and handlers through a ref. */
+  const keys = useRef();
+  // A record page (#/plans/…) also computes step 1, but shows no list.
+  const onSearch = step === 1 && !route.startsWith('#/plans');
+  keys.current = { onSearch, visible, selectedCode, togglePreview, addOneToPlan, openFormFor };
+  useEffect(() => {
+    function onKey(event) {
+      const k = keys.current;
+      if (!k.onSearch || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.target.closest?.('input, select, textarea, [contenteditable]')) {
+        if (event.key === 'Escape') event.target.blur();
+        return;
+      }
+      if (event.key === '/') {
+        event.preventDefault();
+        document.getElementById('search-keyword')?.focus();
+        return;
+      }
+      if (!k.visible.length) return;
+      const index = k.visible.findIndex((r) => r.newCode === k.selectedCode);
+      const move = { j: 1, ArrowDown: 1, k: -1, ArrowUp: -1 }[event.key];
+      if (move) {
+        event.preventDefault();
+        const next = k.visible[Math.min(k.visible.length - 1, Math.max(0, index + move))];
+        setSelectedCode(next.newCode);
+        document
+          .querySelector(`[data-code="${CSS.escape(next.newCode || '')}"]`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        return;
+      }
+      const row = k.visible[index];
+      if (!row) return;
+      if (event.key === 'p') k.togglePreview(row);
+      else if (event.key === 'a') k.addOneToPlan(row);
+      else if (event.key === 'f') k.openFormFor(row);
+      else if (event.key === 'Escape') setSelectedCode(null);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  /* A result card dropped on the plan cart files it, same as "+ ใส่แผน". */
+  function dropOnPlan(code) {
+    const row = results.find((r) => r.newCode === code);
+    if (row) addOneToPlan(row);
   }
 
   if (booting) return <Preloader variant="screen" />;
@@ -305,7 +382,14 @@ export default function App() {
             busy={busy}
             onPick={pickPlan}
             onNew={newPlan}
+            onDropCode={onSearch ? dropOnPlan : null}
           />
+
+          {toast && (
+            <div key={toast.id} className="toast" role="status" aria-live="polite">
+              {toast.text}
+            </div>
+          )}
 
           {error && <div className="error" role="alert" aria-live="polite">{error}</div>}
 
@@ -338,11 +422,20 @@ export default function App() {
                   <SkeletonList />
                 </>
               ) : (
-                <Toolbar data={data} onRefresh={() => runSearch({ refresh: true })} />
+                <>
+                  <Toolbar data={data} onRefresh={() => runSearch({ refresh: true })} />
+                  <ResultStats rows={results} shown={visible.length} filter={statsFilter} onFilter={setStatsFilter} />
+                  {visible.length > 0 && (
+                    <p className="kbd-hint">
+                      <kbd>/</kbd> ค้นหา · <kbd>j</kbd>/<kbd>k</kbd> เลื่อน · <kbd>p</kbd> พรีวิว ·{' '}
+                      <kbd>a</kbd> ใส่แผน · <kbd>f</kbd> กรอกฟอร์ม · ลากการ์ดไปวางที่แผนมุมขวาล่างได้
+                    </p>
+                  )}
+                </>
               )}
 
               <ul>
-                {results.map((row) => (
+                {visible.map((row) => (
                   <ResultCard
                     key={row.newCode || row.licenseNo}
                     row={row}

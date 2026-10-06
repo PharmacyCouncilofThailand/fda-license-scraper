@@ -50,6 +50,7 @@ export default function SearchForm({
       }}
     >
       <input
+        id="search-keyword"
         type="text"
         placeholder="ชื่อร้านยา เช่น ฟาร์มาซี…"
         autoComplete="off"
