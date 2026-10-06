@@ -15,7 +15,9 @@ const PAGES = [
   { hash: '#/drive', icon: 'cloud', label: 'ไดรฟ์' },
 ];
 
-export default function Sidebar({ step, onStep, page = '' }) {
+export default function Sidebar({ step, onStep, page = '', docsOn = false }) {
+  // เอกสาร and the ข้อมูล pages are held back until FEATURE_DOCS is on.
+  const steps = docsOn ? STEPS : STEPS.filter((s) => s.n !== 5);
   return (
     <aside className="app-sidebar glass-panel-primary">
       <div className="brand">
@@ -30,7 +32,7 @@ export default function Sidebar({ step, onStep, page = '' }) {
       <hr />
       <span className="group-label">ขั้นตอน</span>
       <nav>
-        {STEPS.map((s) => (
+        {steps.map((s) => (
           <button
             key={s.n}
             type="button"
@@ -43,6 +45,7 @@ export default function Sidebar({ step, onStep, page = '' }) {
           </button>
         ))}
       </nav>
+      {docsOn && (<>
       <hr />
       {/* Not plan steps, so they sit in their own group. */}
       <span className="group-label">ข้อมูล</span>
@@ -60,6 +63,7 @@ export default function Sidebar({ step, onStep, page = '' }) {
           </button>
         ))}
       </nav>
+      </>)}
       <hr />
       {/* Carries its own heading, so no group-label here.
           Defined in web/public/pharmacist-search.js — the same element the

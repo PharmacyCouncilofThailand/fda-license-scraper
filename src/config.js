@@ -83,6 +83,12 @@ module.exports = {
   // trusts the Pharmacy Council's sign-in gateway: it forwards the signed-in
   // username in AUTH_USER_HEADER, and optionally a fixed AUTH_PROXY_SECRET in
   // x-auth-proxy-secret so a request that skipped the gateway is refused.
+  // Parts that ship switched off until they are finished. `docs` is the
+  // ไดรฟ์, the per-shop scanned documents and the dashboard over them.
+  features: {
+    docs: process.env.FEATURE_DOCS === '1',
+  },
+
   authMode: process.env.AUTH_MODE || 'passcode',
   authUserHeader: process.env.AUTH_USER_HEADER || 'x-remote-user',
   authProxySecret: process.env.AUTH_PROXY_SECRET || null,

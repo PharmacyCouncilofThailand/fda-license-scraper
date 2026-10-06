@@ -17,6 +17,11 @@ async function get(path, options) {
 }
 
 /** จังหวัด → อำเภอ → [ตำบล]. Static, so the browser caches it hard. */
+/** Which held-back parts are switched on; all off if the call fails. */
+export function fetchFeatures() {
+  return get('/api/features').catch(() => ({}));
+}
+
 export function fetchAreas() {
   return get('/api/areas').then((d) => d.areas || {});
 }

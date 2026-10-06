@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchAreas, fetchDetail, searchDrugLocations } from './api.js';
+import { fetchAreas, fetchDetail, fetchFeatures, searchDrugLocations } from './api.js';
 import Sidebar from './components/Sidebar.jsx';
 import SearchForm from './components/SearchForm.jsx';
 import Toolbar from './components/Toolbar.jsx';
@@ -82,12 +82,25 @@ export default function App() {
     window.location.hash = STEP_HASHES[n - 1];
   };
 
+  // The upload parts (เอกสาร, ภาพรวม, ไดรฟ์) are held back for a later update;
+  // the server says whether they are on (FEATURE_DOCS).
+  const [docsOn, setDocsOn] = useState(false);
+
   useEffect(() => {
-    fetchAreas()
-      .then(setAreas)
-      .catch(() => setError('โหลดรายชื่อจังหวัดไม่สำเร็จ'))
-      .finally(() => setBooting(false));
+    Promise.all([
+      fetchAreas()
+        .then(setAreas)
+        .catch(() => setError('โหลดรายชื่อจังหวัดไม่สำเร็จ')),
+      fetchFeatures().then((f) => setDocsOn(Boolean(f.docs))),
+    ]).finally(() => setBooting(false));
   }, []);
+
+  // An old link or bookmark to a part that is switched off lands on search.
+  const heldBack =
+    !docsOn && (route === '#/docs' || route === '#/dashboard' || route.startsWith('#/drive'));
+  useEffect(() => {
+    if (!booting && heldBack) window.location.replace('#/');
+  }, [booting, heldBack]);
 
   const runSearch = useCallback(async ({ refresh = false } = {}) => {
     const current = queryRef.current;
@@ -354,7 +367,7 @@ export default function App() {
     if (row) addOneToPlan(row);
   }
 
-  if (booting) return <Preloader variant="screen" />;
+  if (booting || heldBack) return <Preloader variant="screen" />;
 
   if (route === '#/drive' || route.startsWith('#/drive/')) {
     // #/drive/<segment>/<segment>… — the open folder, one encoded segment each.
@@ -367,7 +380,7 @@ export default function App() {
     });
     return (
       <>
-        <Sidebar onStep={setStep} page="#/drive" />
+        <Sidebar onStep={setStep} page="#/drive" docsOn={docsOn} />
         <main className="app-main">
           <div className="wrap">
             <Drive parts={parts} />
@@ -380,7 +393,7 @@ export default function App() {
   if (route === '#/dashboard') {
     return (
       <>
-        <Sidebar onStep={setStep} page="#/dashboard" />
+        <Sidebar onStep={setStep} page="#/dashboard" docsOn={docsOn} />
         <main className="app-main">
           <div className="wrap">
             <Dashboard />
@@ -396,7 +409,7 @@ export default function App() {
     if (planId && encodedCode) {
       return (
         <>
-          <Sidebar onStep={setStep} />
+          <Sidebar onStep={setStep} docsOn={docsOn} />
           <main className="app-main">
             <div className="wrap">
               <RecordForm planId={planId} newCode={decodeURIComponent(encodedCode)} />
@@ -409,7 +422,7 @@ export default function App() {
 
   return (
     <>
-      <Sidebar step={step} onStep={setStep} />
+      <Sidebar step={step} onStep={setStep} docsOn={docsOn} />
       <main className="app-main">
         <div className="wrap">
           <PlanBar

@@ -182,6 +182,19 @@ app.use('/api/plans', requirePasscode);
 app.use('/api/drive', requirePasscode);
 app.use('/api/stats', requirePasscode);
 
+/*
+ * File uploads — the ไดรฟ์, the per-shop scanned documents (เอกสาร) and the
+ * ภาพรวม dashboard that counts them — are held back for a later update
+ * (FEATURE_DOCS=1 turns them on). The page asks /api/features which menus to
+ * show; with the feature off its routes answer 404 as if they did not exist.
+ */
+app.get('/api/features', (req, res) => res.json({ success: true, docs: config.features.docs }));
+if (!config.features.docs) {
+  const off = (req, res) => res.status(404).json({ success: false, error: 'ส่วนนี้ยังไม่เปิดใช้งาน' });
+  app.use(['/api/drive', '/api/stats'], off);
+  app.use(/^\/api\/plans\/[^/]+\/items\/[^/]+\/record\/documents(\/|$)/, off);
+}
+
 // The dashboard. Reads every plan and every record — ponytail: fine for an
 // office's few hundred inspections a year; cache it if that ever grows slow.
 app.get('/api/stats', async (req, res, next) => {
