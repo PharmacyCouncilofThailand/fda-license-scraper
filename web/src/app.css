@@ -17,7 +17,10 @@ form {
   border-radius: 1rem;
   padding: 14px;
 }
-input[type="text"] { flex: 1 1 240px; min-width: 0; }
+/* The search row's sizing only. Unscoped, the 240px basis also hit every
+   text box in a column layout — the document names, photo captions and the
+   record fields — and turned it into a box 240px tall. */
+form > input[type="text"] { flex: 1 1 240px; min-width: 0; }
 select { flex: 1 1 170px; min-width: 0; }
 select:disabled { opacity: 0.55; }
 .filters {
@@ -594,9 +597,12 @@ button.link.danger { color: var(--danger-fg); }
 .doc-open { padding: 0; border: 0; background: none; cursor: pointer; }
 .doc-open img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px;
   border: 1px solid var(--border); display: block; }
-.doc-pdf { aspect-ratio: 3 / 4; display: grid; place-items: center; border-radius: 10px;
-  border: 1px solid var(--border); background: var(--olive-50); color: var(--olive-700);
-  font-weight: 700; font-size: 22px; }
+.doc-pdf { aspect-ratio: 3 / 4; display: grid; place-content: center; justify-items: center;
+  gap: 6px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--olive-50); color: var(--olive-700); }
+.doc-pdf .material-symbols-outlined { font-size: 56px; }
+.doc-pdf small { font-size: 13px; color: var(--muted-foreground); }
+.doc-open:hover .doc-pdf, .doc-open:focus-visible .doc-pdf { background: var(--olive-100); }
 
 .signature-slot { display: flex; flex-direction: column; gap: 6px; padding: 10px;
   border: 1px solid var(--border); border-radius: 12px; }
