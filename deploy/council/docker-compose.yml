@@ -23,9 +23,9 @@ services:
       PHOTOS_DIR: /srv/app-data/photos
       DRIVE_DIR: /srv/drive
       PLANS_PASSCODE: ${PLANS_PASSCODE:?ตั้ง PLANS_PASSCODE ใน .env}
-      # Sign-in through the Council's gateway — see "เข้าสู่ระบบผ่านสภา" in README.md.
       # ไดรฟ์ / เอกสาร / ภาพรวม are held back for a later update; 1 turns them on.
       FEATURE_DOCS: ${FEATURE_DOCS:-0}
+      # Sign-in through the Council's gateway — see "เข้าสู่ระบบผ่านสภา" in README.md.
       AUTH_MODE: ${AUTH_MODE:-passcode}
       AUTH_USER_HEADER: ${AUTH_USER_HEADER:-x-remote-user}
       AUTH_PROXY_SECRET: ${AUTH_PROXY_SECRET:-}
