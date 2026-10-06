@@ -27,8 +27,12 @@ const plans = require('./plans');
 const records = require('./records');
 const photoStore = require('./photo-store');
 const { renderPlanDocx } = require('./docx-plan');
+const { rateLimit } = require('./rate-limit');
 
 const app = express();
+// Behind Vercel's proxy, so trust one hop — otherwise req.ip is the proxy and
+// every client shares one rate-limit bucket.
+app.set('trust proxy', 1);
 // Signatures ride inside the record as data URLs — eight of them at a few tens
 // of kilobytes each is past express's 100kb default.
 app.use(express.json({ limit: '2mb' }));
@@ -52,21 +56,53 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
+/*
+ * Rate limits on the endpoints that cost something to serve. `render` guards
+ * the PDF/DOCX routes, each of which launches headless Chromium in a 2 GB
+ * function; `search` guards the ones that hit the FDA / council sites. Both
+ * key off the client IP (see `trust proxy` above). The whole office reaches
+ * the site through one public IP, so a bucket is shared by every officer at
+ * once, and each preview and area change is a search call of its own — the
+ * numbers are sized for an office, not a person. Tune to real traffic.
+ */
+const renderLimit = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  message: 'สร้างเอกสารถี่เกินไป กรุณารอสักครู่แล้วลองใหม่',
+});
+const searchLimit = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 300,
+  message: 'ค้นหาถี่เกินไป กรุณารอสักครู่แล้วลองใหม่',
+});
+
+// The standalone public pages (public/form.html, pharmacist-search.js) call
+// these with no passcode, so a limit is the only thing between them and abuse.
+// /api/form launches Chromium (render); /api/fda and /api/pharmacist are
+// cached lookups against the FDA / council sites (search).
+app.use('/api/form', renderLimit);
+app.use(['/api/fda', '/api/pharmacist'], searchLimit);
+// Record/plan exports live under /api/plans (passcode-gated) but still spin up
+// Chromium, so they get the render limit too.
+app.use(/^\/api\/plans\/.*\/(pdf|docx)$/, renderLimit);
+
+/*
+ * One office passcode guards the plan data — and the cache-clear below, which
+ * is a mutation no page needs. With no passcode set, nothing is asked (the
+ * local development case). It becomes real accounts at the Pharmacy Council.
+ */
+function requirePasscode(req, res, next) {
+  if (!config.plansPasscode) return next();
+  if (req.get('x-plans-passcode') === config.plansPasscode) return next();
+  res.status(401).json({ success: false, error: 'รหัสผ่านไม่ถูกต้อง' });
+}
+
 app.get('/health', (req, res) =>
   res.json({ ok: true, plansStore: plansStore.backendName(), photoStore: photoStore.backendName() })
 );
 
-/*
- * The site is public, so the list of shops an officer is about to walk into
- * would be public too. One office passcode is the least that keeps it shut;
- * it becomes real accounts when the system moves to the Pharmacy Council.
- * With no passcode set, nothing is asked — that is the local development case.
- */
-app.use('/api/plans', (req, res, next) => {
-  if (!config.plansPasscode) return next();
-  if (req.get('x-plans-passcode') === config.plansPasscode) return next();
-  res.status(401).json({ success: false, error: 'รหัสผ่านไม่ถูกต้อง' });
-});
+// The list of shops an officer is about to walk into is not public.
+app.use('/api/plans', requirePasscode);
 
 app.get('/api/plans', async (req, res, next) => {
   try {
@@ -540,7 +576,7 @@ app.get('/api/cache', (req, res) =>
   res.json({ success: true, ...cacheStats(), pharmacist: pharmacistCacheStats() })
 );
 
-app.delete('/api/cache', (req, res) => {
+app.delete('/api/cache', requirePasscode, (req, res) => {
   clearCache();
   clearPharmacistCache();
   res.json({ success: true, message: 'ล้างแคชแล้ว' });
