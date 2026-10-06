@@ -392,7 +392,16 @@ async function fetchRows(keyword) {
   }
 
   // The licence number arrives split: "ขจ" (type) and "กจ 4/2538" (number).
-  const rows = data.slice(0, config.maxRows).map((r) => ({
+  // The FDA sometimes answers the same establishment twice; one Newcode is one
+  // shop, so later copies are dropped (they also collide as list keys).
+  const seen = new Set();
+  const rows = data.slice(0, config.maxRows).filter((r) => {
+    const code = clean(r.Newcode);
+    if (!code) return true;
+    if (seen.has(code)) return false;
+    seen.add(code);
+    return true;
+  }).map((r) => ({
     licenseNo: clean(r.lcnno_no),
     licenseType: clean(r.lcntpcd),
     placeName: clean(r.thanm),
@@ -406,7 +415,8 @@ async function fetchRows(keyword) {
   for (const row of rows) row.area = parseAddress(row.address);
 
   // Only ever true for a keyword so broad it passed MAX_ROWS.
-  return { rows, capped: data.length > rows.length };
+  // Compared with the limit, not rows.length — dropped duplicates are not a cap.
+  return { rows, capped: data.length > config.maxRows };
 }
 
 /**
