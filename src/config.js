@@ -79,6 +79,12 @@ module.exports = {
   plansDir: process.env.PLANS_DIR || path.join(__dirname, '..', 'data', 'plans'),
   plansPasscode: process.env.PLANS_PASSCODE || null,
 
+  // How many proxies sit in front of the app, for reading the client's IP
+  // (the rate limits key on it). Vercel has one; a Council machine serving
+  // the LAN directly has none, and trusting X-Forwarded-For there would let
+  // any client pick its own IP. Set TRUST_PROXY=1 behind a reverse proxy.
+  trustProxy: Number(process.env.TRUST_PROXY ?? (process.env.VERCEL ? 1 : 0)),
+
   // Photo bytes for on-site records. Same backend choice as the plans, so a
   // deployment configures one thing, not two.
   photosDir: process.env.PHOTOS_DIR || path.join(__dirname, '..', 'data', 'photos'),

@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const express = require('express');
 const config = require('./config');
 const areas = require('../data/areas.json');
@@ -33,9 +34,21 @@ const { renderPlanDocx } = require('./docx-plan');
 const { rateLimit } = require('./rate-limit');
 
 const app = express();
-// Behind Vercel's proxy, so trust one hop — otherwise req.ip is the proxy and
-// every client shares one rate-limit bucket.
-app.set('trust proxy', 1);
+// Proxy hops in front of the app (see config.trustProxy): one on Vercel, none
+// on a Council machine that serves the LAN itself.
+app.set('trust proxy', config.trustProxy);
+app.disable('x-powered-by');
+
+// Baseline browser protections for every response. Framing is same-origin
+// only because the ฟอร์ม step shows form.html in an iframe of its own app.
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Referrer-Policy': 'same-origin',
+  });
+  next();
+});
 // Signatures ride inside the record as data URLs — eight of them at a few tens
 // of kilobytes each is past express's 100kb default.
 app.use(express.json({ limit: '2mb' }));
@@ -53,11 +66,15 @@ function parseBoolean(value, fallback) {
   return !['false', '0', 'no'].includes(String(value).toLowerCase());
 }
 
-// Allows the page to be opened straight from disk during development.
-app.use('/api', (req, res, next) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  next();
-});
+// Allows the page to be opened straight from disk during development. Never
+// in production: there, a page on any other site an officer visits must not
+// be able to read the API through their browser.
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api', (req, res, next) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    next();
+  });
+}
 
 /*
  * Rate limits on the endpoints that cost something to serve. `render` guards
@@ -94,10 +111,29 @@ app.use(/^\/api\/plans\/.*\/(pdf|docx)$/, renderLimit);
  * is a mutation no page needs. With no passcode set, nothing is asked (the
  * local development case). It becomes real accounts at the Pharmacy Council.
  */
+// Wrong guesses are counted per IP, so the passcode cannot be brute-forced;
+// right ones never touch the counter.
+const passcodeFailures = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'ใส่รหัสผ่านผิดหลายครั้งเกินไป กรุณารอ 15 นาทีแล้วลองใหม่',
+});
+
+function passcodeMatches(given) {
+  const a = crypto.createHash('sha256').update(String(given ?? '')).digest();
+  const b = crypto.createHash('sha256').update(config.plansPasscode).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
 function requirePasscode(req, res, next) {
   if (!config.plansPasscode) return next();
-  if (req.get('x-plans-passcode') === config.plansPasscode) return next();
-  res.status(401).json({ success: false, error: 'รหัสผ่านไม่ถูกต้อง' });
+  const given = req.get('x-plans-passcode');
+  if (given && passcodeMatches(given)) return next();
+  const refuse = () => res.status(401).json({ success: false, error: 'รหัสผ่านไม่ถูกต้อง' });
+  // A request with no passcode at all is the page asking before the prompt,
+  // not a guess — only a wrong one counts.
+  if (!given) return refuse();
+  passcodeFailures(req, res, refuse);
 }
 
 app.get('/health', (req, res) =>
@@ -752,7 +788,13 @@ app.use((err, req, res, _next) => {
   const status = err instanceof ScrapeError ? err.status : err.status || err.statusCode || 500;
   const code = err instanceof ScrapeError ? err.code : 'INTERNAL_ERROR';
   if (status >= 500) console.error('[error]', err);
-  res.status(status).json({ success: false, code, message: err.message });
+  // An unexpected failure's own message can carry file paths or upstream
+  // detail; the log keeps it, the browser gets a plain sentence.
+  const message =
+    status >= 500 && !(err instanceof ScrapeError) && !err.status
+      ? 'เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง'
+      : err.message;
+  res.status(status).json({ success: false, code, message });
 });
 
 // A stray rejection (a Puppeteer wait that outlives its request) must not take
