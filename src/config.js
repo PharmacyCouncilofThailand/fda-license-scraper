@@ -79,6 +79,14 @@ module.exports = {
   plansDir: process.env.PLANS_DIR || path.join(__dirname, '..', 'data', 'plans'),
   plansPasscode: process.env.PLANS_PASSCODE || null,
 
+  // Sign-in. `passcode` (default) is the office passcode above. `header`
+  // trusts the Pharmacy Council's sign-in gateway: it forwards the signed-in
+  // username in AUTH_USER_HEADER, and optionally a fixed AUTH_PROXY_SECRET in
+  // x-auth-proxy-secret so a request that skipped the gateway is refused.
+  authMode: process.env.AUTH_MODE || 'passcode',
+  authUserHeader: process.env.AUTH_USER_HEADER || 'x-remote-user',
+  authProxySecret: process.env.AUTH_PROXY_SECRET || null,
+
   // How many proxies sit in front of the app, for reading the client's IP
   // (the rate limits key on it). Vercel has one; a Council machine serving
   // the LAN directly has none, and trusting X-Forwarded-For there would let

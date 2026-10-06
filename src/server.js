@@ -107,6 +107,40 @@ app.use(['/api/fda', '/api/pharmacist'], searchLimit);
 app.use(/^\/api\/plans\/.*\/(pdf|docx)$/, renderLimit);
 
 /*
+ * Sign-in through the Pharmacy Council (AUTH_MODE=header). The Council's
+ * gateway signs the officer in and forwards each request with their username
+ * in AUTH_USER_HEADER; every /api call without it is refused, and the office
+ * passcode below is no longer asked for. Only safe when the gateway is the
+ * one way in — so the app's port must not be reachable around it, and if the
+ * gateway can add a fixed header, AUTH_PROXY_SECRET checks that it did.
+ * ponytail: header mode only; an OIDC client goes here once the Council says
+ * which sign-in it runs.
+ */
+function sameSecret(given, expected) {
+  const a = crypto.createHash('sha256').update(String(given ?? '')).digest();
+  const b = crypto.createHash('sha256').update(String(expected)).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+// A typo here must stop the server, not quietly leave it open.
+if (!['passcode', 'header'].includes(config.authMode)) {
+  throw new Error(`AUTH_MODE ต้องเป็น passcode หรือ header (ได้ "${config.authMode}")`);
+}
+
+if (config.authMode === 'header') {
+  app.use('/api', (req, res, next) => {
+    const user = req.get(config.authUserHeader);
+    const fromGateway =
+      !config.authProxySecret || sameSecret(req.get('x-auth-proxy-secret'), config.authProxySecret);
+    if (!user || !fromGateway) {
+      return res.status(401).json({ success: false, error: 'กรุณาเข้าสู่ระบบผ่านระบบของสภาเภสัชกรรมก่อน' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+/*
  * One office passcode guards the plan data — and the cache-clear below, which
  * is a mutation no page needs. With no passcode set, nothing is asked (the
  * local development case). It becomes real accounts at the Pharmacy Council.
@@ -119,16 +153,12 @@ const passcodeFailures = rateLimit({
   message: 'ใส่รหัสผ่านผิดหลายครั้งเกินไป กรุณารอ 15 นาทีแล้วลองใหม่',
 });
 
-function passcodeMatches(given) {
-  const a = crypto.createHash('sha256').update(String(given ?? '')).digest();
-  const b = crypto.createHash('sha256').update(config.plansPasscode).digest();
-  return crypto.timingSafeEqual(a, b);
-}
-
 function requirePasscode(req, res, next) {
+  // Signed in through the Council: the gateway already vouched for them.
+  if (req.user) return next();
   if (!config.plansPasscode) return next();
   const given = req.get('x-plans-passcode');
-  if (given && passcodeMatches(given)) return next();
+  if (given && sameSecret(given, config.plansPasscode)) return next();
   const refuse = () => res.status(401).json({ success: false, error: 'รหัสผ่านไม่ถูกต้อง' });
   // A request with no passcode at all is the page asking before the prompt,
   // not a guess — only a wrong one counts.
