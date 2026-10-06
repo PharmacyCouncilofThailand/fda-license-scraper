@@ -16,3 +16,15 @@ web/reference
 README.md
 vercel.json
 api
+
+# Local plans, records, photos and drive files are runtime data — real
+# inspection material — and must never be baked into an image. Only the
+# address tree ships.
+data/*
+!data/areas.json
+
+# Office documents and SDD scratch stay on the build machine.
+templates
+.superpowers
+docs
+deploy

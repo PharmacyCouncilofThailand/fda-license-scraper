@@ -11,6 +11,9 @@ services:
     build:
       context: ../..
     restart: unless-stopped
+    # Nothing in the container may gain privileges it did not start with.
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "${APP_PORT:-80}:3000"
     environment:
