@@ -437,7 +437,7 @@ export default function App() {
     <>
       <Sidebar step={step} onStep={setStep} docsOn={docsOn} />
       <main className="app-main">
-        <div className={step === 1 || step === 4 ? 'wrap wrap-wide' : 'wrap'}>
+        <div className={step === 3 ? 'wrap' : 'wrap wrap-wide'}>
           <PlanBar
             activePlan={activePlan}
             plans={plans}
@@ -536,7 +536,12 @@ export default function App() {
             </>
           )}
           {step === 2 && (
-            <PlanView planId={activePlan?.id || null} onPlansChanged={refreshPlans} />
+            <PlanView
+              planId={activePlan?.id || null}
+              plans={plans}
+              onPick={pickPlan}
+              onPlansChanged={refreshPlans}
+            />
           )}
           {step === 3 && <PlanRoute planId={activePlan?.id || null} />}
           {/* The form step shows the original record sheet (the static

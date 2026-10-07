@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileDown, FileText, Route, Trash2 } from 'lucide-react';
+import { ClipboardList, FileDown, FileText, RefreshCw, Route, Trash2 } from 'lucide-react';
 import PlanTable from './PlanTable.jsx';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,7 +28,7 @@ function toStored(ce) {
   return m ? `${Number(m[1]) + 543}-${m[2]}-${m[3]}` : '';
 }
 
-export default function PlanView({ planId, onPlansChanged }) {
+export default function PlanView({ planId, plans = [], onPick, onPlansChanged }) {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -133,7 +133,25 @@ export default function PlanView({ planId, onPlansChanged }) {
           loading ? (
             <div className="empty" role="status" aria-live="polite">กำลังโหลดแผน…</div>
           ) : (
-            !error && <div className="empty">เลือกแผนจากแถบมุมขวาล่าง หรือกด + แผนใหม่</div>
+            !error && (
+              <>
+                <h1>จัดแผน</h1>
+                <p className="sub">เลือกแผนที่จะจัด หรือกด “+ แผนใหม่” ที่แถบมุมขวาล่าง</p>
+                {plans.length > 0 && (
+                  <div className="plan-picker">
+                    {plans.map((p) => (
+                      <button key={p.id} type="button" className="glass-panel" onClick={() => onPick?.(p.id)}>
+                        <ClipboardList aria-hidden="true" />
+                        <b>แผน {p.id}</b>
+                        <span>
+                          {p.date ? `วันที่ ${p.date}` : 'ยังไม่กำหนดวันที่'} · {p.total} ร้าน
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )
           )
         ) : (
           <>
@@ -172,6 +190,22 @@ export default function PlanView({ planId, onPlansChanged }) {
                 >
                   <Route /> จัดลำดับตามเวลา/เส้นทาง
                 </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy || plan.items.length === 0}
+                  title="ดึงข้อมูลร้านทุกร้านในแผนจาก อย. อีกครั้ง"
+                  onClick={() =>
+                    mutate(async () => {
+                      let next = plan;
+                      for (const item of plan.items) {
+                        next = await syncPlanItem(plan.id, item.newCode);
+                      }
+                      return next;
+                    })
+                  }
+                >
+                  <RefreshCw /> อัปเดตจาก อย.
+                </Button>
                 <Button variant="destructive" disabled={busy} onClick={() => removePlan(plan.id)}>
                   <Trash2 /> ลบแผน
                 </Button>
@@ -193,22 +227,6 @@ export default function PlanView({ planId, onPlansChanged }) {
               }
               onTypeLicence={typeLicence}
             />
-            <button
-              type="button"
-              className="link"
-              disabled={busy}
-              onClick={() =>
-                mutate(async () => {
-                  let next = plan;
-                  for (const item of plan.items) {
-                    next = await syncPlanItem(plan.id, item.newCode);
-                  }
-                  return next;
-                })
-              }
-            >
-              อัปเดตข้อมูลจาก อย.
-            </button>
           </>
         )}
       </div>

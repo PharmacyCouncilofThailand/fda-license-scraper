@@ -524,8 +524,51 @@ a.detail:hover { text-decoration: underline; }
 .plan-table .hours { color: var(--muted-foreground); font-size: 12px; }
 .plan-table .hours.differ { color: var(--danger-fg); font-weight: 600; }
 .plan-table .hours-differ { color: var(--danger-fg); font-size: 12px; margin-bottom: 4px; }
-.plan-table .actions { white-space: nowrap; }
+/* The shared .actions row style is a flex box; in the table it stays a cell. */
+.plan-table .actions { display: table-cell; margin: 0; white-space: nowrap; }
 .plan-table .actions label { display: flex; align-items: center; gap: 4px; }
+
+/* The table sits in a card of its own: rules between rows only, a tinted
+   header, and set column widths so names and people stop wrapping word by
+   word now that the page is wider. The phone layout below undoes the card. */
+.plan-table-wrap {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card);
+}
+.plan-table th, .plan-table td { border: 0; border-bottom: 1px solid var(--border); padding: 12px 14px; }
+.plan-table tbody tr:last-child td { border-bottom: 0; }
+.plan-table thead th {
+  background: var(--olive-50); color: var(--olive-800); font-weight: 600; white-space: nowrap;
+}
+.plan-table thead th:first-child { border-top-left-radius: var(--radius-card); }
+.plan-table thead th:last-child { border-top-right-radius: var(--radius-card); }
+.plan-table tbody tr:hover td { background: color-mix(in srgb, var(--olive-50) 50%, transparent); }
+.plan-table th:nth-child(1) { width: 64px; }
+.plan-table th:nth-child(2) { width: 18%; }
+.plan-table th:nth-child(3) { width: 10%; }
+.plan-table th:nth-child(5) { width: 14%; }
+.plan-table th:nth-child(6) { width: 20%; }
+.plan-table th:nth-child(7) { width: 90px; }
+.plan-table td:nth-child(2) > :first-child { font-weight: 600; }
+
+/* No plan picked yet: the plans to pick from, as cards. */
+.plan-picker { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.plan-picker button {
+  display: grid; gap: 4px; justify-items: start; padding: 18px; text-align: left;
+  font: inherit; color: inherit; cursor: pointer; border-radius: var(--radius-panel);
+  transition: border-color .15s, transform .05s;
+}
+.plan-picker button:hover { border-color: var(--primary); }
+.plan-picker button:active { transform: translateY(1px); }
+.plan-picker svg {
+  width: 40px; height: 40px; padding: 9px; margin-bottom: 6px;
+  border-radius: 12px; background: var(--olive-100); color: var(--olive-700);
+}
+.plan-picker b { font-weight: 600; font-size: 17px; }
+.plan-picker span { color: var(--muted-foreground); font-size: 14px; }
+.plan-empty {
+  padding: 32px; text-align: center; color: var(--muted-foreground);
+  background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius-card);
+}
 /* A licence the register could not settle is not an error — it is a decision
    waiting for an officer, so it reads as a prompt, not a failure. */
 .licence-pick, .licence-missing {
@@ -586,6 +629,8 @@ button.link.danger { color: var(--danger-fg); }
    a card with the column name in front of each value — the same data, read
    down instead of across. */
 @media (max-width: 700px) {
+  .plan-table-wrap { background: none; border: 0; }
+  .plan-table tbody tr:hover td { background: none; }
   .plan-table thead { display: none; }
   .plan-table, .plan-table tbody, .plan-table tr, .plan-table td { display: block; width: 100%; }
   .plan-table tr { border: 1px solid var(--border); border-radius: var(--radius-control); margin-bottom: 12px; padding: 8px; }
