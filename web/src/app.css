@@ -640,9 +640,12 @@ button.link.danger { color: var(--danger-fg); }
   .app-sidebar nav button .dot { transition: none; transform: scale(1); }
 }
 
-/* The form step embeds the original record sheet (form.html) full-width. */
+/* The form step embeds the original record sheet (form.html), wider than the
+   other steps so its toolbar sits on one row, and tall enough to reach down to
+   the plan cart: 24px above the frame, 96px kept clear for the cart below. */
+.wrap-form { max-width: 1240px; }
 .form-frame {
-  width: 100%; height: calc(100dvh - 170px); min-height: min(560px, 80dvh);
+  display: block; width: 100%; height: calc(100dvh - 120px); min-height: min(560px, 80dvh);
   border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--card);
 }
 
