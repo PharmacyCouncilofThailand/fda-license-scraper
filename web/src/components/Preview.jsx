@@ -154,10 +154,19 @@ function PharmacistList({ pharmacists }) {
   );
 }
 
-export default function Preview({ row, state }) {
+export default function Preview({ row, state, onRetry }) {
   if (state.status === 'loading') return <SkeletonPreview />;
   if (state.status === 'error') {
-    return <div className="preview">{state.message}</div>;
+    return (
+      <div className="preview error" role="alert">
+        โหลดรายละเอียดไม่สำเร็จ: {state.message}{' '}
+        {onRetry && (
+          <button type="button" className="link-btn" onClick={onRetry}>
+            ลองใหม่
+          </button>
+        )}
+      </div>
+    );
   }
 
   const detail = state.detail;
@@ -176,7 +185,7 @@ export default function Preview({ row, state }) {
       <MapPanel row={row} detail={detail} />
       <CopyButton
         label="คัดลอกรายละเอียด"
-        style={{ marginTop: '10px' }}
+        className="ghost copy-detail"
         text={() => rowAsText({ ...row, ...detail })}
       />
     </div>

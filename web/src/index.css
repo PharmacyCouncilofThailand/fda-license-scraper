@@ -29,6 +29,11 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  /* Licence status — kept apart from the brand on purpose (see theme.css). */
+  --color-success: var(--success-bg);
+  --color-success-foreground: var(--success-fg);
+  --color-danger: var(--danger-bg);
+  --color-danger-foreground: var(--danger-fg);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -61,7 +66,7 @@
  */
 @layer base {
   body {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--ground);
     background-attachment: fixed;
     font-family: var(--font-sans);
     font-weight: 300;

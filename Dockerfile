@@ -50,7 +50,7 @@ RUN rm -f /usr/share/fonts/truetype/office/package.json && fc-cache -f
 
 # Chromium's sandbox is already off (see the launch args); this only makes
 # sure nothing in the container runs as root.
-RUN useradd --create-home --shell /usr/sbin/nologin app && chown -R app /app
+RUN useradd --uid 1001 --create-home --shell /usr/sbin/nologin app && chown -R app /app
 USER app
 
 EXPOSE 3000

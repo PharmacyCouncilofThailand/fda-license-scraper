@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchAreas, fetchDetail, searchDrugLocations } from './api.js';
+import { fetchAreas, fetchDetail, fetchFeatures, searchDrugLocations } from './api.js';
 import Sidebar from './components/Sidebar.jsx';
 import SearchForm from './components/SearchForm.jsx';
 import Toolbar from './components/Toolbar.jsx';
 import ResultCard from './components/ResultCard.jsx';
+import ResultStats from './components/ResultStats.jsx';
 import PlanBar from './components/PlanBar.jsx';
 import PlanView from './components/PlanView.jsx';
 import PlanRoute from './components/PlanRoute.jsx';
 import PlanDocuments from './components/PlanDocuments.jsx';
-import RecordForm from './components/RecordForm.jsx';
+import Drive from './components/Drive.jsx';
+import Dashboard from './components/Dashboard.jsx';
 import Preloader from './components/Preloader.jsx';
 import { SkeletonList } from './components/Skeleton.jsx';
-import { addToPlan, createPlan, listPlans, PasscodeError, setPasscode } from './lib/plans-api.js';
+import { addToPlan, createPlan, listPlans, withPasscode } from './lib/plans-api.js';
 
 const EMPTY_QUERY = { keyword: '', province: '', district: '', subdistrict: '' };
 const HANDOFF_KEY = 'fda:form:pending';
@@ -45,6 +47,16 @@ export default function App() {
   const [plans, setPlans] = useState([]);
   // newCode -> true while its "กรอกฟอร์ม" is fetching the licensee detail.
   const [formBusy, setFormBusy] = useState(() => new Set());
+  // Client-side narrowing from the stats bars: { status, licenseType }.
+  const [statsFilter, setStatsFilter] = useState({});
+  // One short confirmation at a time, e.g. after a shop lands in the plan.
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  function showToast(text) {
+    clearTimeout(toastTimer.current);
+    setToast({ text, id: Date.now() });
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  }
 
   const pending = useRef(null);
   // The query a search should use, so a dropdown change can re-run immediately
@@ -69,12 +81,37 @@ export default function App() {
     window.location.hash = STEP_HASHES[n - 1];
   };
 
+  // The upload parts (เอกสาร, ภาพรวม, ไดรฟ์) are held back for a later update;
+  // the server says whether they are on (FEATURE_DOCS).
+  const [docsOn, setDocsOn] = useState(false);
+
+  // The area tree feeds the province select; if it fails the select stays
+  // empty, so the failure carries its own retry.
+  const [areasFailed, setAreasFailed] = useState(false);
+  const loadAreas = useCallback(
+    () =>
+      fetchAreas().then(
+        (tree) => {
+          setAreas(tree);
+          setAreasFailed(false);
+        },
+        () => setAreasFailed(true)
+      ),
+    []
+  );
+
   useEffect(() => {
-    fetchAreas()
-      .then(setAreas)
-      .catch(() => setError('โหลดรายชื่อจังหวัดไม่สำเร็จ'))
-      .finally(() => setBooting(false));
-  }, []);
+    Promise.all([loadAreas(), fetchFeatures().then((f) => setDocsOn(Boolean(f.docs)))]).finally(
+      () => setBooting(false)
+    );
+  }, [loadAreas]);
+
+  // An old link or bookmark to a part that is switched off lands on search.
+  const heldBack =
+    !docsOn && (route === '#/docs' || route === '#/dashboard' || route.startsWith('#/drive'));
+  useEffect(() => {
+    if (!booting && heldBack) window.location.replace('#/');
+  }, [booting, heldBack]);
 
   const runSearch = useCallback(async ({ refresh = false } = {}) => {
     const current = queryRef.current;
@@ -91,6 +128,7 @@ export default function App() {
     setSelectedCode(null);
     setPlanStatus({});
     setPreviews({});
+    setStatsFilter({});
     setData(null);
 
     try {
@@ -124,11 +162,13 @@ export default function App() {
     const key = row.newCode;
     const state = previews[key];
 
-    if (state?.open) {
+    // An open error is a retry (its button calls this), not a close.
+    if (state?.open && state.status !== 'error') {
       setPreviews((p) => ({ ...p, [key]: { ...state, open: false } }));
       return;
     }
-    if (state) {
+    // A loaded preview just reopens; a failed one is fetched again.
+    if (state && state.status !== 'error') {
       setPreviews((p) => ({ ...p, [key]: { ...state, open: true } }));
       return;
     }
@@ -146,19 +186,11 @@ export default function App() {
   }
 
   const results = data?.results || [];
-
-  /** One retry after the passcode is entered — the API asks for it on 401. */
-  async function withPasscode(action) {
-    try {
-      return await action();
-    } catch (err) {
-      if (!(err instanceof PasscodeError)) throw err;
-      const entered = window.prompt('ใส่รหัสผ่านของสำนักงาน');
-      if (!entered) throw err;
-      setPasscode(entered);
-      return action();
-    }
-  }
+  const visible = results.filter(
+    (r) =>
+      (!statsFilter.status || (r.status || '-') === statsFilter.status) &&
+      (!statsFilter.licenseType || (r.licenseType || '-') === statsFilter.licenseType)
+  );
 
   const refreshPlans = useCallback(async () => {
     try {
@@ -167,6 +199,8 @@ export default function App() {
       setActivePlan((cur) => {
         if (cur && !list.some((p) => p.id === cur.id)) {
           localStorage.removeItem(ACTIVE_PLAN_KEY);
+          // "✓ อยู่ในแผน" described the plan that is gone.
+          setPlanStatus({});
           return null;
         }
         return cur;
@@ -179,26 +213,35 @@ export default function App() {
     refreshPlans();
   }, [refreshPlans]);
 
-  // A bare #/plans (e.g. the record page's "← แผนการตรวจ" link) means "back to
-  // the plan", which is the จัดแผน step of the shell — not the old plans page.
+  // Old links to #/plans or to the removed on-site record page (#/plans/…)
+  // land on the จัดแผน step.
   useEffect(() => {
-    if (route === '#/plans') {
+    if (route === '#/plans' || route.startsWith('#/plans/')) {
       window.location.replace(STEP_HASHES[1]);
     }
   }, [route]);
 
   /** The basket's plan: whatever was last chosen, or a fresh one made on the
       first "+ ใส่แผน" tap of the day. */
+  // Two quick adds before the first plan exists must share one new plan.
+  const creating = useRef(null);
   async function ensureActivePlan() {
     if (activePlan?.id) return activePlan.id;
-    // No date is asked for here — a plan is named by its letter and its date is
-    // set later from the plan screen.
-    const plan = await withPasscode(() => createPlan({}));
-    const picked = { id: plan.id, date: plan.date };
-    setActivePlan(picked);
-    localStorage.setItem(ACTIVE_PLAN_KEY, JSON.stringify(picked));
-    await refreshPlans();
-    return plan.id;
+    if (!creating.current) {
+      // No date is asked for here — a plan is named by its letter and its date
+      // is set later from the plan screen.
+      creating.current = (async () => {
+        const plan = await withPasscode(() => createPlan({}));
+        const picked = { id: plan.id, date: plan.date, total: 0 };
+        setActivePlan(picked);
+        localStorage.setItem(ACTIVE_PLAN_KEY, JSON.stringify(picked));
+        await refreshPlans();
+        return plan.id;
+      })().finally(() => {
+        creating.current = null;
+      });
+    }
+    return creating.current;
   }
 
   function pickPlan(id) {
@@ -216,6 +259,8 @@ export default function App() {
       const picked = { id: plan.id, date: plan.date, total: 0 };
       setActivePlan(picked);
       localStorage.setItem(ACTIVE_PLAN_KEY, JSON.stringify(picked));
+      // The cards' "✓ อยู่ในแผน" belonged to the previous plan.
+      setPlanStatus({});
       await refreshPlans();
     } catch (err) {
       setError(err.message);
@@ -225,6 +270,9 @@ export default function App() {
   /* Cart-style: one tap files this row into the working plan right away —
      no separate tick-then-confirm step. */
   async function addOneToPlan(row) {
+    // Keyboard and drag reach here too, past the button's disabled state.
+    const current = planStatus[row.newCode];
+    if (current === 'busy' || current === 'added') return;
     setPlanStatus((s) => ({ ...s, [row.newCode]: 'busy' }));
     try {
       const planId = await ensureActivePlan();
@@ -242,10 +290,20 @@ export default function App() {
       setActivePlan((current) =>
         current ? { ...current, total: (current.total || 0) + result.added.length } : current
       );
+      const reason = result.failed?.[0]?.message || '';
+      // Already in this plan is where the officer wanted it, not a failure.
+      const already = reason === 'ร้านนี้มีอยู่แล้วในแผน';
       setPlanStatus((s) => ({
         ...s,
-        [row.newCode]: result.added.length ? 'added' : 'error',
+        [row.newCode]: result.added.length || already ? 'added' : 'error',
       }));
+      if (result.added.length) {
+        showToast(`ใส่ "${row.placeName || row.licenseNo}" ลงแผน ${planId} แล้ว`);
+      } else if (already) {
+        showToast(`"${row.placeName || row.licenseNo}" อยู่ในแผน ${planId} แล้ว`);
+      } else {
+        setError(`ใส่ร้านลงแผนไม่สำเร็จ${reason ? `: ${reason}` : ''}`);
+      }
       await refreshPlans();
     } catch (err) {
       setError(err.message);
@@ -254,8 +312,13 @@ export default function App() {
   }
 
   /* Handing the whole row to the record page: the FDA's detail call does not
-     answer the shop's name, licence number or address. */
+     answer the shop's name, licence number or address. Each tap gets its own
+     key, named in the form's URL, so two quick taps cannot swap shops. */
   async function openFormFor(row) {
+    // Opened synchronously so a popup blocker sees the tap even when the
+    // detail fetch below is slow, then pointed at the form once it is ready.
+    const win = window.open('', '_blank');
+    if (win) win.opener = null;
     let extra = previews[row.newCode]?.status === 'ready' ? previews[row.newCode].detail : null;
     if (!extra && row.newCode) {
       setFormBusy((s) => new Set(s).add(row.newCode));
@@ -271,32 +334,100 @@ export default function App() {
         });
       }
     }
-    localStorage.setItem(HANDOFF_KEY, JSON.stringify({ ...row, ...extra }));
-    window.open('/form.html', '_blank', 'noopener');
+    const handoff = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    localStorage.setItem(`${HANDOFF_KEY}:${handoff}`, JSON.stringify({ ...row, ...extra }));
+    const formUrl = `/form.html?h=${handoff}`;
+    if (win) win.location.href = new URL(formUrl, location.href).href;
+    else window.open(formUrl, '_blank', 'noopener');
   }
 
-  if (booting) return <Preloader variant="screen" />;
-
-  if (route.startsWith('#/plans/')) {
-    // #/plans/<planId>/<newCode> for one shop's record, full-screen.
-    const [, , planId, encodedCode] = route.split('/');
-    if (planId && encodedCode) {
-      return (
-        <>
-          <Sidebar onStep={setStep} />
-          <main className="app-main">
-            <div className="wrap">
-              <RecordForm planId={planId} newCode={decodeURIComponent(encodedCode)} />
-            </div>
-          </main>
-        </>
-      );
+  /* Keyboard on the search step: / focuses the search box, j/k or ↑/↓ walk
+     the list, p previews, a files into the plan, f opens the form. One
+     long-lived listener reads the latest state and handlers through a ref. */
+  const keys = useRef();
+  const onSearch = step === 1;
+  keys.current = { onSearch, visible, selectedCode, togglePreview, addOneToPlan, openFormFor };
+  useEffect(() => {
+    function onKey(event) {
+      const k = keys.current;
+      if (!k.onSearch || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.target.closest?.('input, select, textarea, [contenteditable]')) {
+        if (event.key === 'Escape') event.target.blur();
+        return;
+      }
+      if (event.key === '/') {
+        event.preventDefault();
+        document.getElementById('search-keyword')?.focus();
+        return;
+      }
+      if (!k.visible.length) return;
+      const index = k.visible.findIndex((r) => r.newCode === k.selectedCode);
+      const move = { j: 1, ArrowDown: 1, k: -1, ArrowUp: -1 }[event.key];
+      if (move) {
+        event.preventDefault();
+        const next = k.visible[Math.min(k.visible.length - 1, Math.max(0, index + move))];
+        setSelectedCode(next.newCode);
+        document
+          .querySelector(`[data-code="${CSS.escape(next.newCode || '')}"]`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        return;
+      }
+      const row = k.visible[index];
+      if (!row) return;
+      if (event.key === 'p') k.togglePreview(row);
+      else if (event.key === 'a') k.addOneToPlan(row);
+      else if (event.key === 'f') k.openFormFor(row);
+      else if (event.key === 'Escape') setSelectedCode(null);
     }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  /* A result card dropped on the plan cart files it, same as "+ ใส่แผน". */
+  function dropOnPlan(code) {
+    const row = results.find((r) => r.newCode === code);
+    if (row) addOneToPlan(row);
+  }
+
+  if (booting || heldBack) return <Preloader variant="screen" />;
+
+  if (route === '#/drive' || route.startsWith('#/drive/')) {
+    // #/drive/<segment>/<segment>… — the open folder, one encoded segment each.
+    const parts = route.slice('#/drive'.length).split('/').filter(Boolean).map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    });
+    return (
+      <>
+        <Sidebar onStep={setStep} page="#/drive" docsOn={docsOn} />
+        <main className="app-main">
+          <div className="wrap">
+            <Drive parts={parts} />
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (route === '#/dashboard') {
+    return (
+      <>
+        <Sidebar onStep={setStep} page="#/dashboard" docsOn={docsOn} />
+        <main className="app-main">
+          <div className="wrap">
+            <Dashboard />
+          </div>
+        </main>
+      </>
+    );
   }
 
   return (
     <>
-      <Sidebar step={step} onStep={setStep} />
+      <Sidebar step={step} onStep={setStep} docsOn={docsOn} />
       <main className="app-main">
         <div className="wrap">
           <PlanBar
@@ -305,7 +436,14 @@ export default function App() {
             busy={busy}
             onPick={pickPlan}
             onNew={newPlan}
+            onDropCode={onSearch ? dropOnPlan : null}
           />
+
+          {toast && (
+            <div key={toast.id} className="toast" role="status" aria-live="polite">
+              {toast.text}
+            </div>
+          )}
 
           {error && <div className="error" role="alert" aria-live="polite">{error}</div>}
 
@@ -313,8 +451,17 @@ export default function App() {
             <>
               <h1>ค้นหาร้านยา</h1>
               <p className="sub">
-                ดึงข้อมูลสดจากระบบตรวจสอบการอนุญาตของ อย. แล้วกรองด้วยที่ตั้งก่อนแสดงผล
+                ค้นหาร้านยาที่ได้รับอนุญาตจาก อย. จัดแผนออกตรวจ และกรอกบันทึกการตรวจได้ในที่เดียว
               </p>
+
+              {areasFailed && (
+                <div className="error" role="alert">
+                  โหลดรายชื่อจังหวัดไม่สำเร็จ — เลือกพื้นที่ไม่ได้จนกว่าจะโหลดใหม่{' '}
+                  <button type="button" className="link-btn" onClick={loadAreas}>
+                    ลองใหม่
+                  </button>
+                </div>
+              )}
 
               <SearchForm
                 areas={areas}
@@ -338,11 +485,20 @@ export default function App() {
                   <SkeletonList />
                 </>
               ) : (
-                <Toolbar data={data} onRefresh={() => runSearch({ refresh: true })} />
+                <>
+                  <Toolbar data={data} onRefresh={() => runSearch({ refresh: true })} />
+                  <ResultStats rows={results} shown={visible.length} filter={statsFilter} onFilter={setStatsFilter} />
+                  {visible.length > 0 && (
+                    <p className="kbd-hint">
+                      <kbd>/</kbd> ค้นหา · <kbd>j</kbd>/<kbd>k</kbd> เลื่อน · <kbd>p</kbd> พรีวิว ·{' '}
+                      <kbd>a</kbd> ใส่แผน · <kbd>f</kbd> กรอกฟอร์ม · ลากการ์ดไปวางที่แผนมุมขวาล่างได้
+                    </p>
+                  )}
+                </>
               )}
 
               <ul>
-                {results.map((row) => (
+                {visible.map((row) => (
                   <ResultCard
                     key={row.newCode || row.licenseNo}
                     row={row}

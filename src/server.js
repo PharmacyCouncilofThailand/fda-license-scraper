@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const express = require('express');
 const config = require('./config');
 const areas = require('../data/areas.json');
@@ -26,9 +27,28 @@ const plansStore = require('./plans-store');
 const plans = require('./plans');
 const records = require('./records');
 const photoStore = require('./photo-store');
+const drive = require('./drive-store');
+const recordsStore = require('./records-store');
+const { buildStats } = require('./stats');
 const { renderPlanDocx } = require('./docx-plan');
+const { rateLimit } = require('./rate-limit');
 
 const app = express();
+// Proxy hops in front of the app (see config.trustProxy): one on Vercel, none
+// on a Council machine that serves the LAN itself.
+app.set('trust proxy', config.trustProxy);
+app.disable('x-powered-by');
+
+// Baseline browser protections for every response. Framing is same-origin
+// only because the ฟอร์ม step shows form.html in an iframe of its own app.
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Referrer-Policy': 'same-origin',
+  });
+  next();
+});
 // Signatures ride inside the record as data URLs — eight of them at a few tens
 // of kilobytes each is past express's 100kb default.
 app.use(express.json({ limit: '2mb' }));
@@ -46,26 +66,146 @@ function parseBoolean(value, fallback) {
   return !['false', '0', 'no'].includes(String(value).toLowerCase());
 }
 
-// Allows the page to be opened straight from disk during development.
-app.use('/api', (req, res, next) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  next();
-});
-
-app.get('/health', (req, res) =>
-  res.json({ ok: true, plansStore: plansStore.backendName(), photoStore: photoStore.backendName() })
-);
+// Allows the page to be opened straight from disk during development. Never
+// in production: there, a page on any other site an officer visits must not
+// be able to read the API through their browser.
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api', (req, res, next) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    next();
+  });
+}
 
 /*
- * The site is public, so the list of shops an officer is about to walk into
- * would be public too. One office passcode is the least that keeps it shut;
- * it becomes real accounts when the system moves to the Pharmacy Council.
- * With no passcode set, nothing is asked — that is the local development case.
+ * Rate limits on the endpoints that cost something to serve. `render` guards
+ * the PDF/DOCX routes, each of which launches headless Chromium in a 2 GB
+ * function; `search` guards the ones that hit the FDA / council sites. Both
+ * key off the client IP (see `trust proxy` above). The whole office reaches
+ * the site through one public IP, so a bucket is shared by every officer at
+ * once, and each preview and area change is a search call of its own — the
+ * numbers are sized for an office, not a person. Tune to real traffic.
  */
-app.use('/api/plans', (req, res, next) => {
+const renderLimit = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  message: 'สร้างเอกสารถี่เกินไป กรุณารอสักครู่แล้วลองใหม่',
+});
+const searchLimit = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 300,
+  message: 'ค้นหาถี่เกินไป กรุณารอสักครู่แล้วลองใหม่',
+});
+
+// The standalone public pages (public/form.html, pharmacist-search.js) call
+// these with no passcode, so a limit is the only thing between them and abuse.
+// /api/form launches Chromium (render); /api/fda and /api/pharmacist are
+// cached lookups against the FDA / council sites (search).
+app.use('/api/form', renderLimit);
+app.use(['/api/fda', '/api/pharmacist'], searchLimit);
+// Record/plan exports live under /api/plans (passcode-gated) but still spin up
+// Chromium, so they get the render limit too.
+app.use(/^\/api\/plans\/.*\/(pdf|docx)$/, renderLimit);
+
+/*
+ * Sign-in through the Pharmacy Council (AUTH_MODE=header). The Council's
+ * gateway signs the officer in and forwards each request with their username
+ * in AUTH_USER_HEADER; every /api call without it is refused, and the office
+ * passcode below is no longer asked for. Only safe when the gateway is the
+ * one way in — so the app's port must not be reachable around it, and if the
+ * gateway can add a fixed header, AUTH_PROXY_SECRET checks that it did.
+ * ponytail: header mode only; an OIDC client goes here once the Council says
+ * which sign-in it runs.
+ */
+function sameSecret(given, expected) {
+  const a = crypto.createHash('sha256').update(String(given ?? '')).digest();
+  const b = crypto.createHash('sha256').update(String(expected)).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+// A typo here must stop the server, not quietly leave it open.
+if (!['passcode', 'header'].includes(config.authMode)) {
+  throw new Error(`AUTH_MODE ต้องเป็น passcode หรือ header (ได้ "${config.authMode}")`);
+}
+
+if (config.authMode === 'header') {
+  app.use('/api', (req, res, next) => {
+    const user = req.get(config.authUserHeader);
+    const fromGateway =
+      !config.authProxySecret || sameSecret(req.get('x-auth-proxy-secret'), config.authProxySecret);
+    if (!user || !fromGateway) {
+      return res.status(401).json({ success: false, code: 'SIGN_IN', error: 'กรุณาเข้าสู่ระบบผ่านระบบของสภาเภสัชกรรมก่อน' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+/*
+ * One office passcode guards the plan data — and the cache-clear below, which
+ * is a mutation no page needs. With no passcode set, nothing is asked (the
+ * local development case). It becomes real accounts at the Pharmacy Council.
+ */
+// Wrong guesses are counted per IP, so the passcode cannot be brute-forced;
+// right ones never touch the counter.
+const passcodeFailures = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'ใส่รหัสผ่านผิดหลายครั้งเกินไป กรุณารอ 15 นาทีแล้วลองใหม่',
+});
+
+function requirePasscode(req, res, next) {
+  // Signed in through the Council: the gateway already vouched for them.
+  if (req.user) return next();
   if (!config.plansPasscode) return next();
-  if (req.get('x-plans-passcode') === config.plansPasscode) return next();
-  res.status(401).json({ success: false, error: 'รหัสผ่านไม่ถูกต้อง' });
+  const given = req.get('x-plans-passcode');
+  if (given && sameSecret(given, config.plansPasscode)) return next();
+  const refuse = () => res.status(401).json({ success: false, code: 'PASSCODE', error: 'รหัสผ่านไม่ถูกต้อง' });
+  // A request with no passcode at all is the page asking before the prompt,
+  // not a guess — only a wrong one counts.
+  if (!given) return refuse();
+  passcodeFailures(req, res, refuse);
+}
+
+app.get('/health', (req, res) =>
+  res.json({
+    ok: true,
+    plansStore: plansStore.backendName(),
+    photoStore: photoStore.backendName(),
+    driveStore: drive.backendName(),
+  })
+);
+
+// The list of shops an officer is about to walk into is not public, and
+// neither are the office drive or the dashboard over it. (requirePasscode is
+// defined once, above.)
+app.use('/api/plans', requirePasscode);
+app.use('/api/drive', requirePasscode);
+app.use('/api/stats', requirePasscode);
+
+/*
+ * File uploads — the ไดรฟ์, the per-shop scanned documents (เอกสาร) and the
+ * ภาพรวม dashboard that counts them — are held back for a later update
+ * (FEATURE_DOCS=1 turns them on). The page asks /api/features which menus to
+ * show; with the feature off its routes answer 404 as if they did not exist.
+ * The per-shop record now holds only those documents (the on-site record page
+ * was removed), so the whole /record path is gated with them.
+ */
+app.get('/api/features', (req, res) => res.json({ success: true, docs: config.features.docs }));
+if (!config.features.docs) {
+  const off = (req, res) => res.status(404).json({ success: false, error: 'ส่วนนี้ยังไม่เปิดใช้งาน' });
+  app.use(['/api/drive', '/api/stats'], off);
+  app.use(/^\/api\/plans\/[^/]+\/items\/[^/]+\/record(\/|$)/, off);
+}
+
+// The dashboard. Reads every plan and every record — ponytail: fine for an
+// office's few hundred inspections a year; cache it if that ever grows slow.
+app.get('/api/stats', async (req, res, next) => {
+  try {
+    const [allPlans, allRecords] = await Promise.all([plansStore.list(), recordsStore.list()]);
+    res.json({ success: true, ...buildStats(allPlans, allRecords) });
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.get('/api/plans', async (req, res, next) => {
@@ -174,78 +314,10 @@ app.get('/api/plans/:id/items/:newCode/record', async (req, res, next) => {
   }
 });
 
-app.put('/api/plans/:id/items/:newCode/record', async (req, res, next) => {
-  try {
-    const record = await records.writeRecord(req.params.id, req.params.newCode, req.body || {});
-    res.json({ success: true, record });
-  } catch (err) {
-    // A stale write is answered with the version that won, so the page can
-    // show the officer both and let them choose.
-    if (err.status === 409) {
-      return res.status(409).json({ success: false, error: err.message, current: err.current });
-    }
-    next(err);
-  }
-});
-
-/* The camera's own bytes, posted raw. `express.raw` is mounted on this one
-   route rather than globally: every other route on this server speaks JSON,
-   and a body parser that accepts images everywhere is a body parser waiting
-   to swallow something it should have rejected. */
-app.post(
-  '/api/plans/:id/items/:newCode/record/photos',
-  express.raw({ type: 'image/jpeg', limit: '5mb' }),
-  async (req, res, next) => {
-    try {
-      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
-        return res.status(400).json({ success: false, error: 'ไม่พบข้อมูลรูปภาพ' });
-      }
-      const { id } = await photoStore.putPhoto(req.params.id, req.params.newCode, req.body);
-      const record = await records.addPhoto(req.params.id, req.params.newCode, { id });
-      res.status(201).json({ success: true, id, record });
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-app.get('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
-  try {
-    const bytes = await photoStore.getPhoto(req.params.id, req.params.newCode, req.params.photoId);
-    if (!bytes) return res.status(404).json({ success: false, error: 'ไม่พบรูปนี้' });
-    res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=3600' });
-    res.send(bytes);
-  } catch (err) {
-    next(err);
-  }
-});
-
-app.patch('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
-  try {
-    const record = await records.patchPhoto(req.params.id, req.params.newCode, req.params.photoId, req.body || {});
-    res.json({ success: true, record });
-  } catch (err) {
-    next(err);
-  }
-});
-
-app.delete('/api/plans/:id/items/:newCode/record/photos/:photoId', async (req, res, next) => {
-  try {
-    // Record first, bytes second: if delPhoto fails after this, the record
-    // no longer references the id and we're left with an orphaned blob
-    // nobody points at — not a record pointing at bytes that are gone.
-    const record = await records.removePhoto(req.params.id, req.params.newCode, req.params.photoId);
-    await photoStore.delPhoto(req.params.id, req.params.newCode, req.params.photoId);
-    res.json({ success: true, record });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/* Scanned / photographed paper forms. Raw body like photos; the type is the
-   request's own Content-Type (JPEG or PDF only) and is remembered on the
-   record so the GET can answer with it. 4mb: Vercel refuses bodies over 4.5MB
-   before this code ever runs. */
+/* Scanned / photographed paper forms, posted raw. The type is the request's
+   own Content-Type (JPEG or PDF only) and is remembered on the record so the
+   GET can answer with it. 4mb: Vercel refuses bodies over 4.5MB before this
+   code ever runs. */
 const docPath = '/api/plans/:id/items/:newCode/record/documents';
 const docName = (value) => String(value ?? '').slice(0, 200);
 
@@ -328,84 +400,84 @@ app.delete(`${docPath}/:docId`, async (req, res, next) => {
   }
 });
 
-// Appendix photos are inlined as base64 data URLs into the page puppeteer
-// renders; past this many the page gets large and slow to print.
-const MAX_APPENDIX_PHOTOS = 20;
+/* The office drive (ไดรฟ์). Every route names its item by `?path=`, the
+   segments joined by `/`; drive-store validates each one. */
+const drivePath = (req) => String(req.query.path ?? '');
 
-/*
- * The record's own PDF, made from the stored draft rather than from a body
- * the page posts. The photo bytes are read here and passed in as data URLs:
- * the page puppeteer opens is a file:// page with no passcode and no session,
- * so it could not fetch them itself even if we wanted it to.
- *
- * Refuses to export (409) rather than silently drop a photo: one marked for
- * the appendix whose bytes are gone names itself so the officer can remove it
- * or re-photograph it, and more than MAX_APPENDIX_PHOTOS marked at once is
- * refused with the count and the limit.
- */
-async function recordForExport(planId, newCode) {
-  const record = await records.readRecord(planId, newCode);
-  const marked = (record.photos || []).filter((photo) => photo.inPdf);
-  if (marked.length > MAX_APPENDIX_PHOTOS) {
-    const err = new Error(
-      `มีรูปภาพผนวกท้ายทั้งหมด ${marked.length} รูป เกินจำนวนที่ส่งออกได้สูงสุด ${MAX_APPENDIX_PHOTOS} รูป`
-    );
-    err.status = 409;
-    throw err;
-  }
-  const photos = [];
-  for (const [index, photo] of (record.photos || []).entries()) {
-    if (!photo.inPdf) continue;
-    const bytes = await photoStore.getPhoto(planId, newCode, photo.id);
-    if (!bytes) {
-      const label = photo.caption ? `"${photo.caption}"` : `ภาพที่ ${index + 1}`;
-      const err = new Error(
-        `ไม่พบไฟล์รูป ${label} กรุณานำออกจากบันทึกหรือถ่ายใหม่ก่อนออกเอกสาร`
-      );
-      err.status = 409;
-      throw err;
-    }
-    photos.push({
-      src: `data:image/jpeg;base64,${bytes.toString('base64')}`,
-      caption: photo.caption || '',
-    });
-  }
-  return {
-    values: record.values || {},
-    checks: record.checks || {},
-    signatures: record.signatures || {},
-    photos,
-  };
-}
-
-app.post('/api/plans/:id/items/:newCode/record/pdf', async (req, res, next) => {
+app.get('/api/drive/list', async (req, res, next) => {
   try {
-    const data = await recordForExport(req.params.id, req.params.newCode);
-    const pdf = await renderFormPdf(data);
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': disposition(data.values, 'pdf'),
-    });
-    res.send(Buffer.from(pdf));
+    res.json({ success: true, ...(await drive.list(drivePath(req))) });
   } catch (err) {
     next(err);
   }
 });
 
-/* The Word file carries the text and nothing else: no photographs and no
-   signatures. It exists to be edited afterwards, and embedding media in a
-   .docx means writing relationships and drawing XML for a file that is not
-   the one the office sends. */
-app.post('/api/plans/:id/items/:newCode/record/docx', async (req, res, next) => {
+app.post('/api/drive/folder', async (req, res, next) => {
   try {
-    const { values, checks } = await recordForExport(req.params.id, req.params.newCode);
-    const docx = await renderFormDocx({ values, checks });
+    await drive.mkdir(drivePath(req), req.query.name);
+    res.status(201).json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Any type, so the raw parser takes every body. 4mb: Vercel refuses bodies
+// over 4.5MB before this code ever runs.
+app.post('/api/drive/file', express.raw({ type: () => true, limit: '4mb' }), async (req, res, next) => {
+  try {
+    if (!Buffer.isBuffer(req.body)) {
+      return res.status(400).json({ success: false, error: 'ไม่พบข้อมูลไฟล์' });
+    }
+    const name = await drive.put(drivePath(req), req.query.name, req.body);
+    res.status(201).json({ success: true, name });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Only these open in the browser. Anything else — an uploaded .html or .svg
+// above all — is handed over as an attachment, so it never runs on our origin.
+const DRIVE_INLINE = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+};
+
+app.get('/api/drive/file', async (req, res, next) => {
+  try {
+    const bytes = await drive.get(drivePath(req));
+    if (!bytes) return res.status(404).json({ success: false, error: 'ไม่พบไฟล์นี้' });
+    const name = drivePath(req).split('/').pop();
+    const type = DRIVE_INLINE[name.split('.').pop().toLowerCase()];
     res.set({
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'Content-Disposition': disposition(values, 'docx'),
+      'Content-Type': type || 'application/octet-stream',
+      'Content-Disposition': `${type ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(name)}`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
     });
-    res.send(Buffer.from(docx));
+    res.send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.patch('/api/drive/rename', async (req, res, next) => {
+  try {
+    const name = await drive.rename(drivePath(req), (req.body || {}).name);
+    res.json({ success: true, name });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.delete('/api/drive', async (req, res, next) => {
+  try {
+    const gone = await drive.remove(drivePath(req));
+    if (!gone) return res.status(404).json({ success: false, error: 'ไม่พบรายการนี้' });
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }
@@ -540,7 +612,7 @@ app.get('/api/cache', (req, res) =>
   res.json({ success: true, ...cacheStats(), pharmacist: pharmacistCacheStats() })
 );
 
-app.delete('/api/cache', (req, res) => {
+app.delete('/api/cache', requirePasscode, (req, res) => {
   clearCache();
   clearPharmacistCache();
   res.json({ success: true, message: 'ล้างแคชแล้ว' });
@@ -610,7 +682,13 @@ app.use((err, req, res, _next) => {
   const status = err instanceof ScrapeError ? err.status : err.status || err.statusCode || 500;
   const code = err instanceof ScrapeError ? err.code : 'INTERNAL_ERROR';
   if (status >= 500) console.error('[error]', err);
-  res.status(status).json({ success: false, code, message: err.message });
+  // An unexpected failure's own message can carry file paths or upstream
+  // detail; the log keeps it, the browser gets a plain sentence.
+  const message =
+    status >= 500 && !(err instanceof ScrapeError) && !err.status
+      ? 'เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง'
+      : err.message;
+  res.status(status).json({ success: false, code, message });
 });
 
 // A stray rejection (a Puppeteer wait that outlives its request) must not take

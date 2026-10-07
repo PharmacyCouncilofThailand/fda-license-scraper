@@ -9,14 +9,23 @@ export const apiBase = BASE;
 
 async function get(path, options) {
   const response = await fetch(`${BASE}${path}`, options);
-  const data = await response.json();
+  // A proxy or a timed-out function answers in HTML, not JSON — show a Thai
+  // sentence with the status rather than the browser's parse error.
+  const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.success) {
-    throw new Error(data.message || 'เรียก API ไม่สำเร็จ');
+    throw new Error(
+      data.message || data.error || `ระบบตอบกลับผิดปกติ (HTTP ${response.status}) กรุณาลองใหม่`
+    );
   }
   return data;
 }
 
 /** จังหวัด → อำเภอ → [ตำบล]. Static, so the browser caches it hard. */
+/** Which held-back parts are switched on; all off if the call fails. */
+export function fetchFeatures() {
+  return get('/api/features').catch(() => ({}));
+}
+
 export function fetchAreas() {
   return get('/api/areas').then((d) => d.areas || {});
 }

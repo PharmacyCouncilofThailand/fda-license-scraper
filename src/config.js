@@ -79,10 +79,34 @@ module.exports = {
   plansDir: process.env.PLANS_DIR || path.join(__dirname, '..', 'data', 'plans'),
   plansPasscode: process.env.PLANS_PASSCODE || null,
 
+  // Sign-in. `passcode` (default) is the office passcode above. `header`
+  // trusts the Pharmacy Council's sign-in gateway: it forwards the signed-in
+  // username in AUTH_USER_HEADER, and optionally a fixed AUTH_PROXY_SECRET in
+  // x-auth-proxy-secret so a request that skipped the gateway is refused.
+  // Parts that ship switched off until they are finished. `docs` is the
+  // ไดรฟ์, the per-shop scanned documents and the dashboard over them.
+  features: {
+    docs: process.env.FEATURE_DOCS === '1',
+  },
+
+  authMode: process.env.AUTH_MODE || 'passcode',
+  authUserHeader: process.env.AUTH_USER_HEADER || 'x-remote-user',
+  authProxySecret: process.env.AUTH_PROXY_SECRET || null,
+
+  // How many proxies sit in front of the app, for reading the client's IP
+  // (the rate limits key on it). Vercel has one; a Council machine serving
+  // the LAN directly has none, and trusting X-Forwarded-For there would let
+  // any client pick its own IP. Set TRUST_PROXY=1 behind a reverse proxy.
+  trustProxy: Number(process.env.TRUST_PROXY ?? (process.env.VERCEL ? 1 : 0)),
+
   // Photo bytes for on-site records. Same backend choice as the plans, so a
   // deployment configures one thing, not two.
   photosDir: process.env.PHOTOS_DIR || path.join(__dirname, '..', 'data', 'photos'),
   recordsDir: process.env.RECORDS_DIR || path.join(__dirname, '..', 'data', 'records'),
+
+  // The office drive (ไดรฟ์) on the `file` backend. On a Council server this
+  // is where the NAS share is mounted, which is the whole NAS integration.
+  driveDir: process.env.DRIVE_DIR || path.join(__dirname, '..', 'data', 'drive'),
 
   // How many rows one keyword may bring back, and how many of them get their
   // detail record fetched. The portal answers a search in one JSON response,

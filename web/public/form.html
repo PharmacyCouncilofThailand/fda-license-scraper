@@ -87,6 +87,7 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        min-height: 44px;
         padding: 9px 16px;
         border-radius: 1rem;
         border: 1px solid var(--border);
@@ -385,6 +386,16 @@
         -webkit-appearance: none;
         appearance: none;
       }
+      /* An <input> clips its text to its own line-height, which cuts a stacked
+         upper mark — the ์ over ิ in "ศักดิ์" came out missing, on screen and
+         in the PDF. A taller line inside the box, given back by the margins on
+         both sides, so the text and the line around it stay where they were. */
+      input.blank {
+        --mark-room: 6px; /* in em, Chromium rounds the line 0.6px taller */
+        line-height: calc(1lh + 2 * var(--mark-room));
+        margin-top: calc(-1 * var(--mark-room));
+        margin-bottom: calc(-1 * var(--rule-width) - var(--mark-room));
+      }
       .blank.filled { background-color: var(--fill); }
       /* Values pulled from อย. are set in bold, so the officer can tell them
          apart from what was written in by hand at the shop. */
@@ -397,7 +408,7 @@
          record is black, and the officer has already been told.
          (prepareForPrint() shrinks what it can; this is what would not fit
          even at 8pt.) */
-      .blank.over { color: #b00020; }
+      .blank.over { color: var(--danger-fg); }
       input.blank { width: 100pt; }
       /* Item (10)'s four blanks. Word rules each of them with a single tab,
          and a tab runs to the next stop on the 12.7mm grid — so where each one
@@ -566,7 +577,7 @@
            moves. */
         right: 0;
         top: 1lh;
-        font-family: 'Inter', system-ui, sans-serif;
+        font-family: inherit;
         /* Filled in the app's own accent rather than outlined in grey: at
            10px in the margin it read as part of the paper and was missed. */
         font-size: 12px;
@@ -576,7 +587,7 @@
         border-radius: 999px;
         background: var(--primary);
         color: var(--primary-foreground);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+        box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, .18));
         padding: 3px 9px;
         white-space: nowrap;
         cursor: pointer;
@@ -593,9 +604,9 @@
       /* The picker itself. A <dialog>, so Escape, the backdrop and the focus
          trap come from the browser rather than from us. */
       .picker { border: 1px solid var(--border); border-radius: 1rem; padding: 18px 20px; max-width: 380px; }
-      .picker::backdrop { background: rgba(0, 0, 0, .35); }
+      .picker::backdrop { background: var(--overlay); }
       .picker h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
-      .picker label { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; cursor: pointer; }
+      .picker label { display: flex; gap: 8px; align-items: center; min-height: 44px; padding: 4px 0; cursor: pointer; }
       .picker .extra { display: block; margin-top: 12px; font-size: 13px; color: var(--muted-foreground); }
       .picker textarea {
         width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit;
@@ -638,6 +649,14 @@
          paragraph's line-height and drags the whole line with it. */
       .check::before { content: "☐ "; }
       .check[aria-pressed="true"]::before { content: "☑ "; }
+      /* On a touch screen the sheet is zoomed down to fit, and a box the size
+         of a letter becomes a few pixels. A transparent ring widens what a
+         finger can hit without moving a line of the record. */
+      @media (pointer: coarse) {
+        .check { position: relative; }
+        .check::after { content: ""; position: absolute; inset: -12px -4px; }
+        .pick::after { content: ""; position: absolute; inset: -16px; }
+      }
       /* Section 3's choices (all the checks live there) read in bold, so the
          officer's options stand out from the running text of the summary. */
       .check { color: #000; font-weight: 700; }
@@ -816,7 +835,7 @@
         <span class="material-symbols-outlined sm">restart_alt</span>ล้างฟอร์ม
       </button>
       <span class="grow"></span>
-      <span class="note" id="status">ยังไม่ได้ดึงข้อมูลร้าน — กรอกเองได้ทุกช่อง</span>
+      <span class="note" id="status" role="status" aria-live="polite">ยังไม่ได้ดึงข้อมูลร้าน — กรอกเองได้ทุกช่อง</span>
       <!-- _top: the app's ฟอร์ม step shows this page in an iframe, and a plain
            link would load the whole app, sidebar and all, inside the frame. -->
       <a class="btn" href="./index.html" target="_top">
@@ -891,7 +910,6 @@
 
       <p class="para sm ind-992"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <textarea class="blank" name="curtainNote" data-tabs="15" rows="1"></textarea></p>
 
-      <p class="para sm blank-line ind-left2268"><!-- 27 --></p>
       <p class="para sm left ind-left2268"><!-- 28 -->ลงชื่อ <span class="rule blank" data-sign="page1"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
       <p class="para sm left ind-left2268"><!-- 29 -->( <input class="blank w-l" name="signPage1Name" /> )</p>
     </div>
@@ -1036,6 +1054,10 @@
 
       /** Where index.html leaves the row it wants filled in. */
       const HANDOFF_KEY = 'fda:form:pending';
+      // The theme's danger red for a rule that runs past the paper (screen only;
+      // prepareForPrint() draws every rule black).
+      const OVER_STROKE =
+        getComputedStyle(document.documentElement).getPropertyValue('--danger-fg').trim() || '#b91c1c';
 
       const statusEl = document.getElementById('status');
 
@@ -1438,7 +1460,7 @@
               line.setAttribute('x2', (r.right - box.left) / scale);
               line.setAttribute('y1', y);
               line.setAttribute('y2', y);
-              line.setAttribute('stroke', el.classList.contains('over') ? '#b00020' : '#000');
+              line.setAttribute('stroke', el.classList.contains('over') ? OVER_STROKE : '#000');
               line.setAttribute('stroke-width', RULE_THICK);
               line.setAttribute('stroke-dasharray', `${RULE_DASH} ${RULE_DASH}`);
               host.querySelector(':scope > .rules').append(line);
@@ -1862,18 +1884,16 @@
         };
       }
 
-      /* A record opened from a plan reports itself back so the plan can tick
-         the shop off. Opened straight from the menu there is no plan, and this
-         stays null. */
-      let planRef = null;
-
-      const handoff = localStorage.getItem(HANDOFF_KEY);
+      /* The search card names its own handoff in ?h=, so two quick taps each
+         open their own shop. The bare key is what an older tab left behind. */
+      const handoffKey = (() => {
+        const id = new URLSearchParams(location.search).get('h');
+        return id && /^[a-z0-9]+$/.test(id) ? `${HANDOFF_KEY}:${id}` : HANDOFF_KEY;
+      })();
+      const handoff = localStorage.getItem(handoffKey);
       if (handoff) {
         try {
           const row = JSON.parse(handoff);
-          if (row.planId && row.newCode) {
-            planRef = { planId: row.planId, newCode: row.newCode };
-          }
           window.applyData(fromRow(row));
           const people = Array.isArray(row.pharmacists)
             ? row.pharmacists.filter((p) => p && p.name)
@@ -1886,7 +1906,7 @@
                 ? ` — ผู้มีหน้าที่ปฏิบัติการ: ${duty.name}`
                 : ` — ผู้มีหน้าที่ปฏิบัติการตามใบอนุญาต: ${duty.name} (มีหลายคน กรอกเอง)`
               : '');
-          localStorage.removeItem(HANDOFF_KEY);
+          localStorage.removeItem(handoffKey);
         } catch (err) {
           statusEl.textContent = 'อ่านข้อมูลร้านไม่สำเร็จ — กรอกเองได้';
           statusEl.className = 'err';
@@ -1940,18 +1960,21 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(collect()),
           });
-          if (!response.ok) throw new Error('render failed');
+          if (!response.ok) {
+            const problem = await response.json().catch(() => ({}));
+            throw new Error(problem.message || problem.error || 'สร้างเอกสารไม่สำเร็จ');
+          }
           const sheet = await response.blob();
-          if (!tab || tab.closed) throw new Error('popup blocked');
+          if (!tab || tab.closed) throw new Error('เบราว์เซอร์บล็อกหน้าต่างใหม่');
           dropPdfUrl();
           pdfUrl = URL.createObjectURL(sheet);
           tab.location = pdfUrl;
           statusEl.textContent = 'เปิดเอกสารในแท็บใหม่แล้ว — สั่งพิมพ์จากตรงนั้น';
-        } catch {
+        } catch (err) {
           if (tab && !tab.closed) tab.close();
           statusEl.className = 'err';
           statusEl.textContent =
-            'สร้างเอกสารไม่สำเร็จ — พิมพ์จากหน้าเว็บแทน เส้นประอาจไม่ตรงที่';
+            `${err.message} — พิมพ์จากหน้าเว็บแทน เส้นประอาจไม่ตรงที่`;
           window.print();
         } finally {
           icon.classList.remove('spinning');
@@ -2022,7 +2045,7 @@
           });
           if (!response.ok) {
             const problem = await response.json().catch(() => ({}));
-            throw new Error(problem.message || `สร้าง ${label} ไม่สำเร็จ`);
+            throw new Error(problem.message || problem.error || `สร้าง ${label} ไม่สำเร็จ`);
           }
           const blob = await response.blob();
           const url = URL.createObjectURL(blob);
@@ -2038,7 +2061,6 @@
             ? `ดาวน์โหลด ${label} แล้ว — ${over.length} ช่องยาวเกินกระดาษ (${over.map((f) => f.name).join(', ')}) แสดงไม่ครบใน PDF`
             : `ดาวน์โหลด ${label} แล้ว`;
           if (over.length) statusEl.className = 'err';
-          await markInspected();
         } catch (err) {
           statusEl.className = 'err';
           statusEl.textContent = `${err.message} — ใช้ปุ่ม “พิมพ์ / บันทึกเอง” แทนได้`;
@@ -2049,29 +2071,6 @@
         }
       }
 
-      /* Producing the file is the moment the inspection is written up, so the
-         plan learns it without anyone remembering to say so. Reported as
-         `auto`, which the plan lets a person's own decision outrank. */
-      async function markInspected() {
-        if (!planRef) return;
-        const code = sessionStorage.getItem('fda:plans:passcode');
-        try {
-          await fetch(
-            `${API_BASE}/api/plans/${planRef.planId}/items/${encodeURIComponent(planRef.newCode)}`,
-            {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(code ? { 'x-plans-passcode': code } : {}),
-              },
-              body: JSON.stringify({ status: 'done', statusSource: 'auto' }),
-            }
-          );
-        } catch {
-          // The record is already saved; failing to tick a box must not look
-          // like the record failed. The officer can tick it in the plan.
-        }
-      }
 
       const downloadBtn = document.getElementById('download');
       downloadBtn.addEventListener('click', () => download(downloadBtn, 'pdf', 'PDF'));

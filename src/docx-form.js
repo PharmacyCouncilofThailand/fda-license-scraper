@@ -230,6 +230,24 @@ function boldCheckLabels(xml, labels) {
   return out;
 }
 
+/**
+ * Drop the empty paragraph above page 1's ลงชื่อ. Page 1 is full to the last
+ * line, so a value that wraps one more line (a long เมื่อวันที่) pushed the
+ * signature onto page 2; without the spacer that line has room.
+ */
+function dropPage1Spacer(xml) {
+  const PARA = /<w:p(?:\s[^>]*)?>(?:(?!<\/w:p>)[\s\S])*<\/w:p>/g;
+  const paras = [...xml.matchAll(PARA)];
+  const sign = paras.findIndex((m) =>
+    runText(m[0]).includes('เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต')
+  );
+  const spacer = sign > 0 && paras[sign - 1];
+  if (!spacer || runText(spacer[0]).trim() || /<w:(?:sectPr|br|drawing)\b/.test(spacer[0])) {
+    return xml;
+  }
+  return xml.slice(0, spacer.index) + xml.slice(spacer.index + spacer[0].length);
+}
+
 async function renderFormDocx(data) {
   const values = foldContinuations((data && data.values) || {});
   const checks = (data && data.checks) || {};
@@ -245,7 +263,7 @@ async function renderFormDocx(data) {
     .fillDocumentXml(
       // Bold the option labels while the {{chk:name}} tokens still mark where
       // each one is, then swap the tokens for the ticked/empty box.
-      boldCheckLabels(document.data.toString('utf8'), CHECK_LABELS)
+      boldCheckLabels(dropPage1Spacer(document.data.toString('utf8')), CHECK_LABELS)
         .replace(/\{\{chk:([A-Za-z0-9_]+)\}\}/g, (_, name) => (checks[name] ? '☑' : '☐')),
       values,
       fda

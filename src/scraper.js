@@ -39,6 +39,26 @@ const PLAN_PAGE = pathToFileURL(
   path.join(__dirname, '..', 'public', 'plan-print.html')
 ).href;
 
+/*
+ * What a print page may load: its own files, data: URLs (photos and
+ * signatures arrive that way) and the Google Fonts the toolbar uses. The PDF
+ * routes take photo and signature `src` values from the request body, and
+ * /api/form is public — without this, a crafted src would have the server's
+ * Chromium fetch any address it can reach (the LAN, the NAS, cloud metadata)
+ * and print what came back.
+ */
+const PUBLIC_URL = pathToFileURL(path.join(__dirname, '..', 'public')).href + '/';
+const PRINT_ALLOWED = [PUBLIC_URL, 'data:', 'https://fonts.googleapis.com/', 'https://fonts.gstatic.com/'];
+
+async function lockDown(page) {
+  await page.setRequestInterception(true);
+  page.on('request', (request) => {
+    const url = request.url();
+    if (PRINT_ALLOWED.some((prefix) => url.startsWith(prefix))) request.continue();
+    else request.abort('blockedbyclient');
+  });
+}
+
 let browserPromise = null;
 
 /**
@@ -392,7 +412,16 @@ async function fetchRows(keyword) {
   }
 
   // The licence number arrives split: "ขจ" (type) and "กจ 4/2538" (number).
-  const rows = data.slice(0, config.maxRows).map((r) => ({
+  // The FDA sometimes answers the same establishment twice; one Newcode is one
+  // shop, so later copies are dropped (they also collide as list keys).
+  const seen = new Set();
+  const rows = data.slice(0, config.maxRows).filter((r) => {
+    const code = clean(r.Newcode);
+    if (!code) return true;
+    if (seen.has(code)) return false;
+    seen.add(code);
+    return true;
+  }).map((r) => ({
     licenseNo: clean(r.lcnno_no),
     licenseType: clean(r.lcntpcd),
     placeName: clean(r.thanm),
@@ -406,7 +435,8 @@ async function fetchRows(keyword) {
   for (const row of rows) row.area = parseAddress(row.address);
 
   // Only ever true for a keyword so broad it passed MAX_ROWS.
-  return { rows, capped: data.length > rows.length };
+  // Compared with the limit, not rows.length — dropped duplicates are not a cap.
+  return { rows, capped: data.length > config.maxRows };
 }
 
 /**
@@ -626,6 +656,7 @@ async function renderFormPdf(data) {
   const context = await createContext(browser);
   try {
     const page = await context.newPage();
+    await lockDown(page);
     // Lay the page out at a full A4 sheet in CSS pixels (210mm x 297mm at
     // 96dpi) under print rules — the sheet carries the template's own
     // 12/20/10mm margins as its own padding (see .sheet, box-sizing:
@@ -693,6 +724,7 @@ async function renderPlanPdf(plan) {
   const context = await createContext(browser);
   try {
     const page = await context.newPage();
+    await lockDown(page);
     await page.setViewport({ width: 1123, height: 794 });
     await page.emulateMediaType('print');
     await page.goto(PLAN_PAGE, {

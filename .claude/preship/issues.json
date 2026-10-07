@@ -1,0 +1,957 @@
+{
+  "generatedAt": "2026-10-06",
+  "branch": "release/council",
+  "scope": "Pre-ship check by 5 read-only agents (design, mobile, states, journey, launch). Duplicates across agents merged; one false positive dropped (rate-limit 429 bodies are already JSON — src/rate-limit.js returns res.json).",
+  "notes": [
+    "Items under the FEATURE_DOCS flag (Drive, Dashboard, PlanDocuments/DocumentList) ship switched off; they are marked docsFlag: true.",
+    "The on-site record page (#/plans/<id>/<code>) has no entry point by design — the app is now used for office preparation only. Items about it are marked recordPage: true."
+  ],
+  "summary": {
+    "high": 11,
+    "med": 37,
+    "low": 44,
+    "total": 92
+  },
+  "issues": [
+    {
+      "id": "J1",
+      "check": "journey",
+      "severity": "high",
+      "file": "web/src/App.jsx",
+      "line": 245,
+      "issue": "newPlan (and deleting the active plan) never resets planStatus, so shops already added stay '✓ อยู่ในแผน' with button/drag/'a' blocked and cannot be filed into the new plan until a new search.",
+      "fix": "setPlanStatus({}) in newPlan and when refreshPlans drops the active plan.",
+      "status": "fixed"
+    },
+    {
+      "id": "M1",
+      "check": "mobile",
+      "severity": "high",
+      "file": "web/public/theme.css",
+      "line": 310,
+      "issue": "Below 899px the step nav is a non-wrapping row of nowrap buttons (~440px for 4 steps) inside a ~323px bar with overflow: visible, so the whole page scrolls sideways on 375px phones.",
+      "fix": "On narrow screens let the nav wrap or scroll in its own overflow-x strip, stack icon above label, drop nowrap.",
+      "status": "fixed"
+    },
+    {
+      "id": "M2",
+      "check": "mobile",
+      "severity": "high",
+      "file": "web/public/theme.css",
+      "line": 311,
+      "issue": "The narrow-screen rules target `.app-sidebar nav a` (lines 311, 319) but Sidebar renders <button>, so the dot hide and ≤420px compaction never apply.",
+      "fix": "Use `.app-sidebar nav :is(a, button)`.",
+      "status": "fixed"
+    },
+    {
+      "id": "M3",
+      "check": "mobile",
+      "severity": "high",
+      "file": "web/public/form.html",
+      "line": 617,
+      "issue": "☐/☑ `.check` toggles have no padding inside the zoomed A4 sheet; at 375px they are ~6–8px tap targets.",
+      "fix": "Enlarge the hit area on coarse pointers with a transparent ::after inset:-12px.",
+      "status": "fixed"
+    },
+    {
+      "id": "M4",
+      "check": "mobile",
+      "severity": "high",
+      "file": "web/public/form.html",
+      "line": 560,
+      "issue": "The 'เลือกรายชื่อ' `.pick` pill sits inside the zoomed sheet and shrinks to ~10px on phones.",
+      "fix": "Counter-scale it or give it min-height 44px on coarse pointers.",
+      "status": "fixed"
+    },
+    {
+      "id": "M5",
+      "check": "mobile",
+      "severity": "high",
+      "file": "web/src/app.css",
+      "line": 522,
+      "issue": "`button.link` actions (ลบ, เอาออก, เปลี่ยนชื่อ, ดาวน์โหลด) are ~24px tall and packed without a gap, so destructive taps are easy to hit by mistake.",
+      "fix": "min-height 44px + padding on coarse pointers and gap between actions.",
+      "status": "fixed"
+    },
+    {
+      "id": "S1",
+      "check": "states",
+      "severity": "high",
+      "file": "web/src/components/RecordForm.jsx",
+      "line": 172,
+      "issue": "After an autosave fails, save='failed' with dirty=true re-arms the 1s timer forever: a 401 re-prompts every second, a 409 re-PUTs every second.",
+      "fix": "Do not auto-schedule when save === 'failed'; retry on next edit or tap.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "S2",
+      "check": "states",
+      "severity": "high",
+      "file": "web/src/components/RecordForm.jsx",
+      "line": 287,
+      "issue": "The error banner always offers 'โหลดของล่าสุด' / 'บันทึกทับ'; after a plain network/export error 'โหลดของล่าสุด' throws away unsaved typing. No role=alert.",
+      "fix": "Show conflict buttons only for StaleRecordError, otherwise 'ลองใหม่'; add role=alert.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "S3",
+      "check": "states+journey",
+      "severity": "high",
+      "file": "web/src/api.js",
+      "line": 12,
+      "issue": "get() parses JSON unguarded and reads only data.message: a proxy/Vercel HTML 502/504 shows an English JSON SyntaxError, and the server's `error` field (401 in header mode) is lost.",
+      "fix": "response.json().catch(() => ({})) and throw data.message || data.error || Thai fallback with HTTP status.",
+      "status": "fixed"
+    },
+    {
+      "id": "J2",
+      "check": "journey",
+      "severity": "high",
+      "file": "web/src/components/RecordForm.jsx",
+      "line": 262,
+      "issue": "'ร้านถัดไป' navigates without flushing and App renders RecordForm without a key, so the last edit can be lost or shop A's draft PUT to shop B.",
+      "fix": "await flush() before navigating; render RecordForm with key={planId+'/'+newCode}.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "J3",
+      "check": "journey",
+      "severity": "high",
+      "file": "web/src/components/PlanTable.jsx",
+      "line": 320,
+      "issue": "Nothing links to the on-site record page #/plans/<id>/<code>; RecordForm, photos, signatures and record exports are reachable only by typing the URL.",
+      "fix": "Decide: re-add a per-row entry, or treat the record page as out of scope for this release (current direction: office-prep only).",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted at the user's request; old #/plans/… links redirect to จัดแผน"
+    },
+    {
+      "id": "J4",
+      "check": "journey",
+      "severity": "med",
+      "file": "web/src/App.jsx",
+      "line": 225,
+      "issue": "ensureActivePlan reads activePlan from the render closure; two quick adds before createPlan resolves create two plans, and server createPlan picks the next letter non-atomically (src/plans.js:136).",
+      "fix": "Keep the in-flight create promise in a ref and await it.",
+      "status": "fixed"
+    },
+    {
+      "id": "J5",
+      "check": "journey",
+      "severity": "med",
+      "file": "web/src/App.jsx",
+      "line": 282,
+      "issue": "When addToPlan returns added: [] (already in plan, FDA detail failed) the card shows '+ ใส่แผน (ลองใหม่)' and drops failed[].message.",
+      "fix": "Show failed[0].message; treat 'already in plan' as added.",
+      "status": "fixed"
+    },
+    {
+      "id": "S4",
+      "check": "states+journey",
+      "severity": "med",
+      "file": "web/src/lib/plans-api.js",
+      "line": 39,
+      "issue": "Every 401 becomes PasscodeError; in AUTH_MODE=header the user gets a pointless passcode prompt and never sees 'กรุณาเข้าสู่ระบบผ่านระบบของสภาฯ'.",
+      "fix": "Mark passcode refusals with code:'PASSCODE' on the server and only prompt for those; otherwise show the server message.",
+      "status": "fixed"
+    },
+    {
+      "id": "J6",
+      "check": "journey",
+      "severity": "med",
+      "file": "web/src/components/PlanView.jsx",
+      "line": 127,
+      "issue": "The date input PATCHes on every change and disables itself while saving; typing a year by keyboard sends partial years (0002) → 400 and loses focus mid-typing.",
+      "fix": "Save only on a complete 4-digit year (or on blur); do not disable while saving.",
+      "status": "fixed"
+    },
+    {
+      "id": "J7",
+      "check": "journey",
+      "severity": "med",
+      "file": "src/plans.js",
+      "line": 299,
+      "issue": "'อัปเดตข้อมูลจาก อย.' rebuilds pharmacists and wipes licence numbers the officer picked or typed by hand.",
+      "fix": "Keep licenceNo/licenceSource for same-name pharmacists when the old source was manual.",
+      "status": "fixed"
+    },
+    {
+      "id": "J8",
+      "check": "journey",
+      "severity": "med",
+      "file": "src/server.js",
+      "line": 248,
+      "issue": "Deleting a plan leaves its records/photos/documents and the letter is reused, so a new plan A inherits old plan A's records, and another device still pointing at A files into the new plan.",
+      "fix": "Delete the plan's records and blobs with it, or never reuse a deleted letter.",
+      "status": "partly fixed — a deleted plan's letter is not reused while its documents remain; the documents themselves are kept"
+    },
+    {
+      "id": "J9",
+      "check": "journey",
+      "severity": "med",
+      "file": "web/src/lib/plans-api.js",
+      "line": 100,
+      "issue": "Object URLs are revoked right after link.click() (also records-api.js:107); Safari/iPadOS can cancel the download.",
+      "fix": "Append the link, click, and revoke after a 10s timeout like form.html.",
+      "status": "fixed"
+    },
+    {
+      "id": "J10",
+      "check": "journey",
+      "severity": "med",
+      "file": "web/src/components/RecordForm.jsx",
+      "line": 278,
+      "issue": "Leaving via '← แผนการตรวจ' or the sidebar unmounts without flushing; the last second of typing/signing is lost.",
+      "fix": "Flush on unmount / before navigating.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "S5",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/components/RecordForm.jsx",
+      "line": 265,
+      "issue": "Load failure shows a bare error with no retry or role=alert; loading text has no role=status.",
+      "fix": "load() function + 'ลองใหม่' button, role=alert / role=status.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "S6",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/components/RecordForm.jsx",
+      "line": 376,
+      "issue": "สร้าง PDF/Word have no busy state; repeated taps start duplicate Chromium renders and burn the render rate limit.",
+      "fix": "Track exporting, disable both buttons, label 'กำลังสร้าง…'.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "S7",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/components/PlanView.jsx",
+      "line": 99,
+      "issue": "Plan Word/PDF export has no busy flag or progress label and can be clicked repeatedly.",
+      "fix": "Wrap exportPlan in busy and show 'กำลังส่งออก…'.",
+      "status": "fixed"
+    },
+    {
+      "id": "S8",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/components/PlanView.jsx",
+      "line": 112,
+      "issue": "While a plan loads (or after it fails) the step says 'เลือกแผน…' as if none were selected; no loading state, no retry, previous plan lingers on switch.",
+      "fix": "Clear on planId change, show loading, show 'ลองใหม่' on failure.",
+      "status": "fixed"
+    },
+    {
+      "id": "S9",
+      "check": "states+journey",
+      "severity": "med",
+      "file": "web/src/lib/plans-api.js",
+      "line": 93,
+      "issue": "downloadExport ignores the error body, so the Thai 409/429/404 message becomes 'ส่งออกไม่สำเร็จ (HTTP n)'.",
+      "fix": "Read JSON body and throw data.message || data.error.",
+      "status": "fixed"
+    },
+    {
+      "id": "S10",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/App.jsx",
+      "line": 158,
+      "issue": "A failed preview is cached; toggling it again re-shows the error and never refetches. Preview error has no role=alert or retry.",
+      "fix": "Refetch when cached status is 'error'; add role=alert + retry.",
+      "status": "fixed"
+    },
+    {
+      "id": "S11",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/components/PhotoGrid.jsx",
+      "line": 38,
+      "issue": "A failed thumbnail fetch leaves 'กำลังโหลด...' forever.",
+      "fix": "Track failure and show 'โหลดรูปไม่สำเร็จ'.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "S12",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/components/DocumentList.jsx",
+      "line": 57,
+      "issue": "A failed document preview fetch leaves 'กำลังโหลด...' forever.",
+      "fix": "Track failure and show 'โหลดไม่สำเร็จ'.",
+      "docsFlag": true,
+      "status": "fixed"
+    },
+    {
+      "id": "S13",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/components/PlanDocuments.jsx",
+      "line": 26,
+      "issue": "Promise.all over records: one failing shop replaces the whole step with an error that has no retry.",
+      "fix": "Promise.allSettled per shop + retry button.",
+      "docsFlag": true,
+      "status": "fixed"
+    },
+    {
+      "id": "S14",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/components/Drive.jsx",
+      "line": 200,
+      "issue": "Folder listing failure disables the toolbar with no retry except reloading the page.",
+      "fix": "Add 'ลองใหม่' calling load().",
+      "docsFlag": true,
+      "status": "fixed"
+    },
+    {
+      "id": "S15",
+      "check": "states",
+      "severity": "med",
+      "file": "web/src/App.jsx",
+      "line": 93,
+      "issue": "If the area list fails to load, province select stays disabled for the session with no retry.",
+      "fix": "Retry button that re-runs fetchAreas().",
+      "status": "fixed"
+    },
+    {
+      "id": "M6",
+      "check": "mobile",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 52,
+      "issue": "`.link-btn` (ดึงข้อมูลใหม่, ล้างตัวกรอง) is ~18px tall.",
+      "fix": "padding + min-height 44px on coarse pointers.",
+      "status": "fixed"
+    },
+    {
+      "id": "M7",
+      "check": "mobile",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 192,
+      "issue": "`.find-licence` pills are ~22px tall and stacked tightly.",
+      "fix": "min-height 36–44px on coarse pointers.",
+      "status": "fixed"
+    },
+    {
+      "id": "M8",
+      "check": "mobile",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 511,
+      "issue": "`.licence-pick` / `.licence-missing` are ~20px tall — important action, tiny target.",
+      "fix": "min-height 44px in the ≤700px card layout.",
+      "status": "fixed"
+    },
+    {
+      "id": "M9",
+      "check": "mobile",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 114,
+      "issue": "Result-card `.ghost` buttons are ~30px; the 40px bump only applies ≤560px so iPad portrait gets the small size.",
+      "fix": "min-height 44px under pointer: coarse.",
+      "status": "fixed"
+    },
+    {
+      "id": "M10",
+      "check": "mobile",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 869,
+      "issue": "`.stats-bar` filters are ~28px and stacked with no gap.",
+      "fix": "min-height 44px on coarse pointers + gap.",
+      "status": "fixed"
+    },
+    {
+      "id": "M11",
+      "check": "mobile",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 668,
+      "issue": "'+ แผนใหม่' in the fixed cart is ~30px (smaller still on phones).",
+      "fix": "min-height 44px for cart button and select on coarse pointers.",
+      "status": "fixed"
+    },
+    {
+      "id": "M12",
+      "check": "mobile",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 743,
+      "issue": "Route drag handle is only 32px wide, hard to grab on a phone.",
+      "fix": "min-width 44px.",
+      "status": "fixed"
+    },
+    {
+      "id": "D1",
+      "check": "design",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 287,
+      "issue": "The page-ground gradient literal is copied in app.css:287, theme.css:116 and index.css:64.",
+      "fix": "Add --ground token in theme.css and reference it in all three.",
+      "status": "fixed"
+    },
+    {
+      "id": "D2",
+      "check": "design",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 556,
+      "issue": "Inputs use var(--background) (grey) in app.css but var(--card) (white) in theme.css, so text fields look different per step (also 473, 583, 761).",
+      "fix": "One input surface token used everywhere.",
+      "status": "fixed"
+    },
+    {
+      "id": "D3",
+      "check": "design",
+      "severity": "med",
+      "file": "web/public/form.html",
+      "line": 569,
+      "issue": "The on-screen `.pick` chip uses font-family 'Inter', which is not loaded and not in the design system (Kanit).",
+      "fix": "Use the theme font (inherit from toolbar).",
+      "status": "fixed"
+    },
+    {
+      "id": "D4",
+      "check": "design",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 472,
+      "issue": "Radii are hard-coded (10px ×13, 1rem ×15, .75rem/12px/.6rem/6px) instead of the --radius scale.",
+      "fix": "Add --radius-control / --radius-card tokens and reference them.",
+      "status": "fixed"
+    },
+    {
+      "id": "D5",
+      "check": "design",
+      "severity": "med",
+      "file": "web/src/components/ResultCard.jsx",
+      "line": 21,
+      "issue": "Status badge uses arbitrary bg-[var(--success-bg)] classes because status tokens are not in @theme.",
+      "fix": "Expose success/danger colours in @theme inline (index.css) and use bg-success etc.",
+      "status": "fixed"
+    },
+    {
+      "id": "D6",
+      "check": "design",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 429,
+      "issue": "Card hover shadow hard-codes the olive brand as rgba(115,115,0,.10).",
+      "fix": "color-mix(in srgb, var(--primary) 10%, transparent) or a --shadow-hover token.",
+      "status": "fixed"
+    },
+    {
+      "id": "D7",
+      "check": "design",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 648,
+      "issue": "Cart/toast shadows hard-code rgba(46,46,0,…) in two places (648, 903).",
+      "fix": "Add a --shadow-float token.",
+      "status": "fixed"
+    },
+    {
+      "id": "D8",
+      "check": "design",
+      "severity": "med",
+      "file": "web/src/app.css",
+      "line": 664,
+      "issue": "Cart select hard-codes #fff and rgba(255,255,255,.16) instead of --primary-foreground.",
+      "fix": "Use var(--primary-foreground) / color-mix.",
+      "status": "fixed"
+    },
+    {
+      "id": "L1",
+      "check": "launch",
+      "severity": "med",
+      "file": "web/src/App.jsx",
+      "line": 449,
+      "issue": "First-screen sub-line explains the mechanism (live FDA data, then filter) instead of what the tool does for officers.",
+      "fix": "One purpose sentence: ค้นหาร้านยาที่ได้รับอนุญาตจาก อย. จัดแผนออกตรวจ และกรอกบันทึกการตรวจได้ในที่เดียว.",
+      "status": "fixed"
+    },
+    {
+      "id": "L2",
+      "check": "launch",
+      "severity": "med",
+      "file": "README.md",
+      "line": 244,
+      "issue": "README says the UI has no router / is one screen; it now has hash routes and a step wizard.",
+      "fix": "Rewrite the Web UI intro.",
+      "status": "fixed"
+    },
+    {
+      "id": "L3",
+      "check": "launch",
+      "severity": "med",
+      "file": "README.md",
+      "line": 281,
+      "issue": "README lines 281–310 describe the old static index.html (and opening it from disk), not the current Vite build.",
+      "fix": "Rewrite or remove that section.",
+      "status": "fixed"
+    },
+    {
+      "id": "J11",
+      "check": "journey",
+      "severity": "low",
+      "file": "web/public/form.html",
+      "line": 2056,
+      "issue": "markInspected only runs with a planId in the handoff, which the search card never passes; nothing in the live journey marks a shop 'done'.",
+      "fix": "Pass planId/newCode when the shop is in the active plan, or remove the dead path.",
+      "status": "fixed"
+    },
+    {
+      "id": "J12",
+      "check": "journey",
+      "severity": "low",
+      "file": "web/src/App.jsx",
+      "line": 217,
+      "issue": "Record page back link #/plans goes to the active cart plan, not the record's own plan.",
+      "fix": "Switch the active plan to planId before redirecting.",
+      "recordPage": true,
+      "status": "removed — record page deleted; #/plans redirects to จัดแผน"
+    },
+    {
+      "id": "J13",
+      "check": "journey",
+      "severity": "low",
+      "file": "web/src/components/PlanView.jsx",
+      "line": 113,
+      "issue": "Empty states say 'เลือกแผนจากแถบด้านบน' (also PlanRoute.jsx:176) but the plan cart is bottom-right.",
+      "fix": "Say 'แถบมุมขวาล่าง'.",
+      "status": "fixed"
+    },
+    {
+      "id": "J14",
+      "check": "journey+states",
+      "severity": "low",
+      "file": "web/src/components/RecordForm.jsx",
+      "line": 59,
+      "issue": "getPlan and getRecord each have their own withPasscode in Promise.all → two passcode prompts on a fresh tab.",
+      "fix": "One withPasscode around Promise.all.",
+      "recordPage": true,
+      "status": "fixed — shared withPasscode now asks once for parallel 401s"
+    },
+    {
+      "id": "J15",
+      "check": "journey+states",
+      "severity": "low",
+      "file": "web/src/components/PhotoGrid.jsx",
+      "line": 94,
+      "issue": "Photo (and DocumentList) API calls skip withPasscode; a 401 shows an error with no prompt.",
+      "fix": "Wrap calls in withPasscode.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "J16",
+      "check": "journey",
+      "severity": "low",
+      "file": "web/src/App.jsx",
+      "line": 316,
+      "issue": "กรอกฟอร์ม handoff uses one shared localStorage key; two quick taps give the first tab the second shop and the second tab nothing.",
+      "fix": "Unique key per handoff passed in the form URL.",
+      "status": "fixed"
+    },
+    {
+      "id": "S16",
+      "check": "states",
+      "severity": "low",
+      "file": "web/src/components/PhotoGrid.jsx",
+      "line": 130,
+      "issue": "File input not disabled during upload (also DocumentList.jsx:134); a second pick runs a parallel loop.",
+      "fix": "disabled={busy} on both inputs.",
+      "status": "fixed"
+    },
+    {
+      "id": "S17",
+      "check": "states",
+      "severity": "low",
+      "file": "web/src/components/PhotoGrid.jsx",
+      "line": 134,
+      "issue": "Upload errors have no role=alert (also DocumentList.jsx:138).",
+      "fix": "Add role=alert.",
+      "status": "fixed"
+    },
+    {
+      "id": "S18",
+      "check": "states",
+      "severity": "low",
+      "file": "web/src/components/Dashboard.jsx",
+      "line": 101,
+      "issue": "Stats load failure has no retry.",
+      "fix": "Add 'ลองใหม่'.",
+      "docsFlag": true,
+      "status": "fixed"
+    },
+    {
+      "id": "S19",
+      "check": "states",
+      "severity": "low",
+      "file": "web/src/components/PlanRoute.jsx",
+      "line": 178,
+      "issue": "Map step load failure has no retry.",
+      "fix": "load() + 'ลองใหม่'.",
+      "status": "fixed"
+    },
+    {
+      "id": "S20",
+      "check": "states",
+      "severity": "low",
+      "file": "web/public/form.html",
+      "line": 819,
+      "issue": "#status (the only progress/error channel for downloads) has no aria-live.",
+      "fix": "role=status aria-live=polite.",
+      "status": "fixed"
+    },
+    {
+      "id": "S21",
+      "check": "states",
+      "severity": "low",
+      "file": "web/public/form.html",
+      "line": 1950,
+      "issue": "Print handler's bare catch hides the reason (429, popup blocked, server down).",
+      "fix": "Include err.message in the status text.",
+      "status": "fixed"
+    },
+    {
+      "id": "S22",
+      "check": "states",
+      "severity": "low",
+      "file": "web/public/pharmacist-search.js",
+      "line": 163,
+      "issue": "Results/error output has no aria-live.",
+      "fix": "aria-live=polite on output, role=alert on errors.",
+      "status": "fixed"
+    },
+    {
+      "id": "M13",
+      "check": "mobile",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 806,
+      "issue": "Drive file/folder targets are 32px.",
+      "fix": "min-height 44px on coarse pointers.",
+      "docsFlag": true,
+      "status": "fixed"
+    },
+    {
+      "id": "M14",
+      "check": "mobile",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 680,
+      "issue": "Sidebar nav buttons are ~38px tall.",
+      "fix": "min-height 44px under 899px / coarse pointers.",
+      "status": "fixed"
+    },
+    {
+      "id": "M15",
+      "check": "mobile",
+      "severity": "low",
+      "file": "web/public/theme.css",
+      "line": 442,
+      "issue": "Pharmacist-search copy/source pills ~22px; submit/clear ~32px.",
+      "fix": "Raise to 36–44px on coarse pointers.",
+      "status": "fixed"
+    },
+    {
+      "id": "M16",
+      "check": "mobile",
+      "severity": "low",
+      "file": "web/public/theme.css",
+      "line": 197,
+      "issue": "`.btn-icon` fixed at 38×38px.",
+      "fix": "44×44px.",
+      "status": "fixed"
+    },
+    {
+      "id": "M17",
+      "check": "mobile",
+      "severity": "low",
+      "file": "web/public/form.html",
+      "line": 598,
+      "issue": "Officer-picker rows are ~28px tall.",
+      "fix": "padding 10px 0; min-height 44px.",
+      "status": "fixed"
+    },
+    {
+      "id": "M18",
+      "check": "mobile",
+      "severity": "low",
+      "file": "web/public/form.html",
+      "line": 86,
+      "issue": "Form toolbar buttons ~38px tall.",
+      "fix": "min-height 44px.",
+      "status": "fixed"
+    },
+    {
+      "id": "M19",
+      "check": "mobile",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 584,
+      "issue": "'แนบท้าย PDF' checkbox row is tiny and sits right above ลบรูป.",
+      "fix": "min-height 44px, larger checkbox.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "M20",
+      "check": "mobile",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 864,
+      "issue": "`.stats` minmax(260px, 1fr) overflows at 320px viewports.",
+      "fix": "minmax(min(260px, 100%), 1fr).",
+      "status": "fixed"
+    },
+    {
+      "id": "M21",
+      "check": "mobile",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 704,
+      "issue": "`.form-frame` min-height 560px is taller than a landscape phone; nested scroll and the cart covers its bottom.",
+      "fix": "min-height: min(560px, 80dvh).",
+      "status": "fixed"
+    },
+    {
+      "id": "D9",
+      "check": "design",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 667,
+      "issue": "Cart option colour #111827 repeats --foreground.",
+      "fix": "var(--foreground).",
+      "status": "fixed"
+    },
+    {
+      "id": "D10",
+      "check": "design",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 657,
+      "issue": "Cart count and .planbar-new (669) use #fff.",
+      "fix": "var(--primary-foreground).",
+      "status": "fixed"
+    },
+    {
+      "id": "D11",
+      "check": "design",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 912,
+      "issue": "Toast hard-codes #fff and its own shadow.",
+      "fix": "--primary-foreground + shared shadow token.",
+      "status": "fixed"
+    },
+    {
+      "id": "D12",
+      "check": "design",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 705,
+      "issue": "form-frame, route-map (720), signature canvas (622) and kbd (895) use background #fff.",
+      "fix": "var(--card).",
+      "status": "fixed"
+    },
+    {
+      "id": "D13",
+      "check": "design",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 82,
+      "issue": "min(1.5rem, 24px) repeated 3× (82, 310, 364).",
+      "fix": "--radius-panel token.",
+      "status": "fixed"
+    },
+    {
+      "id": "D14",
+      "check": "design",
+      "severity": "low",
+      "file": "web/src/app.css",
+      "line": 839,
+      "issue": "Dashboard series use raw --olive-700/400 instead of --chart-* tokens.",
+      "fix": "Point at --chart-1 and a second chart token.",
+      "docsFlag": true,
+      "status": "fixed"
+    },
+    {
+      "id": "D15",
+      "check": "design",
+      "severity": "low",
+      "file": "web/public/theme.css",
+      "line": 344,
+      "issue": "Scrollbar colours hard-coded hex (344–345).",
+      "fix": "color-mix of --muted-foreground.",
+      "status": "fixed"
+    },
+    {
+      "id": "D16",
+      "check": "design",
+      "severity": "low",
+      "file": "web/public/theme.css",
+      "line": 144,
+      "issue": "`.radial-bg` hard-codes #ffffff / #f5f5f5.",
+      "fix": "var(--card) / var(--background).",
+      "status": "fixed"
+    },
+    {
+      "id": "D17",
+      "check": "design",
+      "severity": "low",
+      "file": "web/public/form.html",
+      "line": 400,
+      "issue": "Overflow warning red #b00020 (also 1441) is off-palette.",
+      "fix": "Use --danger-fg on screen.",
+      "status": "fixed"
+    },
+    {
+      "id": "D18",
+      "check": "design",
+      "severity": "low",
+      "file": "web/public/form.html",
+      "line": 579,
+      "issue": "Chip shadow and dialog backdrop (596) are untokenised.",
+      "fix": "Shared shadow token + --overlay.",
+      "status": "fixed"
+    },
+    {
+      "id": "D19",
+      "check": "design",
+      "severity": "low",
+      "file": "web/src/components/Preview.jsx",
+      "line": 179,
+      "issue": "Inline style marginTop 10px on CopyButton.",
+      "fix": "Class in app.css.",
+      "status": "fixed"
+    },
+    {
+      "id": "D20",
+      "check": "design",
+      "severity": "low",
+      "file": "web/src/components/Skeleton.jsx",
+      "line": 29,
+      "issue": "Inline skeleton widths (29–31).",
+      "fix": "Modifier classes in app.css.",
+      "status": "fixed"
+    },
+    {
+      "id": "D21",
+      "check": "design",
+      "severity": "low",
+      "file": "web/src/components/SignaturePad.jsx",
+      "line": 51,
+      "issue": "Ink '#111' does not match --foreground.",
+      "fix": "Keep pure black for print with a comment, or read the token.",
+      "recordPage": true,
+      "status": "removed — on-site record page deleted"
+    },
+    {
+      "id": "L4",
+      "check": "launch",
+      "severity": "low",
+      "file": "README.md",
+      "line": 1,
+      "issue": "README is titled 'FDA License Scraper API' and opens as a scraper backend.",
+      "fix": "Lead with the product: ตรวจร้านยา — สภาเภสัชกรรม.",
+      "status": "fixed"
+    },
+    {
+      "id": "L5",
+      "check": "launch",
+      "severity": "low",
+      "file": "README.md",
+      "line": 70,
+      "issue": "Env table lacks FEATURE_DOCS, AUTH_MODE, AUTH_USER_HEADER, AUTH_PROXY_SECRET, TRUST_PROXY.",
+      "fix": "Add rows or link to deploy/council/README.md.",
+      "status": "fixed"
+    },
+    {
+      "id": "L6",
+      "check": "launch",
+      "severity": "low",
+      "file": ".env.example",
+      "line": 1,
+      "issue": "Root .env.example lacks the new settings.",
+      "fix": "Add them commented with defaults.",
+      "status": "fixed"
+    },
+    {
+      "id": "L7",
+      "check": "launch",
+      "severity": "low",
+      "file": "web/index.html",
+      "line": 5,
+      "issue": "No meta description or theme-color.",
+      "fix": "Add Thai description and theme-color #737300.",
+      "status": "fixed"
+    },
+    {
+      "id": "L8",
+      "check": "launch",
+      "severity": "low",
+      "file": "web/index.html",
+      "line": 7,
+      "issue": "Icon link has no type and there is no apple-touch-icon (app is used on iPad).",
+      "fix": "Add apple-touch-icon and type=image/png.",
+      "status": "fixed"
+    },
+    {
+      "id": "L9",
+      "check": "launch",
+      "severity": "low",
+      "file": "web/index.html",
+      "line": 6,
+      "issue": "Title covers only the search step and differs from the brand 'ตรวจร้านยา / สภาเภสัชกรรม'.",
+      "fix": "Title: ตรวจร้านยา — สภาเภสัชกรรม.",
+      "status": "fixed"
+    },
+    {
+      "id": "L10",
+      "check": "launch",
+      "severity": "low",
+      "file": "web/public/plan-print.html",
+      "line": 5,
+      "issue": "Print page title is generic and has no favicon.",
+      "fix": "Title 'แผนการตรวจ — ตรวจร้านยา' + icon link.",
+      "status": "fixed"
+    },
+    {
+      "id": "L11",
+      "check": "launch",
+      "severity": "low",
+      "file": "package.json",
+      "line": 2,
+      "issue": "Description still says 'Backend API for scraping FDA … license search'.",
+      "fix": "Describe the product; keep the name for deploy continuity.",
+      "status": "fixed"
+    },
+    {
+      "id": "L12",
+      "check": "launch",
+      "severity": "low",
+      "file": "web/package.json",
+      "line": 2,
+      "issue": "Web package named fda-license-scraper-web (old product name).",
+      "fix": "Rename (private package, safe).",
+      "status": "fixed"
+    }
+  ],
+  "appliedAt": "2026-10-06"
+}

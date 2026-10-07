@@ -9,7 +9,15 @@ const STEPS = [
   { n: 5, icon: 'folder', label: 'เอกสาร' },
 ];
 
-export default function Sidebar({ step, onStep }) {
+// Pages outside the plan steps, each its own hash.
+const PAGES = [
+  { hash: '#/dashboard', icon: 'monitoring', label: 'ภาพรวม' },
+  { hash: '#/drive', icon: 'cloud', label: 'ไดรฟ์' },
+];
+
+export default function Sidebar({ step, onStep, page = '', docsOn = false }) {
+  // เอกสาร and the ข้อมูล pages are held back until FEATURE_DOCS is on.
+  const steps = docsOn ? STEPS : STEPS.filter((s) => s.n !== 5);
   return (
     <aside className="app-sidebar glass-panel-primary">
       <div className="brand">
@@ -24,7 +32,7 @@ export default function Sidebar({ step, onStep }) {
       <hr />
       <span className="group-label">ขั้นตอน</span>
       <nav>
-        {STEPS.map((s) => (
+        {steps.map((s) => (
           <button
             key={s.n}
             type="button"
@@ -37,6 +45,25 @@ export default function Sidebar({ step, onStep }) {
           </button>
         ))}
       </nav>
+      {docsOn && (<>
+      <hr />
+      {/* Not plan steps, so they sit in their own group. */}
+      <span className="group-label">ข้อมูล</span>
+      <nav>
+        {PAGES.map((p) => (
+          <button
+            key={p.hash}
+            type="button"
+            aria-current={page === p.hash ? 'page' : undefined}
+            onClick={() => { window.location.hash = p.hash; }}
+          >
+            <span className="material-symbols-outlined sm" aria-hidden="true">{p.icon}</span>
+            {p.label}
+            <span className="dot" />
+          </button>
+        ))}
+      </nav>
+      </>)}
       <hr />
       {/* Carries its own heading, so no group-label here.
           Defined in web/public/pharmacist-search.js — the same element the

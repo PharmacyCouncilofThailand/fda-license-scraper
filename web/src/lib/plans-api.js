@@ -27,6 +27,40 @@ export class PasscodeError extends Error {
   }
 }
 
+/**
+ * A 401 means one of two things. With the office passcode it is a prompt and
+ * a retry; behind the Council's sign-in gateway (AUTH_MODE=header) there is no
+ * passcode to type, so the server's own sentence is shown instead.
+ */
+export async function refuseIfUnauthorized(response) {
+  if (response.status !== 401) return;
+  const data = await response.clone().json().catch(() => ({}));
+  if (data.code === 'SIGN_IN') {
+    throw new Error(data.error || 'กรุณาเข้าสู่ระบบผ่านระบบของสภาเภสัชกรรมก่อน');
+  }
+  clearPasscode();
+  throw new PasscodeError();
+}
+
+/** The server's Thai message from a failed response, whichever key carries it. */
+export async function failure(response, fallback = 'ระบบตอบกลับผิดปกติ') {
+  const data = await response.json().catch(() => ({}));
+  return new Error(data.error || data.message || `${fallback} (HTTP ${response.status})`);
+}
+
+/* Revoking the object URL straight after click() can cancel the download in
+   Safari/iPadOS, so the link is put in the page and the URL kept 10 s. */
+export function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 async function call(path, { method = 'GET', body } = {}) {
   const response = await fetch(`${apiBase}/api/plans${path}`, {
     method,
@@ -36,10 +70,7 @@ async function call(path, { method = 'GET', body } = {}) {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (response.status === 401) {
-    clearPasscode();
-    throw new PasscodeError();
-  }
+  await refuseIfUnauthorized(response);
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.success === false) {
     throw new Error(data.error || data.message || `ระบบตอบกลับผิดปกติ (HTTP ${response.status})`);
@@ -71,8 +102,8 @@ export const syncPlanItem = (id, newCode) =>
     (d) => d.plan
   );
 
-/** The one place the passcode becomes a header. The record client needs the
-    same one, and two readers of the same sessionStorage key would drift. */
+/** The one place the passcode becomes a header. The documents, drive and
+    stats clients need the same one, and two readers of one key would drift. */
 export function passcodeHeaders(extra = {}) {
   const code = sessionStorage.getItem(PASSCODE_KEY) || '';
   return { ...extra, ...(code ? { 'x-plans-passcode': code } : {}) };
@@ -86,27 +117,26 @@ export async function downloadExport(id, kind) {
     method: 'POST',
     headers: passcode() ? { 'x-plans-passcode': passcode() } : {},
   });
-  if (response.status === 401) {
-    clearPasscode();
-    throw new PasscodeError();
-  }
-  if (!response.ok) throw new Error(`ส่งออกไม่สำเร็จ (HTTP ${response.status})`);
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `plan-${id}.${kind}`;
-  link.click();
-  URL.revokeObjectURL(url);
+  await refuseIfUnauthorized(response);
+  if (!response.ok) throw await failure(response, 'ส่งออกไม่สำเร็จ');
+  saveBlob(await response.blob(), `plan-${id}.${kind}`);
 }
 
-/** Run a plans call; on 401 ask for the office passcode once and retry. */
+// Several calls can hit the 401 together (a page loading a plan and its
+// records at once); they share one prompt instead of asking twice.
+let asking = null;
+
+/** Run a passcode-guarded call; on 401 ask for the office passcode once and retry. */
 export async function withPasscode(action) {
   try {
     return await action();
   } catch (err) {
     if (!(err instanceof PasscodeError)) throw err;
-    const entered = window.prompt('ใส่รหัสผ่านของสำนักงาน');
+    if (!asking) {
+      asking = Promise.resolve().then(() => window.prompt('ใส่รหัสผ่านของสำนักงาน'));
+      asking.finally(() => setTimeout(() => { asking = null; }, 0));
+    }
+    const entered = await asking;
     if (!entered) throw err;
     setPasscode(entered);
     return action();

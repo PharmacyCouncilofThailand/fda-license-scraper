@@ -26,9 +26,9 @@ export function SkeletonList({ count = 3 }) {
 export function SkeletonPreview() {
   return (
     <div className="preview" aria-hidden="true">
-      <span className="skeleton line" style={{ width: '60%' }} />
-      <span className="skeleton line" style={{ width: '45%' }} />
-      <span className="skeleton line" style={{ width: '70%' }} />
+      <span className="skeleton line w60" />
+      <span className="skeleton line w45" />
+      <span className="skeleton line w70" />
       <span className="skeleton block" />
     </div>
   );

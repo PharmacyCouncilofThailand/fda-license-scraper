@@ -18,8 +18,8 @@ function StatusBadge({ status }) {
       className={cn(
         'border-transparent',
         active
-          ? 'bg-[var(--success-bg)] text-[var(--success-fg)]'
-          : 'bg-[var(--danger-bg)] text-[var(--danger-fg)]'
+          ? 'bg-success text-success-foreground'
+          : 'bg-danger text-danger-foreground'
       )}
     >
       {status || '-'}
@@ -48,6 +48,7 @@ export default function ResultCard({
   return (
     <li
       className={`glass-panel${selected ? ' selected' : ''}`}
+      data-code={row.newCode}
       // Clicking anywhere on the card picks it — except on the controls,
       // which have their own jobs.
       onClick={(event) => {
@@ -55,8 +56,17 @@ export default function ResultCard({
         onSelect();
       }}
     >
-      {/* Radio and name share one hit target so tapping the name selects. */}
-      <label className="card-head">
+      {/* Radio and name share one hit target so tapping the name selects.
+          Dragging it onto the plan cart files the shop, same as "+ ใส่แผน";
+          only the head drags, so the address and preview stay selectable. */}
+      <label
+        className="card-head"
+        draggable={Boolean(row.newCode) && planStatus !== 'added'}
+        onDragStart={(event) => {
+          event.dataTransfer.setData('text/x-fda-code', row.newCode);
+          event.dataTransfer.effectAllowed = 'copy';
+        }}
+      >
         <input type="radio" name="pick" checked={selected} onChange={onSelect} />
         <span className="name">{row.placeName || '(ไม่ระบุชื่อสถานที่)'}</span>
       </label>
@@ -100,7 +110,7 @@ export default function ResultCard({
 
       {previewState?.open && (
         <div className="preview-reveal">
-          <Preview row={row} state={previewState} />
+          <Preview row={row} state={previewState} onRetry={onTogglePreview} />
         </div>
       )}
     </li>

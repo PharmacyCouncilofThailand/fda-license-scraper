@@ -15,6 +15,8 @@ export default function PlanDocuments({ planId }) {
   const [records, setRecords] = useState({});
   const [error, setError] = useState('');
 
+  // Bumped by "ลองใหม่" to run the load again.
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!planId) { setPlan(null); return undefined; }
     let live = true;
@@ -23,9 +25,15 @@ export default function PlanDocuments({ planId }) {
     (async () => {
       try {
         const next = await withPasscode(() => getPlan(planId));
-        const pairs = await Promise.all(
-          next.items.map(async (item) => [item.newCode, await getRecord(planId, item.newCode)])
+        const settled = await Promise.allSettled(
+          next.items.map((item) => withPasscode(() => getRecord(planId, item.newCode)))
         );
+        // A shop whose record would not load still shows, with no documents
+        // listed; uploading to it works once the record answers again.
+        const pairs = next.items.map((item, i) => [
+          item.newCode,
+          settled[i].status === 'fulfilled' ? settled[i].value : { documents: [], failed: true },
+        ]);
         if (!live) return;
         setRecords(Object.fromEntries(pairs));
         setPlan(next);
@@ -34,10 +42,19 @@ export default function PlanDocuments({ planId }) {
       }
     })();
     return () => { live = false; };
-  }, [planId]);
+  }, [planId, attempt]);
 
-  if (!planId) return <div className="empty">เลือกแผนจากแถบด้านล่างก่อน</div>;
-  if (error) return <div className="error" role="alert" aria-live="polite">{error}</div>;
+  if (!planId) return <div className="empty">เลือกแผนจากแถบมุมขวาล่างก่อน</div>;
+  if (error) {
+    return (
+      <div className="error" role="alert" aria-live="polite">
+        {error}{' '}
+        <button type="button" className="link-btn" onClick={() => setAttempt((n) => n + 1)}>
+          ลองใหม่
+        </button>
+      </div>
+    );
+  }
   if (!plan) return <div className="empty" role="status" aria-live="polite">กำลังโหลด…</div>;
   if (!plan.items.length) return <div className="empty">ยังไม่มีร้านในแผนนี้</div>;
 

@@ -1,6 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { deleteDocument, documentObjectUrl, patchDocument, uploadDocument } from '../lib/records-api.js';
-import { downscale } from './PhotoGrid.jsx';
+
+/** A photo of paper, shrunk in the browser so the upload fits under 4 MB. */
+async function downscale(file, maxEdge, quality) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+  // toBlob resolves null rather than rejecting when it cannot encode (a
+  // zero-size canvas, an exhausted memory budget) — an ordinary upload failure.
+  if (!blob) throw new Error('แปลงรูปไม่สำเร็จ');
+  return blob;
+}
 
 /* One shop's signed paper forms, scanned or photographed after the visit.
    Evidence only — never printed into the generated PDF. Photos of paper stay
@@ -32,6 +47,9 @@ function DocName({ planId, newCode, doc, index, onRecord, onError }) {
     <input
       type="text"
       placeholder={`เอกสารที่ ${index + 1}`}
+      // A long name scrolls inside the box; hovering shows it whole.
+      title={text}
+      aria-label={`ชื่อเอกสารที่ ${index + 1}`}
       value={text}
       onChange={(event) => change(event.target.value)}
     />
@@ -40,6 +58,7 @@ function DocName({ planId, newCode, doc, index, onRecord, onError }) {
 
 function DocPreview({ planId, newCode, doc }) {
   const [url, setUrl] = useState('');
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (doc.type !== 'image/jpeg') return undefined;
     let revoked = false;
@@ -51,14 +70,24 @@ function DocPreview({ planId, newCode, doc }) {
         setUrl(objectUrl);
         return undefined;
       })
-      .catch(() => setUrl(''));
+      .catch(() => setFailed(true));
     return () => {
       revoked = true;
       if (made) URL.revokeObjectURL(made);
     };
   }, [planId, newCode, doc.id, doc.type]);
-  if (doc.type === 'application/pdf') return <div className="doc-pdf">PDF</div>;
-  return url ? <img src={url} alt="" /> : <div className="photo-loading">กำลังโหลด...</div>;
+  if (doc.type === 'application/pdf') {
+    // ponytail: an icon, not a rendered first page — that needs pdf.js (~1 MB)
+    // for a tile; add it if officers find PDFs hard to tell apart.
+    return (
+      <div className="doc-pdf">
+        <span className="material-symbols-outlined" aria-hidden="true">picture_as_pdf</span>
+        <small>PDF · แตะเพื่อเปิด</small>
+      </div>
+    );
+  }
+  if (url) return <img src={url} alt="" />;
+  return <div className="photo-loading">{failed ? 'โหลดไม่สำเร็จ — แตะเพื่อเปิด' : 'กำลังโหลด...'}</div>;
 }
 
 export default function DocumentList({ planId, newCode, record, onRecord }) {
@@ -119,11 +148,11 @@ export default function DocumentList({ planId, newCode, record, onRecord }) {
   return (
     <div className="doc-shop">
       <label className="photo-add">
-        <input type="file" accept="image/*,application/pdf" multiple onChange={add} />
+        <input type="file" accept="image/*,application/pdf" multiple disabled={busy} onChange={add} />
         <span>{busy ? 'กำลังอัปโหลด...' : '+ ถ่าย / สแกน / เลือกไฟล์ (รูป หรือ PDF)'}</span>
       </label>
 
-      {error && <div className="error">{error}</div>}
+      {error && <div className="error" role="alert">{error}</div>}
 
       <div className="photo-list">
         {documents.map((doc, index) => (
