@@ -386,6 +386,16 @@
         -webkit-appearance: none;
         appearance: none;
       }
+      /* An <input> clips its text to its own line-height, which cuts a stacked
+         upper mark — the ์ over ิ in "ศักดิ์" came out missing, on screen and
+         in the PDF. A taller line inside the box, given back by the margins on
+         both sides, so the text and the line around it stay where they were. */
+      input.blank {
+        --mark-room: 6px; /* in em, Chromium rounds the line 0.6px taller */
+        line-height: calc(1lh + 2 * var(--mark-room));
+        margin-top: calc(-1 * var(--mark-room));
+        margin-bottom: calc(-1 * var(--rule-width) - var(--mark-room));
+      }
       .blank.filled { background-color: var(--fill); }
       /* Values pulled from อย. are set in bold, so the officer can tell them
          apart from what was written in by hand at the shop. */
@@ -900,7 +910,6 @@
 
       <p class="para sm ind-992"><!-- 26 -->(8) ขณะตรวจสอบ <button type="button" class="check" data-name="curtainNotFound" aria-pressed="false">ไม่พบ การปิดม่านบังยาอันตราย</button> <button type="button" class="check" data-name="curtainFound" aria-pressed="false">พบ การปิดม่านบังยาอันตราย</button> <textarea class="blank" name="curtainNote" data-tabs="15" rows="1"></textarea></p>
 
-      <p class="para sm blank-line ind-left2268"><!-- 27 --></p>
       <p class="para sm left ind-left2268"><!-- 28 -->ลงชื่อ <span class="rule blank" data-sign="page1"></span> เภสัชกร / ผู้รับอนุญาต / ผู้แทนผู้รับอนุญาต</p>
       <p class="para sm left ind-left2268"><!-- 29 -->( <input class="blank w-l" name="signPage1Name" /> )</p>
     </div>
