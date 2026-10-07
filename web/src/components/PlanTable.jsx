@@ -78,7 +78,7 @@ export default function PlanTable({
 }) {
   if (plan.items.length === 0) {
     return (
-      <div className="empty">
+      <div className="empty plan-empty">
         ยังไม่มีร้านในแผนนี้ — เลือกร้านจากหน้าค้นหาแล้วกด &quot;ใส่ในแผน&quot;
       </div>
     );
