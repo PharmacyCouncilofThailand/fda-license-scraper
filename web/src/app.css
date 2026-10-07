@@ -78,6 +78,26 @@ select:disabled { opacity: 0.55; }
 }
 
 ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+/* Two columns of shops once there is room for two cards side by side. */
+.result-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr)); }
+
+/* Before the first search: the four steps of the job. */
+.search-intro {
+  list-style: none; margin: 8px 0 0; padding: 0;
+  display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.search-intro li { display: grid; gap: 6px; padding: 20px; cursor: default; }
+.search-intro .material-symbols-outlined {
+  display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 4px;
+  border-radius: 12px; background: var(--olive-100); color: var(--olive-700);
+}
+.search-intro b { font-weight: 600; }
+.search-intro span:last-child { color: var(--muted-foreground); font-size: 14px; line-height: 1.5; }
+/* On a phone the four stack, so each becomes a short row: icon beside text. */
+@media (max-width: 560px) {
+  .search-intro li { grid-template-columns: 44px 1fr; column-gap: 12px; row-gap: 2px; padding: 14px 16px; }
+  .search-intro .material-symbols-outlined { grid-row: span 2; margin-bottom: 0; }
+}
 li {
   border-radius: var(--radius-panel);
   padding: 16px 18px;
@@ -643,7 +663,7 @@ button.link.danger { color: var(--danger-fg); }
 /* The form step embeds the original record sheet (form.html), wider than the
    other steps so its toolbar sits on one row, and tall enough to reach down to
    the plan cart: 24px above the frame, 96px kept clear for the cart below. */
-.wrap-form { max-width: 1240px; }
+.wrap-wide { max-width: 1240px; }
 .form-frame {
   display: block; width: 100%; height: calc(100dvh - 120px); min-height: min(560px, 80dvh);
   border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--card);

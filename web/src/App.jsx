@@ -23,6 +23,14 @@ const HANDOFF_KEY = 'fda:form:pending';
 const ACTIVE_PLAN_KEY = 'fda:plan:active';
 // Wizard steps 1–5 by hash. Search is plain '#/' so old links still land there.
 const STEP_HASHES = ['#/', '#/plan', '#/map', '#/form', '#/docs'];
+// What the search page shows before the first search: the four steps of the
+// job, so the empty page says how to start rather than nothing.
+const INTRO_STEPS = [
+  { n: 1, icon: 'search', title: 'ค้นหา', text: 'พิมพ์ชื่อร้าน หรือเลือกจังหวัด อำเภอ ตำบล แล้วกดค้นหา' },
+  { n: 2, icon: 'checklist', title: 'จัดแผน', text: 'กด “+ ใส่แผน” หรือลากการ์ดไปวางที่แผนมุมขวาล่าง' },
+  { n: 3, icon: 'map', title: 'แผนที่', text: 'ดูเส้นทางของร้านในแผน แล้วเปิดนำทางใน Google Maps' },
+  { n: 4, icon: 'description', title: 'ฟอร์ม', text: 'กรอกบันทึกการตรวจ แล้วดาวน์โหลด PDF ไปพิมพ์' },
+];
 
 export default function App() {
   const [areas, setAreas] = useState({});
@@ -429,7 +437,7 @@ export default function App() {
     <>
       <Sidebar step={step} onStep={setStep} docsOn={docsOn} />
       <main className="app-main">
-        <div className={step === 4 ? 'wrap wrap-form' : 'wrap'}>
+        <div className={step === 1 || step === 4 ? 'wrap wrap-wide' : 'wrap'}>
           <PlanBar
             activePlan={activePlan}
             plans={plans}
@@ -497,7 +505,19 @@ export default function App() {
                 </>
               )}
 
-              <ul>
+              {!busy && !data && (
+                <ol className="search-intro" aria-label="ขั้นตอนการใช้งาน">
+                  {INTRO_STEPS.map((s) => (
+                    <li key={s.n} className="glass-panel">
+                      <span className="material-symbols-outlined" aria-hidden="true">{s.icon}</span>
+                      <b>{s.n}. {s.title}</b>
+                      <span>{s.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              <ul className="result-grid">
                 {visible.map((row) => (
                   <ResultCard
                     key={row.newCode || row.licenseNo}
