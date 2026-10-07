@@ -429,7 +429,7 @@ export default function App() {
     <>
       <Sidebar step={step} onStep={setStep} docsOn={docsOn} />
       <main className="app-main">
-        <div className="wrap">
+        <div className={step === 4 ? 'wrap wrap-form' : 'wrap'}>
           <PlanBar
             activePlan={activePlan}
             plans={plans}
