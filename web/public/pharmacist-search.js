@@ -15,6 +15,9 @@
   // proxy in development; the fallback is only for opening the file off disk.
   const BASE = location.protocol.startsWith('http') ? '' : 'http://localhost:3000';
 
+  // The API only reports `sourceUrl` on success; a failed search still needs it.
+  const COUNCIL_URL = 'https://www.pharmacycouncil.org/index.php?option=com_pharmacist_list';
+
   const GROUP_LABELS = {
     both: 'ตรงทั้งชื่อและนามสกุล',
     firstName: 'ตรงเฉพาะชื่อ',
@@ -228,13 +231,30 @@
           throw new Error(`เซิร์ฟเวอร์ตอบกลับผิดปกติ (HTTP ${response.status})`);
         }
         if (!response.ok || !data.success) {
-          throw new Error(data.message || 'ค้นหาไม่สำเร็จ');
+          throw Object.assign(new Error(data.message || 'ค้นหาไม่สำเร็จ'), { code: data.code });
         }
         this.sourceUrl = data.sourceUrl;
         this.show(data);
       } catch (err) {
         if (err.name === 'AbortError') return;
         this.say(err.message, 'ps-error');
+        /*
+         * The council's Cloudflare turns away datacenter addresses, so a hosted
+         * server gets 403 where the inspector's own browser does not. Hand the
+         * same search to the browser: it lands on the council's page, not ours.
+         */
+        if (err.code === 'UPSTREAM_ERROR') {
+          const fallback = el('button', 'ps-source', 'ค้นที่เว็บสภาเภสัชกรรม');
+          fallback.type = 'button';
+          fallback.addEventListener('click', () =>
+            this.postToCouncil({
+              txtfind_type: '5',
+              txtfind_name: firstName,
+              txtfind_surname: lastName,
+            })
+          );
+          this.output.append(fallback);
+        }
       } finally {
         // Only the search still current may clear the busy state: a superseded
         // one finishes after its replacement started, and would otherwise
@@ -251,15 +271,16 @@
      * contact address and the photo, which the name search does not return.
      */
     openSource(licenseNo) {
+      this.postToCouncil({ txtfind_type: '1', txtfind_id: licenseNo });
+    }
+
+    postToCouncil(fields) {
       const form = el('form');
       form.method = 'post';
-      form.action = this.sourceUrl;
+      form.action = this.sourceUrl || COUNCIL_URL;
       form.target = '_blank';
       form.hidden = true;
-      for (const [name, value] of [
-        ['txtfind_type', '1'],
-        ['txtfind_id', licenseNo],
-      ]) {
+      for (const [name, value] of Object.entries(fields)) {
         const field = document.createElement('input');
         field.type = 'hidden';
         field.name = name;
